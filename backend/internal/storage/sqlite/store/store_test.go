@@ -45,6 +45,72 @@ func sampleRecord(project string) domain.SessionRecord {
 	}
 }
 
+// TestCompanyCreateListAssignUnassign covers the store-layer round trip for
+// Company grouping: create, list, assign a project to a company, then
+// unassign it (companyID == "" clears the FK column).
+func TestCompanyCreateListAssignUnassign(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	seedProject(t, s, "mer")
+
+	now := time.Now().UTC().Truncate(time.Second)
+	if err := s.InsertCompany(ctx, domain.CompanyRecord{ID: "acme", Name: "Acme Corp", CreatedAt: now}); err != nil {
+		t.Fatalf("insert company: %v", err)
+	}
+
+	got, ok, err := s.GetCompany(ctx, "acme")
+	if err != nil || !ok {
+		t.Fatalf("get company: ok=%v err=%v", ok, err)
+	}
+	if got.ID != "acme" || got.Name != "Acme Corp" || !got.CreatedAt.Equal(now) {
+		t.Fatalf("company = %+v", got)
+	}
+
+	if _, ok, _ := s.GetCompany(ctx, "missing"); ok {
+		t.Fatal("unknown company id resolved")
+	}
+
+	list, err := s.ListCompanies(ctx)
+	if err != nil || len(list) != 1 || list[0].ID != "acme" {
+		t.Fatalf("list companies = %+v, %v; want [acme]", list, err)
+	}
+
+	// Assigning an unknown project reports no row affected.
+	ok, err = s.SetProjectCompany(ctx, "no-such-project", "acme")
+	if err != nil {
+		t.Fatalf("assign unknown project: %v", err)
+	}
+	if ok {
+		t.Fatal("assign unknown project reported ok=true")
+	}
+
+	// Assign mer -> acme.
+	ok, err = s.SetProjectCompany(ctx, "mer", "acme")
+	if err != nil || !ok {
+		t.Fatalf("assign: ok=%v err=%v", ok, err)
+	}
+	proj, ok, err := s.GetProject(ctx, "mer")
+	if err != nil || !ok {
+		t.Fatalf("get project: ok=%v err=%v", ok, err)
+	}
+	if proj.CompanyID != "acme" {
+		t.Fatalf("project.CompanyID = %q, want acme", proj.CompanyID)
+	}
+
+	// Unassign (companyID == "") clears the column.
+	ok, err = s.SetProjectCompany(ctx, "mer", "")
+	if err != nil || !ok {
+		t.Fatalf("unassign: ok=%v err=%v", ok, err)
+	}
+	proj, ok, err = s.GetProject(ctx, "mer")
+	if err != nil || !ok {
+		t.Fatalf("get project after unassign: ok=%v err=%v", ok, err)
+	}
+	if proj.CompanyID != "" {
+		t.Fatalf("project.CompanyID after unassign = %q, want empty", proj.CompanyID)
+	}
+}
+
 func TestProjectCRUDAndArchive(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()

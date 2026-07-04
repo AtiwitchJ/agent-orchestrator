@@ -8,6 +8,7 @@ import (
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
 	"github.com/aoagents/agent-orchestrator/backend/internal/legacyimport"
 	agentsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/agent"
+	companysvc "github.com/aoagents/agent-orchestrator/backend/internal/service/company"
 	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
 	sessionsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/session"
 )
@@ -536,4 +537,21 @@ type ResolveCommentsRequest struct {
 type ResolveCommentsResponse struct {
 	OK       bool `json:"ok"`
 	Resolved int  `json:"resolved"`
+}
+
+// ListCompaniesResponse is the body of GET /api/v1/companies.
+type ListCompaniesResponse struct {
+	Companies []companysvc.Company `json:"companies"`
+}
+
+// CompanyResponse is the { company } body of POST /api/v1/companies (201).
+type CompanyResponse struct {
+	Company companysvc.Company `json:"company"`
+}
+
+// AssignProjectCompanyResponse is the body of PUT /api/v1/projects/{id}/company
+// (200). CompanyID echoes the now-current assignment ("" means unassigned).
+type AssignProjectCompanyResponse struct {
+	ProjectID string `json:"projectId"`
+	CompanyID string `json:"companyId,omitempty"`
 }

@@ -58,6 +58,67 @@ paths:
       summary: Refresh the cached local agent adapter catalog
       tags:
       - agents
+  /api/v1/companies:
+    get:
+      operationId: listCompanies
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListCompaniesResponse'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: List all registered companies
+      tags:
+      - companies
+    post:
+      operationId: createCompany
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCompanyInput'
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Register a new company
+      tags:
+      - companies
   /api/v1/events:
     get:
       operationId: streamEvents
@@ -539,6 +600,57 @@ paths:
       summary: Fetch one project; discriminates ok vs degraded
       tags:
       - projects
+  /api/v1/projects/{id}/company:
+    put:
+      operationId: assignProjectCompany
+      parameters:
+      - description: Project identifier (registry key).
+        in: path
+        name: id
+        required: true
+        schema:
+          description: Project identifier (registry key).
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignProjectCompanyInput'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignProjectCompanyResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Assign (or, with an empty companyId, unassign) a project's company
+      tags:
+      - companies
   /api/v1/projects/{id}/config:
     put:
       operationId: setProjectConfig
@@ -1554,6 +1666,22 @@ components:
       - id
       - label
       type: object
+    AssignProjectCompanyInput:
+      properties:
+        companyId:
+          type: string
+      required:
+      - companyId
+      type: object
+    AssignProjectCompanyResponse:
+      properties:
+        companyId:
+          type: string
+        projectId:
+          type: string
+      required:
+      - projectId
+      type: object
     ClaimPRRequest:
       properties:
         allowTakeover:
@@ -1615,6 +1743,27 @@ components:
       required:
       - sessionId
       - reason
+      type: object
+    Company:
+      properties:
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+      required:
+      - id
+      - name
+      - createdAt
+      type: object
+    CompanyResponse:
+      properties:
+        company:
+          $ref: '#/components/schemas/Company'
+      required:
+      - company
       type: object
     ControllersSessionView:
       properties:
@@ -1679,6 +1828,13 @@ components:
       - updatedAt
       - status
       - prs
+      type: object
+    CreateCompanyInput:
+      properties:
+        name:
+          type: string
+      required:
+      - name
       type: object
     DegradedProject:
       properties:
@@ -1787,6 +1943,15 @@ components:
       - supported
       - installed
       - authorized
+      type: object
+    ListCompaniesResponse:
+      properties:
+        companies:
+          items:
+            $ref: '#/components/schemas/Company'
+          type: array
+      required:
+      - companies
       type: object
     ListNotificationsResponse:
       properties:
@@ -2063,6 +2228,8 @@ components:
       type: object
     ProjectSummary:
       properties:
+        companyId:
+          type: string
         id:
           type: string
         kind:
@@ -2686,6 +2853,8 @@ tags:
   name: agents
 - description: Project registry, configuration, and lifecycle administration
   name: projects
+- description: Company grouping for projects (multiple repos under one org)
+  name: companies
 - description: Agent session lifecycle and messaging
   name: sessions
 - description: Pull-request actions (SCM lane)

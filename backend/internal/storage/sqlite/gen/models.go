@@ -21,6 +21,12 @@ type ChangeLog struct {
 	CreatedAt time.Time
 }
 
+type Company struct {
+	ID        string
+	Name      string
+	CreatedAt time.Time
+}
+
 type Notification struct {
 	ID        string
 	SessionID domain.SessionID
@@ -131,6 +137,7 @@ type Project struct {
 	ArchivedAt    sql.NullTime
 	Config        sql.NullString
 	Kind          string
+	CompanyID     sql.NullString
 }
 
 type Review struct {

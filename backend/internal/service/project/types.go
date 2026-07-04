@@ -11,6 +11,8 @@ type Summary struct {
 	SessionPrefix     string              `json:"sessionPrefix"`
 	OrchestratorAgent domain.AgentHarness `json:"orchestratorAgent,omitempty"`
 	ResolveError      string              `json:"resolveError,omitempty"`
+	// CompanyID is the durable company grouping fact (see domain.ProjectRecord.CompanyID).
+	CompanyID string `json:"companyId,omitempty"`
 }
 
 // Project is the full read-model returned by GET /api/v1/projects/{id}.

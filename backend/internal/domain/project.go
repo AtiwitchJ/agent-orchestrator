@@ -34,6 +34,9 @@ type ProjectRecord struct {
 	// Config holds the typed per-project configuration AO resolves at spawn. An
 	// IsZero value means unset.
 	Config ProjectConfig
+	// CompanyID is the durable company grouping fact: the id (slug) of the
+	// CompanyRecord this project is assigned to, or "" when unassigned.
+	CompanyID string
 }
 
 // WorkspaceRepoRecord is a child repo registered under a workspace project.

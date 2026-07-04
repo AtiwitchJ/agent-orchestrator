@@ -17,6 +17,7 @@ import (
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/controllers"
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
+	companysvc "github.com/aoagents/agent-orchestrator/backend/internal/service/company"
 	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
 )
 
@@ -59,6 +60,8 @@ func Build() ([]byte, error) {
 			"Supported and locally runnable agent adapters"),
 		*(&openapi31.Tag{Name: "projects"}).WithDescription(
 			"Project registry, configuration, and lifecycle administration"),
+		*(&openapi31.Tag{Name: "companies"}).WithDescription(
+			"Company grouping for projects (multiple repos under one org)"),
 		*(&openapi31.Tag{Name: "sessions"}).WithDescription(
 			"Agent session lifecycle and messaging"),
 		*(&openapi31.Tag{Name: "prs"}).WithDescription(
@@ -209,6 +212,13 @@ var schemaNames = map[string]string{
 	"ProjectRemoveResult":   "RemoveProjectResult",
 	"ProjectSetConfigInput": "SetProjectConfigInput",
 	"ProjectWorkspaceRepo":  "WorkspaceRepo",
+	// service/company entities + DTOs
+	"CompanyCompany":                          "Company",
+	"CompanyCreateInput":                      "CreateCompanyInput",
+	"CompanyAssignProjectInput":               "AssignProjectCompanyInput",
+	"ControllersListCompaniesResponse":        "ListCompaniesResponse",
+	"ControllersCompanyResponse":              "CompanyResponse",
+	"ControllersAssignProjectCompanyResponse": "AssignProjectCompanyResponse",
 }
 
 // markRequestBodyRequired sets requestBody.required: true on the operation's
@@ -285,6 +295,7 @@ func operations() []operation {
 	ops := append([]operation{}, eventOperations()...)
 	ops = append(ops, agentOperations()...)
 	ops = append(ops, projectOperations()...)
+	ops = append(ops, companyOperations()...)
 	ops = append(ops, sessionOperations()...)
 	ops = append(ops, prOperations()...)
 	ops = append(ops, reviewOperations()...)
@@ -509,6 +520,48 @@ func projectOperations() []operation {
 				{http.StatusBadRequest, envelope.APIError{}},
 				{http.StatusNotFound, envelope.APIError{}},
 				{http.StatusInternalServerError, envelope.APIError{}},
+			},
+		},
+	}
+}
+
+// companyOperations declares the 3 canonical company-grouping operations: the
+// /companies list+create pair plus the project-company assignment route. The
+// set must stay 1:1 with the routes CompaniesController.Register mounts —
+// TestRouteSpecParity fails the build otherwise.
+func companyOperations() []operation {
+	return []operation{
+		{
+			method: http.MethodGet, path: "/api/v1/companies", id: "listCompanies", tag: "companies",
+			summary: "List all registered companies",
+			resps: []respUnit{
+				{http.StatusOK, controllers.ListCompaniesResponse{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodPost, path: "/api/v1/companies", id: "createCompany", tag: "companies",
+			summary: "Register a new company",
+			reqBody: companysvc.CreateInput{},
+			resps: []respUnit{
+				{http.StatusCreated, controllers.CompanyResponse{}},
+				{http.StatusBadRequest, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodPut, path: "/api/v1/projects/{id}/company", id: "assignProjectCompany", tag: "companies",
+			summary:    "Assign (or, with an empty companyId, unassign) a project's company",
+			pathParams: []any{controllers.ProjectIDParam{}},
+			reqBody:    companysvc.AssignProjectInput{},
+			resps: []respUnit{
+				{http.StatusOK, controllers.AssignProjectCompanyResponse{}},
+				{http.StatusBadRequest, envelope.APIError{}},
+				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
 			},
 		},
 	}
