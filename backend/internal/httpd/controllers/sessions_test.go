@@ -25,6 +25,7 @@ import (
 type fakeSessionService struct {
 	sessions        map[domain.SessionID]domain.Session
 	sent            string
+	sentSender      domain.SessionID
 	cleanupProjects []domain.ProjectID
 	cleanupResult   []domain.SessionID
 	cleanupSkipped  []sessionsvc.CleanupSkipped
@@ -146,8 +147,9 @@ func (f *fakeSessionService) Rename(_ context.Context, id domain.SessionID, disp
 	return nil
 }
 
-func (f *fakeSessionService) Send(_ context.Context, _ domain.SessionID, message string) error {
+func (f *fakeSessionService) Send(_ context.Context, _ domain.SessionID, message string, sender domain.SessionID) error {
 	f.sent = message
+	f.sentSender = sender
 	return nil
 }
 

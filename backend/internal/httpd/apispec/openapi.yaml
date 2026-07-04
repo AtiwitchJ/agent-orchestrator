@@ -696,6 +696,53 @@ paths:
       summary: Replace a project's per-project config
       tags:
       - projects
+  /api/v1/projects/{id}/messages:
+    get:
+      operationId: listProjectMessages
+      parameters:
+      - description: Project identifier (registry key).
+        in: path
+        name: id
+        required: true
+        schema:
+          description: Project identifier (registry key).
+          type: string
+      - description: Maximum messages to return. Defaults to 100; capped at 500.
+        in: query
+        name: limit
+        schema:
+          description: Maximum messages to return. Defaults to 100; capped at 500.
+          maximum: 500
+          minimum: 1
+          type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListProjectMessagesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: List durable agent-to-agent send messages targeting a project's sessions
+      tags:
+      - sessions
   /api/v1/prs/{id}/merge:
     post:
       operationId: mergePR
@@ -1962,6 +2009,15 @@ components:
       required:
       - notifications
       type: object
+    ListProjectMessagesResponse:
+      properties:
+        messages:
+          items:
+            $ref: '#/components/schemas/SessionMessage'
+          type: array
+      required:
+      - messages
+      type: object
     ListProjectsResponse:
       properties:
         projects:
@@ -2393,6 +2449,8 @@ components:
           maxLength: 4096
           minLength: 1
           type: string
+        senderSessionId:
+          type: string
       required:
       - message
       type: object
@@ -2408,6 +2466,25 @@ components:
       - ok
       - sessionId
       - message
+      type: object
+    SessionMessage:
+      properties:
+        content:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          type: string
+        senderSessionId:
+          type: string
+        targetSessionId:
+          type: string
+      required:
+      - id
+      - targetSessionId
+      - content
+      - createdAt
       type: object
     SessionPRCISummary:
       properties:

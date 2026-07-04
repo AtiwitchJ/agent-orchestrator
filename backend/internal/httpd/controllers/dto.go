@@ -227,6 +227,10 @@ type CleanupSessionsResponse struct {
 // SendSessionMessageRequest is the body of POST /api/v1/sessions/{sessionId}/send.
 type SendSessionMessageRequest struct {
 	Message string `json:"message" minLength:"1" maxLength:"4096"`
+	// SenderSessionID names the sending agent session for an agent-to-agent
+	// send (e.g. `ao send` run with AO_SESSION_ID set). Omitted/empty means a
+	// human sent the message.
+	SenderSessionID string `json:"senderSessionId,omitempty"`
 }
 
 // SendSessionMessageResponse is the body of POST /api/v1/sessions/{sessionId}/send.
@@ -554,4 +558,26 @@ type CompanyResponse struct {
 type AssignProjectCompanyResponse struct {
 	ProjectID string `json:"projectId"`
 	CompanyID string `json:"companyId,omitempty"`
+}
+
+// ListProjectMessagesQuery is the query string accepted by
+// GET /api/v1/projects/{id}/messages.
+type ListProjectMessagesQuery struct {
+	Limit int `query:"limit,omitempty" minimum:"1" maximum:"500" description:"Maximum messages to return. Defaults to 100; capped at 500."`
+}
+
+// SessionMessage is the wire shape of one durable agent-to-agent (or
+// human-to-agent) `ao send` message, mirroring domain.SessionMessageRecord
+// with no derived fields. SenderSessionID is omitted when a human sent it.
+type SessionMessage struct {
+	ID              string    `json:"id"`
+	SenderSessionID string    `json:"senderSessionId,omitempty"`
+	TargetSessionID string    `json:"targetSessionId"`
+	Content         string    `json:"content"`
+	CreatedAt       time.Time `json:"createdAt"`
+}
+
+// ListProjectMessagesResponse is the body of GET /api/v1/projects/{id}/messages.
+type ListProjectMessagesResponse struct {
+	Messages []SessionMessage `json:"messages"`
 }

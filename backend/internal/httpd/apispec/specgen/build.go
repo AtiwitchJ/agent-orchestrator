@@ -158,6 +158,9 @@ var schemaNames = map[string]string{
 	"ControllersRollbackSessionResponse":          "RollbackSessionResponse",
 	"ControllersSendSessionMessageRequest":        "SendSessionMessageRequest",
 	"ControllersSendSessionMessageResponse":       "SendSessionMessageResponse",
+	"ControllersListProjectMessagesQuery":         "ListProjectMessagesQuery",
+	"ControllersSessionMessage":                   "SessionMessage",
+	"ControllersListProjectMessagesResponse":      "ListProjectMessagesResponse",
 	"ControllersClaimPRResponse":                  "ClaimPRResponse",
 	"ControllersClaimPRRequest":                   "ClaimPRRequest",
 	"ControllersSessionPRFacts":                   "SessionPRFacts",
@@ -297,6 +300,7 @@ func operations() []operation {
 	ops = append(ops, projectOperations()...)
 	ops = append(ops, companyOperations()...)
 	ops = append(ops, sessionOperations()...)
+	ops = append(ops, messageOperations()...)
 	ops = append(ops, prOperations()...)
 	ops = append(ops, reviewOperations()...)
 	ops = append(ops, notificationOperations()...)
@@ -782,6 +786,26 @@ func sessionOperations() []operation {
 			resps: []respUnit{
 				{http.StatusOK, controllers.SessionResponse{}},
 				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+	}
+}
+
+// messageOperations declares the single read-only project-scoped messages
+// route: the durable read side of agent-to-agent `ao send` facts persisted by
+// sendSessionMessage. Must stay 1:1 with the routes MessagesController.Register
+// mounts — TestRouteSpecParity fails the build otherwise.
+func messageOperations() []operation {
+	return []operation{
+		{
+			method: http.MethodGet, path: "/api/v1/projects/{id}/messages", id: "listProjectMessages", tag: "sessions",
+			summary:    "List durable agent-to-agent send messages targeting a project's sessions",
+			pathParams: []any{controllers.ProjectIDParam{}, controllers.ListProjectMessagesQuery{}},
+			resps: []respUnit{
+				{http.StatusOK, controllers.ListProjectMessagesResponse{}},
+				{http.StatusBadRequest, envelope.APIError{}},
 				{http.StatusInternalServerError, envelope.APIError{}},
 				{http.StatusNotImplemented, envelope.APIError{}},
 			},

@@ -29,7 +29,10 @@ type fakeStore struct {
 	reviews  map[string][]domain.PullRequestReview
 	threads  map[string][]domain.PullRequestReviewThread
 	comments map[string][]domain.PullRequestComment
+	messages []domain.SessionMessageRecord
 	num      int
+
+	insertMessageErr error
 }
 
 func newFakeStore() *fakeStore {
@@ -138,6 +141,14 @@ func (f *fakeStore) GetProject(_ context.Context, id string) (domain.ProjectReco
 	return p, ok, nil
 }
 
+func (f *fakeStore) InsertSessionMessage(_ context.Context, r domain.SessionMessageRecord) error {
+	if f.insertMessageErr != nil {
+		return f.insertMessageErr
+	}
+	f.messages = append(f.messages, r)
+	return nil
+}
+
 func TestSessionListDerivesStatusFromPRFacts(t *testing.T) {
 	st := newFakeStore()
 	st.sessions["mer-1"] = domain.SessionRecord{ID: "mer-1", ProjectID: "mer", Activity: domain.Activity{State: domain.ActivityActive}}
@@ -195,6 +206,104 @@ func TestSessionRenameMissingSessionReturnsNotFound(t *testing.T) {
 	var e *apierr.Error
 	if !errors.As(err, &e) || e.Kind != apierr.KindNotFound || e.Code != "SESSION_NOT_FOUND" {
 		t.Fatalf("err = %v, want apierr NotFound SESSION_NOT_FOUND", err)
+	}
+}
+
+// TestSendPersistsSessionMessageAfterSuccessfulDelivery covers the Task 2
+// happy path: a delivered send (empty sender == human) lands one durable
+// SessionMessageRecord after the manager confirms delivery.
+func TestSendPersistsSessionMessageAfterSuccessfulDelivery(t *testing.T) {
+	st := newFakeStore()
+	st.sessions["mer-1"] = domain.SessionRecord{ID: "mer-1", ProjectID: "mer"}
+	fc := &fakeCommander{}
+	svc := &Service{manager: fc, store: st, clock: time.Now}
+
+	if err := svc.Send(context.Background(), "mer-1", "hello agent", ""); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if len(fc.sent) != 1 || fc.sent[0] != "mer-1" {
+		t.Fatalf("manager sent = %v, want [mer-1]", fc.sent)
+	}
+	if len(st.messages) != 1 {
+		t.Fatalf("persisted messages = %d, want 1", len(st.messages))
+	}
+	got := st.messages[0]
+	if got.SenderSessionID != "" || got.TargetSessionID != "mer-1" || got.Content != "hello agent" || got.ID == "" {
+		t.Fatalf("persisted message = %+v", got)
+	}
+}
+
+// TestSendPersistsKnownSenderSession covers the agent-to-agent case: a
+// non-empty sender that names a real session is validated and recorded.
+func TestSendPersistsKnownSenderSession(t *testing.T) {
+	st := newFakeStore()
+	st.sessions["mer-1"] = domain.SessionRecord{ID: "mer-1", ProjectID: "mer"}
+	st.sessions["mer-2"] = domain.SessionRecord{ID: "mer-2", ProjectID: "mer"}
+	fc := &fakeCommander{}
+	svc := &Service{manager: fc, store: st, clock: time.Now}
+
+	if err := svc.Send(context.Background(), "mer-1", "ping", "mer-2"); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if len(st.messages) != 1 || st.messages[0].SenderSessionID != "mer-2" {
+		t.Fatalf("persisted messages = %+v, want sender mer-2", st.messages)
+	}
+}
+
+// TestSendRejectsUnknownSenderSession covers validation of a non-empty
+// sender: an unknown sender session id must fail before the manager ever
+// delivers the message.
+func TestSendRejectsUnknownSenderSession(t *testing.T) {
+	st := newFakeStore()
+	st.sessions["mer-1"] = domain.SessionRecord{ID: "mer-1", ProjectID: "mer"}
+	fc := &fakeCommander{}
+	svc := &Service{manager: fc, store: st, clock: time.Now}
+
+	err := svc.Send(context.Background(), "mer-1", "ping", "ghost-session")
+	var e *apierr.Error
+	if !errors.As(err, &e) || e.Kind != apierr.KindInvalid || e.Code != "SENDER_SESSION_NOT_FOUND" {
+		t.Fatalf("err = %v, want apierr Invalid SENDER_SESSION_NOT_FOUND", err)
+	}
+	if len(fc.sent) != 0 {
+		t.Fatalf("manager must not be invoked when sender validation fails, sent=%v", fc.sent)
+	}
+	if len(st.messages) != 0 {
+		t.Fatalf("nothing should be persisted when sender validation fails, messages=%+v", st.messages)
+	}
+}
+
+// TestSendPersistFailureDoesNotFailRequest covers the brief's explicit
+// requirement: a persist failure after successful delivery is logged, not
+// surfaced — the agent already received the message.
+func TestSendPersistFailureDoesNotFailRequest(t *testing.T) {
+	st := newFakeStore()
+	st.sessions["mer-1"] = domain.SessionRecord{ID: "mer-1", ProjectID: "mer"}
+	st.insertMessageErr = errors.New("disk full")
+	fc := &fakeCommander{}
+	svc := &Service{manager: fc, store: st, clock: time.Now}
+
+	if err := svc.Send(context.Background(), "mer-1", "hello agent", ""); err != nil {
+		t.Fatalf("send must succeed despite persist failure, got %v", err)
+	}
+	if len(fc.sent) != 1 {
+		t.Fatalf("manager sent = %v, want delivery to still happen", fc.sent)
+	}
+}
+
+// TestSendDoesNotPersistOnDeliveryFailure covers the ordering: persistence
+// only happens after delivery succeeds, so a pane-closed delivery error must
+// not leave a message record behind.
+func TestSendDoesNotPersistOnDeliveryFailure(t *testing.T) {
+	st := newFakeStore()
+	st.sessions["mer-1"] = domain.SessionRecord{ID: "mer-1", ProjectID: "mer"}
+	fc := &fakeCommander{sendErr: errors.New("pane closed")}
+	svc := &Service{manager: fc, store: st, clock: time.Now}
+
+	if err := svc.Send(context.Background(), "mer-1", "hello agent", ""); err == nil {
+		t.Fatal("want error when manager delivery fails")
+	}
+	if len(st.messages) != 0 {
+		t.Fatalf("messages = %+v, want none persisted on delivery failure", st.messages)
 	}
 }
 

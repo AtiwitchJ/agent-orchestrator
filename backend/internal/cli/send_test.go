@@ -98,7 +98,8 @@ func TestSend_PrefixesMessageWithSenderSessionID(t *testing.T) {
 		t.Fatalf("unexpected error: %v\nstderr=%s", err, errOut)
 	}
 	var req struct {
-		Message string `json:"message"`
+		Message         string `json:"message"`
+		SenderSessionID string `json:"senderSessionId"`
 	}
 	if err := json.Unmarshal([]byte(capture.body), &req); err != nil {
 		t.Fatalf("decode body: %v\nbody=%s", err, capture.body)
@@ -106,6 +107,9 @@ func TestSend_PrefixesMessageWithSenderSessionID(t *testing.T) {
 	want := "[from aa-47]   hi  "
 	if req.Message != want {
 		t.Errorf("captured message = %q, want %q", req.Message, want)
+	}
+	if req.SenderSessionID != "aa-47" {
+		t.Errorf("captured senderSessionId = %q, want %q", req.SenderSessionID, "aa-47")
 	}
 }
 
@@ -122,14 +126,15 @@ func TestSend_BlankSenderSessionIDDoesNotPrefixMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v\nstderr=%s", err, errOut)
 	}
-	var req struct {
-		Message string `json:"message"`
-	}
-	if err := json.Unmarshal([]byte(capture.body), &req); err != nil {
+	var raw map[string]any
+	if err := json.Unmarshal([]byte(capture.body), &raw); err != nil {
 		t.Fatalf("decode body: %v\nbody=%s", err, capture.body)
 	}
-	if req.Message != "hello agent" {
-		t.Errorf("captured message = %q, want %q", req.Message, "hello agent")
+	if raw["message"] != "hello agent" {
+		t.Errorf("captured message = %v, want %q", raw["message"], "hello agent")
+	}
+	if _, ok := raw["senderSessionId"]; ok {
+		t.Errorf("senderSessionId should be omitted for a blank AO_SESSION_ID, body=%s", capture.body)
 	}
 }
 

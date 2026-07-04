@@ -25,6 +25,7 @@ type APIDeps struct {
 	Companies          companysvc.Manager
 	Sessions           controllers.SessionService
 	Activity           controllers.ActivityRecorder
+	Messages           controllers.MessageService
 	PRs                prsvc.ActionManager
 	Reviews            reviewsvc.Manager
 	Notifications      controllers.NotificationService
@@ -43,6 +44,7 @@ type API struct {
 	projects      *controllers.ProjectsController
 	companies     *controllers.CompaniesController
 	sessions      *controllers.SessionsController
+	messages      *controllers.MessagesController
 	prs           *controllers.PRsController
 	reviews       *controllers.ReviewsController
 	notifications *controllers.NotificationsController
@@ -69,6 +71,7 @@ func NewAPI(cfg config.Config, deps APIDeps) *API {
 			Svc:      deps.Sessions,
 			Activity: deps.Activity,
 		},
+		messages:      &controllers.MessagesController{Svc: deps.Messages},
 		prs:           &controllers.PRsController{Svc: deps.PRs},
 		reviews:       &controllers.ReviewsController{Svc: deps.Reviews},
 		notifications: &controllers.NotificationsController{Svc: deps.Notifications, Stream: deps.NotificationStream},
@@ -95,6 +98,7 @@ func (a *API) Register(root chi.Router) {
 			a.projects.Register(r)
 			a.companies.Register(r)
 			a.sessions.Register(r)
+			a.messages.Register(r)
 			a.prs.Register(r)
 			a.reviews.Register(r)
 			a.notifications.Register(r)

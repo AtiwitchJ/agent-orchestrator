@@ -25,6 +25,7 @@ import (
 	agentsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/agent"
 	companysvc "github.com/aoagents/agent-orchestrator/backend/internal/service/company"
 	importsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/importer"
+	messagesvc "github.com/aoagents/agent-orchestrator/backend/internal/service/message"
 	notificationsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/notification"
 	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
 	"github.com/aoagents/agent-orchestrator/backend/internal/skillassets"
@@ -137,6 +138,7 @@ func Run() error {
 	srv, err := httpd.NewWithDeps(cfg, log, termMgr, httpd.APIDeps{
 		Projects:           projectsvc.NewWithDeps(projectsvc.Deps{Store: store, Sessions: sessionSvc, DefaultHarness: domain.AgentHarness(cfg.Agent), Telemetry: telemetrySink}),
 		Companies:          companysvc.New(store),
+		Messages:           messagesvc.New(messagesvc.Deps{Store: store}),
 		Agents:             agentsvc.New(),
 		Sessions:           sessionSvc,
 		Reviews:            reviewSvc,

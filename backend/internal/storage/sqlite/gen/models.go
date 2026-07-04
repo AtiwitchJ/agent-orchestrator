@@ -190,6 +190,14 @@ type Session struct {
 	PreviewRevision int64
 }
 
+type SessionMessage struct {
+	ID              string
+	SenderSessionID *domain.SessionID
+	TargetSessionID domain.SessionID
+	Content         string
+	CreatedAt       time.Time
+}
+
 type SessionWorktree struct {
 	SessionID    domain.SessionID
 	RepoName     string

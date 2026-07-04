@@ -19,7 +19,8 @@ type sendOptions struct {
 // POST /api/v1/sessions/{id}/send. The CLI keeps its own copy so it need not
 // import httpd.
 type sendAPIRequest struct {
-	Message string `json:"message"`
+	Message         string `json:"message"`
+	SenderSessionID string `json:"senderSessionId,omitempty"`
 }
 
 func newSendCommand(ctx *commandContext) *cobra.Command {
@@ -42,7 +43,8 @@ func (c *commandContext) sendMessage(ctx context.Context, opts sendOptions) erro
 		return usageError{errors.New("usage: --message is required")}
 	}
 	message := opts.message
-	if sender := strings.TrimSpace(os.Getenv("AO_SESSION_ID")); sender != "" {
+	sender := strings.TrimSpace(os.Getenv("AO_SESSION_ID"))
+	if sender != "" {
 		message = "[from " + sender + "] " + message
 	}
 	session := strings.TrimSpace(opts.session)
@@ -53,5 +55,5 @@ func (c *commandContext) sendMessage(ctx context.Context, opts sendOptions) erro
 	// PathEscape: session ids are already "-"/digit safe, but may later come
 	// from sanitized issue refs; keep the URL well-formed regardless.
 	path := "sessions/" + url.PathEscape(session) + "/send"
-	return c.postJSON(ctx, path, sendAPIRequest{Message: message}, nil)
+	return c.postJSON(ctx, path, sendAPIRequest{Message: message, SenderSessionID: sender}, nil)
 }

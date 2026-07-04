@@ -264,6 +264,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List durable agent-to-agent send messages targeting a project's sessions */
+        get: operations["listProjectMessages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/prs/{id}/merge": {
         parameters: {
             query?: never;
@@ -698,6 +715,9 @@ export interface components {
         ListNotificationsResponse: {
             notifications: components["schemas"]["NotificationResponse"][];
         };
+        ListProjectMessagesResponse: {
+            messages: components["schemas"]["SessionMessage"][];
+        };
         ListProjectsResponse: {
             projects: components["schemas"]["ProjectSummary"][];
         };
@@ -864,11 +884,20 @@ export interface components {
         };
         SendSessionMessageRequest: {
             message: string;
+            senderSessionId?: string;
         };
         SendSessionMessageResponse: {
             message: string;
             ok: boolean;
             sessionId: string;
+        };
+        SessionMessage: {
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+            id: string;
+            senderSessionId?: string;
+            targetSessionId: string;
         };
         SessionPRCISummary: {
             failingChecks: components["schemas"]["SessionPRFailingCheck"][];
@@ -1959,6 +1988,59 @@ export interface operations {
             };
             /** @description Internal Server Error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    listProjectMessages: {
+        parameters: {
+            query?: {
+                /** @description Maximum messages to return. Defaults to 100; capped at 500. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Project identifier (registry key). */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListProjectMessagesResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };

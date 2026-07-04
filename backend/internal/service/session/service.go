@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
@@ -18,6 +21,10 @@ import (
 // Store is the read-only persistence surface needed to assemble controller-facing session read models.
 type Store interface {
 	GetSession(ctx context.Context, id domain.SessionID) (domain.SessionRecord, bool, error)
+	// InsertSessionMessage persists one durable agent-to-agent send fact. See
+	// Service.Send: it is called after the message is delivered, and a failure
+	// here is logged, not surfaced, since the agent already received it.
+	InsertSessionMessage(ctx context.Context, r domain.SessionMessageRecord) error
 	ListSessions(ctx context.Context, project domain.ProjectID) ([]domain.SessionRecord, error)
 	ListAllSessions(ctx context.Context) ([]domain.SessionRecord, error)
 	RenameSession(ctx context.Context, id domain.SessionID, displayName string, updatedAt time.Time) (bool, error)
@@ -96,6 +103,10 @@ type Service struct {
 	// the no_signal downgrade: a hook-less harness staying silent forever is
 	// normal, not a broken pipeline. nil means "unknown": never downgrade.
 	signalCapable func(domain.AgentHarness) bool
+	logger        *slog.Logger
+	// newMessageID generates SessionMessageRecord.ID for a persisted send.
+	// Overridable in tests; defaults to a uuid-based id in NewWithDeps.
+	newMessageID func() string
 }
 
 // New wires a controller-facing session service over an internal session Manager.
@@ -117,11 +128,15 @@ type Deps struct {
 	// wiring passes activitydispatch.SupportsHarness. Left nil, no session is
 	// ever downgraded to no_signal.
 	SignalCapable func(domain.AgentHarness) bool
+	// Logger receives best-effort diagnostics, e.g. a session-message persist
+	// failure after Send already delivered the message. Nil defaults to
+	// slog.Default().
+	Logger *slog.Logger
 }
 
 // NewWithDeps wires a session service with optional PR-claim dependencies.
 func NewWithDeps(d Deps) *Service {
-	s := &Service{manager: d.Manager, store: d.Store, prClaimer: d.PRClaimer, scm: d.SCM, clock: d.Clock, signalCapable: d.SignalCapable, telemetry: d.Telemetry}
+	s := &Service{manager: d.Manager, store: d.Store, prClaimer: d.PRClaimer, scm: d.SCM, clock: d.Clock, signalCapable: d.SignalCapable, telemetry: d.Telemetry, logger: d.Logger}
 	if s.prClaimer == nil {
 		if w, ok := d.Store.(ports.PRClaimer); ok {
 			s.prClaimer = w
@@ -130,6 +145,10 @@ func NewWithDeps(d Deps) *Service {
 	if s.clock == nil {
 		s.clock = time.Now
 	}
+	if s.logger == nil {
+		s.logger = slog.Default()
+	}
+	s.newMessageID = func() string { return "msg_" + uuid.NewString() }
 	return s
 }
 
@@ -406,9 +425,51 @@ func (s *Service) RollbackSpawn(ctx context.Context, id domain.SessionID) (Rollb
 	return RollbackOutcome{Deleted: deleted, Killed: killed}, nil
 }
 
-// Send delegates agent messaging to the internal manager.
-func (s *Service) Send(ctx context.Context, id domain.SessionID, message string) error {
-	return toAPIError(s.manager.Send(ctx, id, message))
+// Send delegates agent messaging to the internal manager, then persists the
+// message as a durable session_message_created CDC fact. sender is "" for a
+// human-originated send (the controller supplied no senderSessionId) and is
+// validated to name a known session when non-empty. Persistence happens only
+// after the manager confirms delivery, and a persistence failure is logged,
+// not surfaced: the agent already received the message, so the request
+// should not fail on a storage hiccup.
+func (s *Service) Send(ctx context.Context, id domain.SessionID, message string, sender domain.SessionID) error {
+	if sender != "" && s.store != nil {
+		if _, ok, err := s.store.GetSession(ctx, sender); err != nil {
+			return fmt.Errorf("lookup sender session %s: %w", sender, err)
+		} else if !ok {
+			return apierr.Invalid("SENDER_SESSION_NOT_FOUND", "Unknown sender session", nil)
+		}
+	}
+	if err := toAPIError(s.manager.Send(ctx, id, message)); err != nil {
+		return err
+	}
+	s.persistSessionMessage(ctx, id, sender, message)
+	return nil
+}
+
+// persistSessionMessage records a delivered send as a durable fact. Best
+// effort: the message has already reached the agent's pane, so a store
+// failure here is logged and swallowed rather than failing the request.
+func (s *Service) persistSessionMessage(ctx context.Context, target, sender domain.SessionID, content string) {
+	if s.store == nil {
+		return
+	}
+	newID := s.newMessageID
+	if newID == nil {
+		newID = func() string { return "msg_" + uuid.NewString() }
+	}
+	rec := domain.SessionMessageRecord{
+		ID:              newID(),
+		SenderSessionID: sender,
+		TargetSessionID: target,
+		Content:         content,
+		CreatedAt:       s.now(),
+	}
+	if err := s.store.InsertSessionMessage(ctx, rec); err != nil {
+		if s.logger != nil {
+			s.logger.Error("persist session message failed", "target", target, "sender", sender, "error", err)
+		}
+	}
 }
 
 // Rename updates the user-facing session display name.
