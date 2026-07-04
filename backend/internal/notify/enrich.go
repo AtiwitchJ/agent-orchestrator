@@ -19,7 +19,9 @@ func enrich(intent Intent) (domain.NotificationRecord, error) {
 	if !intent.Type.Valid() {
 		return domain.NotificationRecord{}, domain.ErrInvalidNotificationType
 	}
-	if intent.Type != domain.NotificationNeedsInput && rec.PRURL == "" {
+	// needs_input and auto_terminated are session-centric, not PR-centric:
+	// neither has a pull request to attach a URL to.
+	if intent.Type != domain.NotificationNeedsInput && intent.Type != domain.NotificationAutoTerminated && rec.PRURL == "" {
 		return domain.NotificationRecord{}, domain.ErrInvalidNotificationRecord
 	}
 	rec.Title = titleForIntent(intent)
@@ -40,6 +42,8 @@ func titleForIntent(intent Intent) string {
 		return fmt.Sprintf("%s was merged", prLabel(intent))
 	case domain.NotificationPRClosedUnmerged:
 		return fmt.Sprintf("%s was closed without merging", prLabel(intent))
+	case domain.NotificationAutoTerminated:
+		return fmt.Sprintf("%s was auto-terminated (stalled)", sessionLabel(intent))
 	default:
 		return "Notification"
 	}
@@ -64,6 +68,8 @@ func bodyForIntent(intent Intent) string {
 			return fmt.Sprintf("%s was closed without merging.", title)
 		}
 		return "The pull request was closed without merging."
+	case domain.NotificationAutoTerminated:
+		return "AO detected the session was stalled (activity stayed active long past its last real signal) and terminated it automatically."
 	default:
 		return ""
 	}

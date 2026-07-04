@@ -44,6 +44,10 @@ type Manager struct {
 	events    EventSource
 	log       *slog.Logger
 	heartbeat time.Duration
+	// pulse is the optional stall-monitor secondary signal, wired into every
+	// attachment opened via this manager. nil (the default) means stallmon
+	// falls back to activity-state-only logic; see OutputPulse.
+	pulse *OutputPulse
 
 	// ctx scopes every attachment's PTY lifetime; cancelled by Close.
 	ctx    context.Context
@@ -59,6 +63,12 @@ type Option func(*Manager)
 
 // WithHeartbeat overrides the ping interval.
 func WithHeartbeat(d time.Duration) Option { return func(m *Manager) { m.heartbeat = d } }
+
+// WithOutputPulse wires an OutputPulse registry that every attachment opened
+// by this manager touches on each chunk of real PTY output. Omitted (the
+// default), stallmon's secondary signal is simply unavailable and it falls
+// back to activity-state-only logic — never a hard requirement to wire.
+func WithOutputPulse(p *OutputPulse) Option { return func(m *Manager) { m.pulse = p } }
 
 // NewManager builds a Manager. src opens attach Streams; events feeds the session
 // channel (may be nil to disable it). A nil logger falls back to slog.Default.
@@ -244,6 +254,7 @@ func (c *connState) openTerminal(id string, rows, cols uint16) {
 			c.enqueue(serverMsg{Ch: chTerminal, ID: id, Type: msgExited})
 		},
 		c.mgr.log)
+	a.pulse = c.mgr.pulse
 	if rows > 0 && cols > 0 {
 		_ = a.resize(rows, cols) // recorded now, applied when the PTY attaches
 	}

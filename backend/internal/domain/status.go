@@ -23,4 +23,13 @@ const (
 	// agent is working or stuck (broken hook pipeline, blocked interactive
 	// prompt). Rendered instead of a confident idle.
 	StatusNoSignal SessionStatus = "no_signal"
+	// StatusStalled marks a live WORKER session whose activity_state has
+	// claimed "active" far longer than the configured stall threshold: the
+	// agent's own hook signal has gone silent while claiming to be busy. It is
+	// a derived, read-time-only status (see IsStalled) — never persisted —
+	// and it is what the stallmon background monitor watches for before it
+	// ever considers auto-terminating a session. An orchestrator, a
+	// terminated session, or a session in the sticky ActivityWaitingInput
+	// state can never be stalled; see IsStalled for the exact gate.
+	StatusStalled SessionStatus = "stalled"
 )

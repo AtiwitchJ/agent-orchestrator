@@ -53,6 +53,37 @@ func TestManagerNotifyPersistsThenPublishes(t *testing.T) {
 	}
 }
 
+// TestManagerNotifyAutoTerminatedNeedsNoPRURL pins the enrich.go exemption:
+// auto_terminated is session-centric (the stallmon audit trail for an
+// auto-kill), so — like needs_input — it must persist without a PR URL.
+func TestManagerNotifyAutoTerminatedNeedsNoPRURL(t *testing.T) {
+	st := &fakeStore{}
+	mgr := New(Deps{Store: st, Clock: func() time.Time { return time.Now() }, NewID: func() string { return "ntf_1" }})
+
+	err := mgr.Notify(context.Background(), Intent{
+		Type:               domain.NotificationAutoTerminated,
+		SessionID:          "mer-1",
+		ProjectID:          "mer",
+		SessionDisplayName: "checkout-flow",
+	})
+	if err != nil {
+		t.Fatalf("Notify: %v", err)
+	}
+	if len(st.rows) != 1 {
+		t.Fatalf("stored rows = %d, want 1", len(st.rows))
+	}
+	got := st.rows[0]
+	if got.PRURL != "" {
+		t.Fatalf("PRURL = %q, want empty", got.PRURL)
+	}
+	if got.Title != "checkout-flow was auto-terminated (stalled)" {
+		t.Fatalf("Title = %q", got.Title)
+	}
+	if got.Body == "" {
+		t.Fatal("Body is empty, want a stalled-session explanation")
+	}
+}
+
 func TestManagerNotifyDuplicateDoesNotPublish(t *testing.T) {
 	st := &fakeStore{duplicate: true}
 	hub := NewHub()

@@ -19,6 +19,7 @@ import (
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
 	"github.com/aoagents/agent-orchestrator/backend/internal/httpd"
 	"github.com/aoagents/agent-orchestrator/backend/internal/notify"
+	"github.com/aoagents/agent-orchestrator/backend/internal/observe/stallmon"
 	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
 	"github.com/aoagents/agent-orchestrator/backend/internal/preview"
 	"github.com/aoagents/agent-orchestrator/backend/internal/runfile"
@@ -101,7 +102,12 @@ func Run() error {
 	// is handed to httpd, which mounts it at /mux. Raw PTY bytes never flow
 	// through the CDC change_log -- only session-state events do.
 	runtimeAdapter := runtimeselect.New(log)
-	termMgr := terminal.NewManager(runtimeAdapter, cdcPipe.Broadcaster, log)
+	// outputPulse is the stall monitor's conservative secondary signal: it
+	// records the last time each terminal produced real PTY output,
+	// independent of the agent's own activity_state hook. See
+	// terminal.OutputPulse and stallmon's conservative-only use of it.
+	outputPulse := terminal.NewOutputPulse()
+	termMgr := terminal.NewManager(runtimeAdapter, cdcPipe.Broadcaster, log, terminal.WithOutputPulse(outputPulse))
 	defer termMgr.Close()
 
 	// The agent messenger sends validated user input to the session's live
@@ -135,6 +141,19 @@ func Run() error {
 	lcStack.trackerDone = startTrackerIntake(ctx, store, sessionSvc, log)
 	previewDone := preview.NewPoller(store, sessionSvc, "http://"+cfg.Addr(), preview.PollerConfig{Logger: log}).Start(ctx)
 
+	// stallmon watches for worker sessions whose activity_state has claimed
+	// "active" long past AO_STALL_THRESHOLD with no fresh signal, and (unless
+	// AO_STALL_AUTOKILL=off) auto-terminates one confirmed stalled on two
+	// consecutive ticks. sessionSvc.Kill reuses the exact same teardown path
+	// as any other kill; notificationWriter records the audit trail before
+	// every kill attempt.
+	stallDone := stallmon.New(store, sessionSvc, notificationWriter, stallmon.Config{
+		Threshold:   cfg.StallThreshold,
+		AutoKill:    cfg.StallAutoKill,
+		OutputPulse: outputPulse,
+		Logger:      log,
+	}).Start(ctx)
+
 	srv, err := httpd.NewWithDeps(cfg, log, termMgr, httpd.APIDeps{
 		Projects:           projectsvc.NewWithDeps(projectsvc.Deps{Store: store, Sessions: sessionSvc, DefaultHarness: domain.AgentHarness(cfg.Agent), Telemetry: telemetrySink}),
 		Companies:          companysvc.New(store),
@@ -153,6 +172,7 @@ func Run() error {
 	if err != nil {
 		stop()
 		<-previewDone
+		<-stallDone
 		lcStack.Stop()
 		if cdcErr := cdcPipe.Stop(); cdcErr != nil {
 			log.Error("cdc pipeline shutdown", "err", cdcErr)
@@ -199,6 +219,7 @@ func Run() error {
 	// runs before the cancel: a non-signal exit path would hang otherwise.
 	stop()
 	<-previewDone
+	<-stallDone
 	lcStack.Stop()
 	if err := cdcPipe.Stop(); err != nil {
 		log.Error("cdc pipeline shutdown", "err", err)

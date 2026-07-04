@@ -24,7 +24,16 @@ const noSignalGrace = 90 * time.Second
 // status is the worst-wins aggregate across its open PRs; stacked children whose
 // parent is still open are exempt from the aggregation since they cannot merge
 // until the parent does. Merged/closed PRs only matter once no open PR remains.
-func deriveStatus(rec domain.SessionRecord, prs []domain.PRFacts, now time.Time, signalCapable bool) domain.SessionStatus {
+//
+// stallThreshold feeds domain.IsStalled: a worker session whose activity_state
+// has claimed "active" for longer than stallThreshold without a fresh signal
+// is surfaced as StatusStalled. That check runs BEFORE the PR aggregation
+// below, so a stalled worker's status wins over any PR readiness signal
+// (e.g. mergeable) — a silently-stuck agent needs attention even if its last
+// PR looks fine. It also runs after the waiting_input check, since
+// ActivityWaitingInput is sticky and structurally can never be stalled (see
+// domain.IsStalled).
+func deriveStatus(rec domain.SessionRecord, prs []domain.PRFacts, now time.Time, stallThreshold time.Duration, signalCapable bool) domain.SessionStatus {
 	if rec.IsTerminated {
 		if anyMerged(prs) {
 			return domain.StatusMerged
@@ -34,6 +43,10 @@ func deriveStatus(rec domain.SessionRecord, prs []domain.PRFacts, now time.Time,
 
 	if rec.Activity.State == domain.ActivityWaitingInput {
 		return domain.StatusNeedsInput
+	}
+
+	if domain.IsStalled(rec, now, stallThreshold) {
+		return domain.StatusStalled
 	}
 
 	open := openPRs(prs)

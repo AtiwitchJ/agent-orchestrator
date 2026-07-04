@@ -9,6 +9,14 @@ import (
 
 var statusNow = time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
 
+// statusStallThreshold is a stand-in stall threshold for tests that don't
+// care about stalled-status derivation. None of the pre-existing records
+// below set Kind to domain.KindWorker (the zero SessionKind is ""), so
+// domain.IsStalled structurally can never fire for them regardless of this
+// value — see the dedicated stalled-status test cases further down for the
+// cases that do care.
+const statusStallThreshold = 4 * time.Minute
+
 // statusRec builds a session whose agent HAS delivered a hook signal; the
 // no-signal cases below zero FirstSignalAt explicitly.
 func statusRec(activity domain.ActivityState, terminated bool) domain.SessionRecord {
@@ -72,7 +80,7 @@ func TestServiceDerivesStatusFromSessionFactsAndPR(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := deriveStatus(tt.rec, tt.pr, statusNow, !tt.hookless); got != tt.want {
+			if got := deriveStatus(tt.rec, tt.pr, statusNow, statusStallThreshold, !tt.hookless); got != tt.want {
 				t.Fatalf("got %q want %q", got, tt.want)
 			}
 		})
@@ -116,7 +124,7 @@ func TestAggregateStackedChildSignals(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := deriveStatus(statusRec(domain.ActivityIdle, false), tt.prs, statusNow, true); got != tt.want {
+			if got := deriveStatus(statusRec(domain.ActivityIdle, false), tt.prs, statusNow, statusStallThreshold, true); got != tt.want {
 				t.Fatalf("got %q want %q", got, tt.want)
 			}
 		})
@@ -135,5 +143,66 @@ func TestHarnessSignalsCapabilityGate(t *testing.T) {
 	}
 	if s.harnessSignals(domain.HarnessAmp) {
 		t.Fatal("harnessSignals(amp) = true with codex-only predicate")
+	}
+}
+
+// stalledWorker builds a worker session whose activity_state has claimed
+// "active" for twice the test threshold without a fresh signal — the
+// canonical case IsStalled is built to catch.
+func stalledWorker() domain.SessionRecord {
+	return domain.SessionRecord{
+		Kind:          domain.KindWorker,
+		Activity:      domain.Activity{State: domain.ActivityActive, LastActivityAt: statusNow.Add(-2 * statusStallThreshold)},
+		FirstSignalAt: statusNow.Add(-2 * statusStallThreshold),
+	}
+}
+
+// TestDeriveStatusStalled covers the 7-safety-property surface at the
+// deriveStatus level: only a stale-active WORKER surfaces as stalled; an
+// orchestrator in the identical stale-active shape never does (structural
+// immunity), and the sticky waiting_input state never does either. It also
+// pins that a stalled worker wins over an otherwise-mergeable PR, since
+// stallmon's kill decision and the dashboard badge must agree that a
+// silently-stuck agent needs attention regardless of how its PR looks.
+func TestDeriveStatusStalled(t *testing.T) {
+	mergeablePR := statusPR(domain.PRFacts{Mergeability: domain.MergeMergeable})
+
+	tests := []struct {
+		name string
+		rec  domain.SessionRecord
+		prs  []domain.PRFacts
+		want domain.SessionStatus
+	}{
+		{"stale-active-worker-is-stalled", stalledWorker(), nil, domain.StatusStalled},
+		{
+			"orchestrator-immune-even-when-stale-active",
+			func() domain.SessionRecord { r := stalledWorker(); r.Kind = domain.KindOrchestrator; return r }(),
+			nil,
+			domain.StatusWorking,
+		},
+		{
+			"waiting-input-sticky-immune-even-when-stale",
+			func() domain.SessionRecord {
+				r := stalledWorker()
+				r.Activity.State = domain.ActivityWaitingInput
+				return r
+			}(),
+			nil,
+			domain.StatusNeedsInput,
+		},
+		{"stalled-beats-mergeable-pr", stalledWorker(), mergeablePR, domain.StatusStalled},
+		{
+			"fresh-active-worker-not-stalled",
+			domain.SessionRecord{Kind: domain.KindWorker, Activity: domain.Activity{State: domain.ActivityActive, LastActivityAt: statusNow}, FirstSignalAt: statusNow},
+			nil,
+			domain.StatusWorking,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := deriveStatus(tt.rec, tt.prs, statusNow, statusStallThreshold, true); got != tt.want {
+				t.Fatalf("got %q want %q", got, tt.want)
+			}
+		})
 	}
 }

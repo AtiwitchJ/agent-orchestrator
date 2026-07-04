@@ -55,6 +55,13 @@ type attachment struct {
 	maxReattach int
 	resetGrace  time.Duration
 
+	// pulse is the optional stall-monitor secondary signal: copyOut touches it
+	// on every real chunk of PTY output. nil (the default for every existing
+	// caller) means the signal is simply not recorded — stallmon's consumer
+	// side already treats "no data" as "fall back to activity-state-only",
+	// so leaving this nil is always safe, never fails closed.
+	pulse *OutputPulse
+
 	mu           sync.Mutex
 	pty          ports.Stream
 	cancel       context.CancelFunc
@@ -181,7 +188,10 @@ func (a *attachment) run(ctx context.Context) {
 	}
 }
 
-// copyOut pumps PTY output to the sink until the PTY closes or errors.
+// copyOut pumps PTY output to the sink until the PTY closes or errors. Every
+// non-empty read also touches the stall monitor's secondary output-pulse
+// signal (see OutputPulse) so a genuinely-producing pane is never mistaken
+// for a stalled one just because its activity_state hook went quiet.
 func (a *attachment) copyOut(p ports.Stream) {
 	buf := make([]byte, 32*1024)
 	for {
@@ -190,6 +200,7 @@ func (a *attachment) copyOut(p ports.Stream) {
 			chunk := make([]byte, n)
 			copy(chunk, buf[:n])
 			a.onData(chunk)
+			a.pulse.Touch(a.id, time.Now())
 		}
 		if err != nil {
 			return

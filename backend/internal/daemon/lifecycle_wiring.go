@@ -124,6 +124,11 @@ func startSession(cfg config.Config, runtime runtimeselect.Runtime, store *sqlit
 		// no_signal only makes sense for harnesses whose adapters install
 		// activity hooks; the deriver registry is the source of truth for that.
 		SignalCapable: activitydispatch.SupportsHarness,
+		// Feeds the derived StatusStalled badge (see domain.IsStalled); the
+		// stallmon monitor is wired separately in daemon.go with the same
+		// cfg.StallThreshold so the badge and the auto-kill decision always
+		// agree on what "stalled" means.
+		StallThreshold: cfg.StallThreshold,
 	})
 	// Triggering a review spawns a reviewer over the worker's worktree, resolved
 	// from the reviewer registry (distinct from the worker agent set). The

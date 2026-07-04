@@ -17,12 +17,18 @@ const (
 	NotificationPRMerged NotificationType = "pr_merged"
 	// NotificationPRClosedUnmerged means a tracked PR closed without merging.
 	NotificationPRClosedUnmerged NotificationType = "pr_closed_unmerged"
+	// NotificationAutoTerminated means the stallmon monitor auto-killed a
+	// worker session that was observed stalled (activity_state stuck on
+	// "active") on two consecutive ticks. This is the audit trail for an
+	// automatic, unattended kill, so it is always written BEFORE the kill is
+	// attempted (see observe/stallmon).
+	NotificationAutoTerminated NotificationType = "auto_terminated"
 )
 
 // Valid reports whether t is one of the v1 notification kinds.
 func (t NotificationType) Valid() bool {
 	switch t {
-	case NotificationNeedsInput, NotificationReadyToMerge, NotificationPRMerged, NotificationPRClosedUnmerged:
+	case NotificationNeedsInput, NotificationReadyToMerge, NotificationPRMerged, NotificationPRClosedUnmerged, NotificationAutoTerminated:
 		return true
 	default:
 		return false

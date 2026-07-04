@@ -36,6 +36,10 @@ const (
 	// DefaultTelemetryPostHogHost is the default PostHog ingestion host when
 	// remote telemetry is enabled and AO_TELEMETRY_POSTHOG_HOST is unset.
 	DefaultTelemetryPostHogHost = "https://us.i.posthog.com"
+	// DefaultStallThreshold is how long a worker session's activity_state may
+	// claim "active" without a fresh signal before stallmon considers it
+	// stalled. See domain.IsStalled.
+	DefaultStallThreshold = 4 * time.Minute
 )
 
 // TelemetryRemote selects the remote telemetry exporter.
@@ -94,6 +98,15 @@ type Config struct {
 	AllowedOrigins []string
 	// Telemetry controls local/remote telemetry sinks.
 	Telemetry TelemetryConfig
+	// StallThreshold is how long a worker session's activity_state may stay
+	// "active" without a fresh signal before stallmon considers it stalled.
+	// Overridden by AO_STALL_THRESHOLD.
+	StallThreshold time.Duration
+	// StallAutoKill gates whether stallmon actually terminates a confirmed-
+	// stalled worker session (true) or only logs it (false). The "stalled"
+	// status badge is derived independently in deriveStatus and always shows
+	// regardless of this flag. Overridden by AO_STALL_AUTOKILL. Default on.
+	StallAutoKill bool
 }
 
 // Addr returns the host:port the HTTP server binds. It uses net.JoinHostPort so
@@ -120,6 +133,8 @@ func (c Config) Addr() string {
 //	AO_TELEMETRY_REMOTE  remote exporter off|posthog (default off)
 //	AO_TELEMETRY_POSTHOG_KEY   PostHog project key
 //	AO_TELEMETRY_POSTHOG_HOST  PostHog host (default DefaultTelemetryPostHogHost)
+//	AO_STALL_THRESHOLD   stall silence threshold (Go duration > 0, default 4m)
+//	AO_STALL_AUTOKILL    auto-kill confirmed-stalled sessions off|on (default on)
 //
 // The bind host is not configurable: the daemon is loopback-only by design.
 func Load() (Config, error) {
@@ -134,6 +149,8 @@ func Load() (Config, error) {
 			Remote:      TelemetryRemoteOff,
 			PostHogHost: DefaultTelemetryPostHogHost,
 		},
+		StallThreshold: DefaultStallThreshold,
+		StallAutoKill:  true,
 	}
 
 	if raw := os.Getenv("AO_PORT"); raw != "" {
@@ -212,6 +229,21 @@ func Load() (Config, error) {
 	}
 	if raw := os.Getenv("AO_TELEMETRY_POSTHOG_HOST"); raw != "" {
 		cfg.Telemetry.PostHogHost = raw
+	}
+
+	if raw := os.Getenv("AO_STALL_THRESHOLD"); raw != "" {
+		d, err := parsePositiveDuration("AO_STALL_THRESHOLD", raw)
+		if err != nil {
+			return Config{}, err
+		}
+		cfg.StallThreshold = d
+	}
+	if raw := os.Getenv("AO_STALL_AUTOKILL"); raw != "" {
+		v, err := parseToggleEnv("AO_STALL_AUTOKILL", raw)
+		if err != nil {
+			return Config{}, err
+		}
+		cfg.StallAutoKill = v
 	}
 
 	runFile, err := resolveRunFilePath()

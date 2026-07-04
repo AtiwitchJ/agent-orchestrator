@@ -10,7 +10,7 @@ import (
 func TestLoadDefaults(t *testing.T) {
 	// Clear every recognised var so we observe pure defaults regardless of the
 	// surrounding environment.
-	for _, k := range []string{"AO_PORT", "AO_REQUEST_TIMEOUT", "AO_SHUTDOWN_TIMEOUT", "AO_RUN_FILE", "AO_DATA_DIR", "AO_AGENT", "AO_ALLOWED_ORIGINS", "AO_TELEMETRY_EVENTS", "AO_TELEMETRY_METRICS", "AO_TELEMETRY_REMOTE", "AO_TELEMETRY_POSTHOG_KEY", "AO_TELEMETRY_POSTHOG_HOST"} {
+	for _, k := range []string{"AO_PORT", "AO_REQUEST_TIMEOUT", "AO_SHUTDOWN_TIMEOUT", "AO_RUN_FILE", "AO_DATA_DIR", "AO_AGENT", "AO_ALLOWED_ORIGINS", "AO_TELEMETRY_EVENTS", "AO_TELEMETRY_METRICS", "AO_TELEMETRY_REMOTE", "AO_TELEMETRY_POSTHOG_KEY", "AO_TELEMETRY_POSTHOG_HOST", "AO_STALL_THRESHOLD", "AO_STALL_AUTOKILL"} {
 		t.Setenv(k, "")
 	}
 
@@ -51,6 +51,12 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Telemetry.Remote != TelemetryRemoteOff || cfg.Telemetry.PostHogHost != DefaultTelemetryPostHogHost {
 		t.Fatalf("Telemetry defaults = %+v", cfg.Telemetry)
 	}
+	if cfg.StallThreshold != DefaultStallThreshold {
+		t.Errorf("StallThreshold = %s, want %s", cfg.StallThreshold, DefaultStallThreshold)
+	}
+	if !cfg.StallAutoKill {
+		t.Error("StallAutoKill = false, want true (default on)")
+	}
 }
 
 func TestLoadOverrides(t *testing.T) {
@@ -64,6 +70,8 @@ func TestLoadOverrides(t *testing.T) {
 	t.Setenv("AO_TELEMETRY_REMOTE", "posthog")
 	t.Setenv("AO_TELEMETRY_POSTHOG_KEY", "phc_test")
 	t.Setenv("AO_TELEMETRY_POSTHOG_HOST", "https://eu.i.posthog.com")
+	t.Setenv("AO_STALL_THRESHOLD", "90s")
+	t.Setenv("AO_STALL_AUTOKILL", "off")
 
 	cfg, err := Load()
 	if err != nil {
@@ -90,6 +98,12 @@ func TestLoadOverrides(t *testing.T) {
 	if cfg.Telemetry.Remote != TelemetryRemotePostHog || cfg.Telemetry.PostHogKey != "phc_test" || cfg.Telemetry.PostHogHost != "https://eu.i.posthog.com" {
 		t.Fatalf("Telemetry remote = %+v", cfg.Telemetry)
 	}
+	if cfg.StallThreshold != 90*time.Second {
+		t.Errorf("StallThreshold = %s, want 90s", cfg.StallThreshold)
+	}
+	if cfg.StallAutoKill {
+		t.Error("StallAutoKill = true, want false (overridden off)")
+	}
 }
 
 func TestLoadInvalid(t *testing.T) {
@@ -110,6 +124,10 @@ func TestLoadInvalid(t *testing.T) {
 		{"bad telemetry events", map[string]string{"AO_TELEMETRY_EVENTS": "maybe"}},
 		{"bad telemetry metrics", map[string]string{"AO_TELEMETRY_METRICS": "maybe"}},
 		{"bad telemetry remote", map[string]string{"AO_TELEMETRY_REMOTE": "otlp"}},
+		{"bad stall threshold", map[string]string{"AO_STALL_THRESHOLD": "soon"}},
+		{"zero stall threshold", map[string]string{"AO_STALL_THRESHOLD": "0s"}},
+		{"negative stall threshold", map[string]string{"AO_STALL_THRESHOLD": "-1m"}},
+		{"bad stall autokill", map[string]string{"AO_STALL_AUTOKILL": "maybe"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

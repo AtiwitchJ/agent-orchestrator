@@ -1859,6 +1859,7 @@ components:
           - idle
           - terminated
           - no_signal
+          - stalled
           type: string
         terminalHandleId:
           type: string
@@ -2129,6 +2130,7 @@ components:
           - ready_to_merge
           - pr_merged
           - pr_closed_unmerged
+          - auto_terminated
           type: string
       required:
       - id
