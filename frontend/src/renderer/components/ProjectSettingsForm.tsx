@@ -2,8 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { components } from "../../api/schema";
 import { agentsQueryKey, agentsQueryOptions, refreshAgents } from "../hooks/useAgentsQuery";
+import { companiesQueryKey, companiesQueryOptions } from "../hooks/useCompaniesQuery";
 import { useWorkspaceQuery, workspaceQueryKey } from "../hooks/useWorkspaceQuery";
 import { apiClient, apiErrorMessage } from "../lib/api-client";
+import { assignProjectCompany, createCompany } from "../lib/companies";
 import { spawnOrchestrator } from "../lib/spawn-orchestrator";
 import { newestActiveOrchestrator } from "../types/workspace";
 import { RequiredAgentField } from "./CreateProjectAgentSheet";
@@ -194,6 +196,8 @@ function SettingsBody({ project, projectId, onSaved }: { project: Project; proje
 				</CardContent>
 			</Card>
 
+			<CompanyCard companyId={workspace?.companyId} projectId={projectId} />
+
 			<Card>
 				<CardHeader>
 					<CardTitle className="text-[13px]">Worktrees</CardTitle>
@@ -331,6 +335,113 @@ function SettingsBody({ project, projectId, onSaved }: { project: Project; proje
 				)}
 			</div>
 		</form>
+	);
+}
+
+const NO_COMPANY_VALUE = "__none__";
+const NEW_COMPANY_VALUE = "__new__";
+
+// Assigns (or unassigns) the project's company independently of the "Save
+// changes" form — mirrors the Agents card's "Refresh agents" button, which
+// also mutates immediately rather than waiting on form submit.
+function CompanyCard({ companyId, projectId }: { companyId?: string; projectId: string }) {
+	const queryClient = useQueryClient();
+	const companiesQuery = useQuery(companiesQueryOptions);
+	const companies = companiesQuery.data ?? [];
+	const [isCreating, setIsCreating] = useState(false);
+	const [newCompanyName, setNewCompanyName] = useState("");
+	const [error, setError] = useState<string | null>(null);
+
+	const invalidateAfterChange = () => {
+		void queryClient.invalidateQueries({ queryKey: companiesQueryKey });
+		void queryClient.invalidateQueries({ queryKey: workspaceQueryKey });
+	};
+
+	const assignMutation = useMutation({
+		mutationFn: (nextCompanyId: string) => assignProjectCompany(projectId, nextCompanyId),
+		onSuccess: invalidateAfterChange,
+	});
+
+	const createMutation = useMutation({
+		mutationFn: async (name: string) => {
+			const company = await createCompany(name);
+			await assignProjectCompany(projectId, company.id);
+		},
+		onSuccess: () => {
+			invalidateAfterChange();
+			setNewCompanyName("");
+			setIsCreating(false);
+		},
+	});
+
+	const isPending = assignMutation.isPending || createMutation.isPending;
+
+	const handleSelect = (value: string) => {
+		setError(null);
+		if (value === NEW_COMPANY_VALUE) {
+			setIsCreating(true);
+			return;
+		}
+		assignMutation.mutate(value === NO_COMPANY_VALUE ? "" : value, {
+			onError: (err) => setError(err instanceof Error ? err.message : "Could not assign company"),
+		});
+	};
+
+	const submitNewCompany = () => {
+		const name = newCompanyName.trim();
+		if (!name) return;
+		setError(null);
+		createMutation.mutate(name, {
+			onError: (err) => setError(err instanceof Error ? err.message : "Could not create company"),
+		});
+	};
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle className="text-[13px]">Company</CardTitle>
+			</CardHeader>
+			<CardContent className="flex flex-col gap-4">
+				<Field label="Company" htmlFor="company">
+					<Select disabled={isPending} value={companyId || NO_COMPANY_VALUE} onValueChange={handleSelect}>
+						<SelectTrigger id="company" className="h-8 w-full text-[13px]">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value={NO_COMPANY_VALUE}>No company</SelectItem>
+							{companies.map((company) => (
+								<SelectItem key={company.id} value={company.id}>
+									{company.name}
+								</SelectItem>
+							))}
+							<SelectItem value={NEW_COMPANY_VALUE}>+ New company…</SelectItem>
+						</SelectContent>
+					</Select>
+				</Field>
+				{isCreating && (
+					<div className="flex items-center gap-2">
+						<input
+							aria-label="New company name"
+							autoFocus
+							className="h-8 flex-1 rounded-md border border-input bg-transparent px-2.5 text-[13px] text-foreground placeholder:text-passive focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-weak"
+							onChange={(e) => setNewCompanyName(e.target.value)}
+							onKeyDown={(e) => {
+								if (e.key === "Enter") {
+									e.preventDefault();
+									submitNewCompany();
+								}
+							}}
+							placeholder="Company name"
+							value={newCompanyName}
+						/>
+						<Button disabled={isPending} onClick={submitNewCompany} size="sm" type="button">
+							{createMutation.isPending ? "Creating…" : "Create"}
+						</Button>
+					</div>
+				)}
+				{error && <p className="text-[12px] text-error">{error}</p>}
+			</CardContent>
+		</Card>
 	);
 }
 

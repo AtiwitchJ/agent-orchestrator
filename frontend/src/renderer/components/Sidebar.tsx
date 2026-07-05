@@ -16,14 +16,17 @@ import {
 import { useRef, useState, type ReactNode } from "react";
 import {
 	attentionZone,
+	groupWorkspacesByCompany,
 	newestActiveOrchestrator,
 	sessionIsActive,
+	type WorkspaceCompanyGroup,
 	type WorkspaceSession,
 	type WorkspaceSummary,
 	workerSessions,
 } from "../types/workspace";
 import { aoBridge } from "../lib/bridge";
 import { workspaceQueryKey } from "../hooks/useWorkspaceQuery";
+import { useCompaniesQuery } from "../hooks/useCompaniesQuery";
 import { spawnOrchestrator } from "../lib/spawn-orchestrator";
 import { renameSession } from "../lib/rename-session";
 import { useEventsConnection } from "../hooks/useEventsConnection";
@@ -115,7 +118,8 @@ function SessionDot({ session }: { session: WorkspaceSession }) {
 			className={cn(
 				"mt-px h-1.5 w-1.5 shrink-0 rounded-full",
 				zone === "working" && "animate-status-pulse bg-working",
-				zone === "action" && (session.status === "ci_failed" ? "bg-error" : "bg-warning"),
+				zone === "action" &&
+					(session.status === "ci_failed" || session.status === "stalled" ? "bg-error" : "bg-warning"),
 				zone === "pending" && "bg-passive",
 				zone === "merge" && "bg-success",
 				zone === "done" && "bg-passive",
@@ -140,6 +144,12 @@ export function Sidebar({
 	const eventsConnection = useEventsConnection();
 	const { state } = useSidebar();
 	const isCollapsed = state === "collapsed";
+	// Companies group projects in the sidebar; an empty list (no companies ever
+	// created) means every existing user sees the exact flat list they always
+	// have — no grouping wrapper, no "Unassigned" header.
+	const companiesQuery = useCompaniesQuery();
+	const companies = companiesQuery.data ?? [];
+	const hasCompanies = companies.length > 0;
 	const theme = useUiStore((s) => s.theme);
 	const toggleTheme = useUiStore((s) => s.toggleTheme);
 	// Disclosure state: projects are expanded by default; a project id present in
@@ -256,6 +266,20 @@ export function Sidebar({
 									Click <span className="text-foreground">+</span> above to register a git repo.
 								</p>
 							</div>
+						) : hasCompanies ? (
+							<SidebarMenu className="gap-0 group-data-[collapsible=icon]:gap-1">
+								{groupWorkspacesByCompany(workspaces, companies).map((group) => (
+									<CompanyGroup
+										key={group.id}
+										collapsedIds={collapsedIds}
+										group={group}
+										onRemoveProject={onRemoveProject}
+										onToggleCollapsed={toggleCollapsed}
+										selection={selection}
+									/>
+								))}
+								{isCollapsed && <CreateProjectListItem onCreateProject={onCreateProject} />}
+							</SidebarMenu>
 						) : (
 							<SidebarMenu className="gap-0 group-data-[collapsible=icon]:gap-1">
 								{workspaces.map((workspace) => (
@@ -407,6 +431,68 @@ export function Sidebar({
 }
 
 type Selection = ReturnType<typeof useSelection>;
+
+// Wraps a company's projects in a collapsible header, reusing Sidebar's
+// collapsedIds set (keyed "company:<id>" so it can't collide with a project
+// id) rather than its own state. In the icon rail the header would just be
+// dead chrome above a column of letter tiles, so it's skipped entirely and
+// the rail falls back to one flat stack of ProjectItems, exactly like the
+// no-companies case.
+function CompanyGroup({
+	collapsedIds,
+	group,
+	onRemoveProject,
+	onToggleCollapsed,
+	selection,
+}: {
+	collapsedIds: ReadonlySet<string>;
+	group: WorkspaceCompanyGroup;
+	onRemoveProject: (projectId: string) => Promise<void>;
+	onToggleCollapsed: (id: string) => void;
+	selection: Selection;
+}) {
+	const { state } = useSidebar();
+	const isCollapsed = state === "collapsed";
+	const disclosureId = `company:${group.id}`;
+	const expanded = !collapsedIds.has(disclosureId);
+
+	const projectItems = group.workspaces.map((workspace) => (
+		<ProjectItem
+			key={workspace.id}
+			workspace={workspace}
+			expanded={!collapsedIds.has(workspace.id)}
+			selection={selection}
+			onToggle={() => onToggleCollapsed(workspace.id)}
+			onRemoveProject={onRemoveProject}
+		/>
+	));
+
+	if (isCollapsed) {
+		return <>{projectItems}</>;
+	}
+
+	return (
+		<SidebarMenuItem className="mb-px">
+			<button
+				aria-expanded={expanded}
+				className="flex h-7 w-full items-center gap-1.5 rounded-[5px] px-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-passive transition-colors hover:bg-interactive-hover hover:text-muted-foreground"
+				onClick={() => onToggleCollapsed(disclosureId)}
+				type="button"
+			>
+				<ChevronRight
+					className={cn("h-[9px]! w-[9px]! shrink-0 transition-transform", expanded && "rotate-90")}
+					strokeWidth={2.5}
+					aria-hidden="true"
+				/>
+				<span className="min-w-0 flex-1 truncate text-left">{group.name}</span>
+				<span className="h-4 min-w-4 shrink-0 place-items-center rounded bg-interactive-hover px-1 font-mono text-[10px] normal-case leading-none text-passive">
+					{group.workspaces.length}
+				</span>
+			</button>
+			{expanded && <SidebarMenu className="gap-0">{projectItems}</SidebarMenu>}
+		</SidebarMenuItem>
+	);
+}
 
 function ProjectItem({
 	workspace,

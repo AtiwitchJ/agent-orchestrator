@@ -4,6 +4,7 @@ import { getApiBaseUrl, hasTrustedApiBaseUrl, subscribeApiBaseUrl } from "./api-
 import { setEventsConnectionState } from "./events-connection";
 import { workspaceQueryKey } from "../hooks/useWorkspaceQuery";
 import { sessionScmSummaryQueryKey } from "../hooks/useSessionScmSummary";
+import { projectMessagesQueryKey } from "../hooks/useProjectMessagesQuery";
 
 export type EventTransport = {
 	connect: () => () => void;
@@ -33,6 +34,13 @@ const CDC_EVENT_TYPES = [
 	"pr_review_thread_resolved",
 ] as const;
 
+// Agent-to-agent send facts land on their own event and don't change the
+// project/session list, so they're kept out of CDC_EVENT_TYPES (which drives
+// the workspace refetch above) and instead just invalidate the messages
+// query that SessionMessagesPanel reads. The event carries no payload beyond
+// ids — the query refetch is the source of truth for content.
+const SESSION_MESSAGE_CREATED_EVENT_TYPE = "session_message_created";
+
 /**
  * Wires live server state into the TanStack Query cache. Two sources feed it:
  *   - daemon lifecycle over Electron IPC (coming up/down changes session availability)
@@ -53,6 +61,10 @@ export function createEventTransport(queryClient: QueryClient): EventTransport {
 					void queryClient.invalidateQueries({ queryKey: workspaceQueryKey });
 					void queryClient.invalidateQueries({ queryKey: sessionScmSummaryQueryKey() });
 				}, INVALIDATE_DEBOUNCE_MS);
+			};
+
+			const refreshMessages = () => {
+				void queryClient.invalidateQueries({ queryKey: projectMessagesQueryKey() });
 			};
 
 			const scheduleRetry = () => {
@@ -98,6 +110,7 @@ export function createEventTransport(queryClient: QueryClient): EventTransport {
 					for (const type of CDC_EVENT_TYPES) {
 						source.addEventListener(type, refreshWorkspaces);
 					}
+					source.addEventListener(SESSION_MESSAGE_CREATED_EVENT_TYPE, refreshMessages);
 					// EventSource auto-reconnects and resumes via Last-Event-ID while
 					// CONNECTING; scheduleRetry only covers the terminal CLOSED state.
 				} catch {

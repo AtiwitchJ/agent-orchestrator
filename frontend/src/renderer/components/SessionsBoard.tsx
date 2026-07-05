@@ -407,6 +407,8 @@ function sessionBadge(session: WorkspaceSession): { label: string; className: st
 			return { label: "Input needed", className: "text-warning" };
 		case "no_signal":
 			return { label: "No signal", className: "text-passive" };
+		case "stalled":
+			return { label: "Stalled", className: "text-error" };
 		case "ci_failed":
 			return { label: "CI failed", className: "text-error" };
 		case "changes_requested":

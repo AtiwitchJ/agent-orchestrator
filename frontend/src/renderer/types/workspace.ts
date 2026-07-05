@@ -10,6 +10,7 @@ export type SessionStatus =
 	| "merged"
 	| "needs_input"
 	| "no_signal"
+	| "stalled"
 	| "idle"
 	| "terminated"
 	| "unknown";
@@ -26,6 +27,7 @@ const sessionStatuses = new Set<SessionStatus>([
 	"merged",
 	"needs_input",
 	"no_signal",
+	"stalled",
 	"idle",
 	"terminated",
 ]);
@@ -184,6 +186,10 @@ export function workerDisplayStatus(session: WorkspaceSession): WorkerDisplaySta
 		case "needs_input":
 		case "changes_requested":
 		case "review_pending":
+		// A stalled worker also needs a human — the daemon already tried to
+		// auto-kill it, so this is either a fresh stall or a harness the
+		// killer can't safely act on.
+		case "stalled":
 			return "needs_you";
 		case "ci_failed":
 			return "ci_failed";
@@ -282,7 +288,8 @@ export function sessionNeedsAttention(session: WorkspaceSession): boolean {
 		session.status === "no_signal" ||
 		session.status === "changes_requested" ||
 		session.status === "review_pending" ||
-		session.status === "ci_failed"
+		session.status === "ci_failed" ||
+		session.status === "stalled"
 	);
 }
 
@@ -337,6 +344,11 @@ export function attentionZone(session: WorkspaceSession): AttentionZone {
 		case "no_signal":
 		case "ci_failed":
 		case "changes_requested":
+		// Stalled wins over whatever PR status was last recorded — approved by
+		// design (see task-5-brief risk notes): a session that stopped
+		// producing signal still needs a human even if its last-known PR state
+		// looked fine. Do not "fix" this back to a PR-status branch.
+		case "stalled":
 			return "action";
 		// Waiting on an external reviewer / CI — nothing to do right now.
 		case "review_pending":
@@ -363,8 +375,55 @@ export type WorkspaceSummary = {
 		additions: number;
 		deletions: number;
 	};
+	/** Company this project is grouped under in the sidebar, if any. */
+	companyId?: string;
 	sessions: WorkspaceSession[];
 };
+
+/** A minimal company shape for grouping — decoupled from the api schema type. */
+export type CompanyLike = { id: string; name: string };
+
+/** Sidebar id prefix for a company's disclosure state, avoiding collisions
+ * with project ids in the shared collapsedIds set. */
+export const UNASSIGNED_COMPANY_ID = "unassigned";
+
+export type WorkspaceCompanyGroup = {
+	id: string;
+	name: string;
+	workspaces: WorkspaceSummary[];
+};
+
+/**
+ * Buckets workspaces by their companyId, in company list order, with any
+ * workspace whose companyId is unset or points at a company that no longer
+ * exists falling into a trailing "Unassigned" group (only rendered when
+ * non-empty). Callers should skip grouping entirely when `companies` is
+ * empty — see Sidebar's no-companies fallback.
+ */
+export function groupWorkspacesByCompany(
+	workspaces: WorkspaceSummary[],
+	companies: CompanyLike[],
+): WorkspaceCompanyGroup[] {
+	const groups: WorkspaceCompanyGroup[] = companies.map((company) => ({
+		id: company.id,
+		name: company.name,
+		workspaces: [],
+	}));
+	const groupById = new Map(groups.map((group) => [group.id, group]));
+	const unassigned: WorkspaceSummary[] = [];
+	for (const workspace of workspaces) {
+		const group = workspace.companyId ? groupById.get(workspace.companyId) : undefined;
+		if (group) {
+			group.workspaces.push(workspace);
+		} else {
+			unassigned.push(workspace);
+		}
+	}
+	if (unassigned.length > 0) {
+		groups.push({ id: UNASSIGNED_COMPANY_ID, name: "Unassigned", workspaces: unassigned });
+	}
+	return groups;
+}
 
 export function orchestratorNeedsRestart(workspace: WorkspaceSummary, orchestrator?: WorkspaceSession): boolean {
 	if (!orchestrator || !workspace.orchestratorAgent) return false;

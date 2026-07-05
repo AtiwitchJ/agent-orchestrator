@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Sidebar } from "./Sidebar";
 import type { WorkspaceSession, WorkspaceSummary } from "../types/workspace";
 import { agentsQueryKey } from "../hooks/useAgentsQuery";
+import { companiesQueryKey, type Company } from "../hooks/useCompaniesQuery";
 
 const { getMock, navigateMock, mockParams, renameSessionMock } = vi.hoisted(() => ({
 	getMock: vi.fn(),
@@ -62,11 +63,15 @@ type CreateProjectHandler = (input: { path: string; workerAgent: string; orchest
 type RemoveProjectHandler = (projectId: string) => Promise<void>;
 
 function renderSidebar({
+	companies,
+	defaultOpen = true,
 	onCreateProject = vi.fn().mockResolvedValue(undefined) as CreateProjectHandler,
 	onRemoveProject = vi.fn().mockResolvedValue(undefined) as RemoveProjectHandler,
 	seedAgents = true,
 	workspaces = [workspace],
 }: {
+	companies?: Company[];
+	defaultOpen?: boolean;
 	onCreateProject?: CreateProjectHandler;
 	onRemoveProject?: RemoveProjectHandler;
 	seedAgents?: boolean;
@@ -91,9 +96,12 @@ function renderSidebar({
 			],
 		});
 	}
+	if (companies) {
+		queryClient.setQueryData(companiesQueryKey, companies);
+	}
 	render(
 		<QueryClientProvider client={queryClient}>
-			<SidebarProvider>
+			<SidebarProvider defaultOpen={defaultOpen}>
 				<Sidebar
 					daemonStatus={{ state: "running" }}
 					onCreateProject={onCreateProject}
@@ -111,24 +119,35 @@ async function chooseOption(trigger: HTMLElement, optionName: string) {
 	await userEvent.click(await screen.findByRole("option", { name: optionName }));
 }
 
+// Sidebar's useCompaniesQuery fires apiClient.GET("/api/v1/companies") on
+// every mount, alongside whatever endpoint a given test is exercising (e.g.
+// the agents catalog). getMock is a single jest.fn shared across every
+// apiClient.GET call, so it must route by path — otherwise a company fetch
+// silently consumes a mockResolvedValueOnce/mockReturnValueOnce meant for a
+// different endpoint and the test observes the wrong response.
+const DEFAULT_AGENT_CATALOG_RESPONSE = {
+	data: {
+		supported: [
+			{ id: "claude-code", label: "Claude Code" },
+			{ id: "codex", label: "Codex" },
+		],
+		installed: [
+			{ id: "claude-code", label: "Claude Code" },
+			{ id: "codex", label: "Codex" },
+		],
+		authorized: [
+			{ id: "claude-code", label: "Claude Code", authStatus: "authorized" },
+			{ id: "codex", label: "Codex", authStatus: "authorized" },
+		],
+	},
+	error: undefined,
+};
+
 beforeEach(() => {
 	getMock.mockReset();
-	getMock.mockResolvedValue({
-		data: {
-			supported: [
-				{ id: "claude-code", label: "Claude Code" },
-				{ id: "codex", label: "Codex" },
-			],
-			installed: [
-				{ id: "claude-code", label: "Claude Code" },
-				{ id: "codex", label: "Codex" },
-			],
-			authorized: [
-				{ id: "claude-code", label: "Claude Code", authStatus: "authorized" },
-				{ id: "codex", label: "Codex", authStatus: "authorized" },
-			],
-		},
-		error: undefined,
+	getMock.mockImplementation(async (path: string) => {
+		if (path === "/api/v1/companies") return { data: { companies: [] }, error: undefined };
+		return DEFAULT_AGENT_CATALOG_RESPONSE;
 	});
 	navigateMock.mockReset();
 	renameSessionMock.mockReset().mockResolvedValue(undefined);
@@ -211,20 +230,23 @@ describe("Sidebar", () => {
 		const user = userEvent.setup();
 		const onCreateProject = vi.fn().mockResolvedValue(undefined) as CreateProjectHandler;
 		window.ao!.app.chooseDirectory = vi.fn().mockResolvedValue("/repo/new-project");
-		getMock.mockResolvedValueOnce({
-			data: {
-				supported: [
-					{ id: "claude-code", label: "Claude Code" },
-					{ id: "cursor", label: "Cursor" },
-					{ id: "aider", label: "Aider" },
-				],
-				installed: [
-					{ id: "claude-code", label: "Claude Code", authStatus: "authorized" },
-					{ id: "cursor", label: "Cursor", authStatus: "unauthorized" },
-				],
-				authorized: [{ id: "claude-code", label: "Claude Code", authStatus: "authorized" }],
-			},
-			error: undefined,
+		getMock.mockImplementation(async (path: string) => {
+			if (path === "/api/v1/companies") return { data: { companies: [] }, error: undefined };
+			return {
+				data: {
+					supported: [
+						{ id: "claude-code", label: "Claude Code" },
+						{ id: "cursor", label: "Cursor" },
+						{ id: "aider", label: "Aider" },
+					],
+					installed: [
+						{ id: "claude-code", label: "Claude Code", authStatus: "authorized" },
+						{ id: "cursor", label: "Cursor", authStatus: "unauthorized" },
+					],
+					authorized: [{ id: "claude-code", label: "Claude Code", authStatus: "authorized" }],
+				},
+				error: undefined,
+			};
 		});
 		renderSidebar({ onCreateProject, seedAgents: false });
 
@@ -263,11 +285,12 @@ describe("Sidebar", () => {
 			};
 			error: undefined;
 		}) => void;
-		getMock.mockReturnValueOnce(
-			new Promise((resolve) => {
+		getMock.mockImplementation((path: string) => {
+			if (path === "/api/v1/companies") return Promise.resolve({ data: { companies: [] }, error: undefined });
+			return new Promise((resolve) => {
 				resolveAgents = resolve;
-			}),
-		);
+			});
+		});
 		renderSidebar({ onCreateProject, seedAgents: false });
 
 		await user.click(screen.getByLabelText("New project"));
@@ -349,5 +372,47 @@ describe("Sidebar", () => {
 		if (!projectRow) throw new Error("Project row button not found");
 		// Padding is always reserved for the action cluster (not hover-gated)
 		expect(projectRow).toHaveClass("pr-[84px]");
+	});
+
+	it("renders a flat project list with no company headers when no companies exist (no regression)", () => {
+		renderSidebar({ companies: [] });
+
+		expect(screen.getByText("Project One")).toBeInTheDocument();
+		expect(screen.queryByText("Unassigned")).not.toBeInTheDocument();
+		// Dashboard/orchestrator/kebab actions still work exactly as before grouping existed.
+		expect(screen.getByLabelText("Open Project One dashboard")).toBeInTheDocument();
+	});
+
+	it("groups projects under their company, with unassigned projects trailing", () => {
+		const assigned: WorkspaceSummary = { ...workspace, companyId: "co-1" };
+		const other: WorkspaceSummary = {
+			id: "proj-2",
+			name: "Project Two",
+			path: "/repo/project-two",
+			sessions: [],
+		};
+		renderSidebar({
+			companies: [{ id: "co-1", name: "OPEN-UPPU", createdAt: "2026-01-01T00:00:00Z" }],
+			workspaces: [assigned, other],
+		});
+
+		expect(screen.getByText("OPEN-UPPU")).toBeInTheDocument();
+		expect(screen.getByText("Unassigned")).toBeInTheDocument();
+		expect(screen.getByText("Project One")).toBeInTheDocument();
+		expect(screen.getByText("Project Two")).toBeInTheDocument();
+	});
+
+	it("does not render company headers in the icon rail", () => {
+		renderSidebar({
+			companies: [{ id: "co-1", name: "OPEN-UPPU", createdAt: "2026-01-01T00:00:00Z" }],
+			defaultOpen: false,
+			workspaces: [{ ...workspace, companyId: "co-1" }],
+		});
+
+		// Collapsed to the icon rail: group headers would be dead chrome above
+		// the letter-tile column, so CompanyGroup skips them and falls back to a
+		// flat stack of ProjectItems, same as the no-companies case.
+		expect(screen.queryByText("OPEN-UPPU")).not.toBeInTheDocument();
+		expect(screen.getByText("P")).toBeInTheDocument();
 	});
 });

@@ -1,8 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NotificationCenter } from "./NotificationCenter";
 import type { NotificationDTO } from "../lib/notifications";
+
+const { useNotificationsQueryMock } = vi.hoisted(() => ({ useNotificationsQueryMock: vi.fn() }));
 
 const notifications: NotificationDTO[] = [
 	{
@@ -36,7 +39,7 @@ vi.mock("@tanstack/react-router", () => ({ useNavigate: () => vi.fn() }));
 vi.mock("../hooks/useNotificationsQuery", () => ({
 	useMarkAllNotificationsReadMutation: () => ({ isPending: false, mutateAsync: vi.fn() }),
 	useMarkNotificationReadMutation: () => ({ isPending: false, mutateAsync: vi.fn() }),
-	useNotificationsQuery: () => ({ data: notifications, isError: false }),
+	useNotificationsQuery: useNotificationsQueryMock,
 }));
 
 vi.mock("../lib/notifications", async (importOriginal) => ({
@@ -53,6 +56,10 @@ function renderNotificationCenter() {
 	);
 }
 
+beforeEach(() => {
+	useNotificationsQueryMock.mockReset().mockReturnValue({ data: notifications, isError: false });
+});
+
 describe("NotificationCenter", () => {
 	it("renders a filled bell with a text-only yellow unread count", () => {
 		renderNotificationCenter();
@@ -67,5 +74,30 @@ describe("NotificationCenter", () => {
 		expect(count).not.toHaveClass("bg-warning");
 		expect(count).not.toHaveClass("rounded-full");
 		expect(count).not.toHaveClass("text-background");
+	});
+
+	it("renders an auto_terminated notification instead of dropping it (task-3's new notification type)", async () => {
+		const autoTerminated: NotificationDTO = {
+			id: "ntf_3",
+			sessionId: "sess-3",
+			projectId: "proj-1",
+			prUrl: "",
+			type: "auto_terminated",
+			title: "Session auto-terminated",
+			body: "Stalled for too long and was auto-killed.",
+			status: "unread",
+			createdAt: "2026-06-16T12:00:00Z",
+			target: { kind: "session", sessionId: "sess-3" },
+		};
+		useNotificationsQueryMock.mockReturnValue({ data: [autoTerminated], isError: false });
+
+		renderNotificationCenter();
+		await userEvent.click(screen.getByRole("button", { name: "1 unread notifications" }));
+
+		// No type allowlist rejects the unfamiliar string — the server-provided
+		// title/body render like any other notification, just with the default
+		// (unstyled) icon treatment since auto_terminated has no dedicated color.
+		expect(await screen.findByText("Session auto-terminated")).toBeInTheDocument();
+		expect(screen.getByText("Stalled for too long and was auto-killed.")).toBeInTheDocument();
 	});
 });

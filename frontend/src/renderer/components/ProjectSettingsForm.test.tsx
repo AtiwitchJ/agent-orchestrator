@@ -434,4 +434,86 @@ describe("ProjectSettingsForm", () => {
 		expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["project", "proj-1"] });
 		expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: workspaceQueryKey });
 	});
+
+	it("assigns a project to an existing company chosen from the dropdown", async () => {
+		getMock.mockImplementation(async (path: string) => {
+			if (path === "/api/v1/agents") return agentCatalogResponse;
+			if (path === "/api/v1/companies") {
+				return {
+					data: { companies: [{ id: "co-1", name: "OPEN-UPPU", createdAt: "2026-01-01T00:00:00Z" }] },
+					error: undefined,
+				};
+			}
+			return {
+				data: {
+					status: "ok",
+					project: {
+						id: "proj-1",
+						name: "Project One",
+						kind: "single_repo",
+						path: "/repo/project-one",
+						repo: "",
+						defaultBranch: "main",
+						config: { worker: { agent: "codex" }, orchestrator: { agent: "claude-code" } },
+					},
+				},
+				error: undefined,
+			};
+		});
+		putMock.mockResolvedValue({ data: { companyId: "co-1", projectId: "proj-1" }, error: undefined });
+
+		renderSettings();
+
+		const companySelect = await screen.findByRole("combobox", { name: "Company" });
+		await chooseOption(companySelect, "OPEN-UPPU");
+
+		await waitFor(() =>
+			expect(putMock).toHaveBeenCalledWith("/api/v1/projects/{id}/company", {
+				params: { path: { id: "proj-1" } },
+				body: { companyId: "co-1" },
+			}),
+		);
+	});
+
+	it("creates a new company inline and assigns it to the project", async () => {
+		getMock.mockImplementation(async (path: string) => {
+			if (path === "/api/v1/agents") return agentCatalogResponse;
+			if (path === "/api/v1/companies") return { data: { companies: [] }, error: undefined };
+			return {
+				data: {
+					status: "ok",
+					project: {
+						id: "proj-1",
+						name: "Project One",
+						kind: "single_repo",
+						path: "/repo/project-one",
+						repo: "",
+						defaultBranch: "main",
+						config: { worker: { agent: "codex" }, orchestrator: { agent: "claude-code" } },
+					},
+				},
+				error: undefined,
+			};
+		});
+		postMock.mockResolvedValueOnce({
+			data: { company: { id: "co-9", name: "OPEN-UPPU", createdAt: "2026-01-01T00:00:00Z" } },
+			error: undefined,
+		});
+		putMock.mockResolvedValue({ data: { companyId: "co-9", projectId: "proj-1" }, error: undefined });
+
+		renderSettings();
+
+		const companySelect = await screen.findByRole("combobox", { name: "Company" });
+		await chooseOption(companySelect, "+ New company…");
+		await userEvent.type(screen.getByLabelText("New company name"), "OPEN-UPPU");
+		await userEvent.click(screen.getByRole("button", { name: "Create" }));
+
+		await waitFor(() => expect(postMock).toHaveBeenCalledWith("/api/v1/companies", { body: { name: "OPEN-UPPU" } }));
+		await waitFor(() =>
+			expect(putMock).toHaveBeenCalledWith("/api/v1/projects/{id}/company", {
+				params: { path: { id: "proj-1" } },
+				body: { companyId: "co-9" },
+			}),
+		);
+	});
 });

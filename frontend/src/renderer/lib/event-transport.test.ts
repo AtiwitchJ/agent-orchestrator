@@ -40,12 +40,14 @@ class EventSourceStub {
 	onerror: (() => void) | null = null;
 	onmessage: (() => void) | null = null;
 	listeners: string[] = [];
+	handlers: Record<string, () => void> = {};
 	constructor(url: string) {
 		this.url = url;
 		EventSourceStub.instances.push(this);
 	}
-	addEventListener(type: string) {
+	addEventListener(type: string, handler: () => void) {
 		this.listeners.push(type);
+		this.handlers[type] = handler;
 	}
 	close() {
 		this.closed = true;
@@ -199,6 +201,18 @@ describe("createEventTransport", () => {
 		expect(first.closed).toBe(true);
 		expect(EventSourceStub.instances).toHaveLength(2);
 		expect(EventSourceStub.instances[1].url).toBe("http://127.0.0.1:4555/api/v1/events");
+	});
+
+	it("invalidates session-messages on session_message_created without refetching workspaces", () => {
+		const queryClient = fakeQueryClient();
+		createEventTransport(queryClient).connect();
+		const source = EventSourceStub.instances[0];
+		expect(source.listeners).toContain("session_message_created");
+
+		source.handlers["session_message_created"]?.();
+
+		expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["session-messages"] });
+		expect(queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["workspaces"] });
 	});
 
 	it("resets the connection state and unsubscribes on disconnect", () => {

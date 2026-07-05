@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { WorkspaceSummary } from "../types/workspace";
 
 const { navigateMock, workspaceQueryMock } = vi.hoisted(() => ({
 	navigateMock: vi.fn(),
@@ -36,5 +37,34 @@ describe("SessionsBoard", () => {
 		renderBoard();
 
 		expect(screen.queryByText(/reload agents/i)).not.toBeInTheDocument();
+	});
+
+	it("renders a stalled session with an error badge in the Needs you column", () => {
+		const workspace: WorkspaceSummary = {
+			id: "proj-1",
+			name: "proj-1",
+			path: "/repo/proj-1",
+			sessions: [
+				{
+					id: "sess-1",
+					workspaceId: "proj-1",
+					workspaceName: "proj-1",
+					title: "stuck worker",
+					provider: "codex",
+					kind: "worker",
+					branch: "session/sess-1",
+					status: "stalled",
+					updatedAt: "2026-01-01T00:00:00Z",
+					prs: [],
+				},
+			],
+		};
+		workspaceQueryMock.mockReturnValue({ data: [workspace], isError: false });
+
+		renderBoard();
+
+		const badge = screen.getByText("Stalled");
+		expect(badge).toBeInTheDocument();
+		expect(badge).toHaveClass("text-error");
 	});
 });
