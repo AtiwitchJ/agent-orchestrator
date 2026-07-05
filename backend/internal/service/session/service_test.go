@@ -234,7 +234,10 @@ func TestSendPersistsSessionMessageAfterSuccessfulDelivery(t *testing.T) {
 }
 
 // TestSendPersistsKnownSenderSession covers the agent-to-agent case: a
-// non-empty sender that names a real session is validated and recorded.
+// non-empty sender that names a real session is only existence-checked, not
+// verified against the identity of the HTTP caller (see the trust-boundary
+// doc comment on Service.Send) — so it is recorded as supplied even though
+// nothing here confirms the caller actually is "mer-2".
 func TestSendPersistsKnownSenderSession(t *testing.T) {
 	st := newFakeStore()
 	st.sessions["mer-1"] = domain.SessionRecord{ID: "mer-1", ProjectID: "mer"}
@@ -250,25 +253,50 @@ func TestSendPersistsKnownSenderSession(t *testing.T) {
 	}
 }
 
-// TestSendRejectsUnknownSenderSession covers validation of a non-empty
-// sender: an unknown sender session id must fail before the manager ever
-// delivers the message.
-func TestSendRejectsUnknownSenderSession(t *testing.T) {
+// TestSendAcceptsForgedSenderClaimForDifferentRealSession documents the
+// trust boundary explicitly: nothing about the send call establishes that
+// the HTTP caller for "mer-1" actually is "mer-3" — a real, unrelated
+// session — yet a real senderSessionId is accepted and recorded as-supplied.
+// This is current, intended behavior on this daemon's localhost/no-auth
+// trust model (there is no session-level auth to check the claim against);
+// session_messages.sender_session_id is a debugging/UX hint, not a
+// cryptographic attribution.
+func TestSendAcceptsForgedSenderClaimForDifferentRealSession(t *testing.T) {
+	st := newFakeStore()
+	st.sessions["mer-1"] = domain.SessionRecord{ID: "mer-1", ProjectID: "mer"}
+	st.sessions["mer-3"] = domain.SessionRecord{ID: "mer-3", ProjectID: "mer"}
+	fc := &fakeCommander{}
+	svc := &Service{manager: fc, store: st, clock: time.Now}
+
+	// "mer-1" claims the message came from "mer-3"; nothing verifies that.
+	if err := svc.Send(context.Background(), "mer-1", "impersonated ping", "mer-3"); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if len(st.messages) != 1 || st.messages[0].SenderSessionID != "mer-3" {
+		t.Fatalf("persisted messages = %+v, want unverified sender mer-3 recorded as-supplied", st.messages)
+	}
+}
+
+// TestSendDegradesGracefullyOnUnknownSender covers the fix for a sender id
+// that names no known session (e.g. a stale AO_SESSION_ID from a
+// since-terminated/rolled-back session): this must never block delivery.
+// The audit-log side-concern degrades — sender is recorded as "" (same as
+// an unspecified/human sender) — but the manager still delivers the message
+// and Send reports success.
+func TestSendDegradesGracefullyOnUnknownSender(t *testing.T) {
 	st := newFakeStore()
 	st.sessions["mer-1"] = domain.SessionRecord{ID: "mer-1", ProjectID: "mer"}
 	fc := &fakeCommander{}
 	svc := &Service{manager: fc, store: st, clock: time.Now}
 
-	err := svc.Send(context.Background(), "mer-1", "ping", "ghost-session")
-	var e *apierr.Error
-	if !errors.As(err, &e) || e.Kind != apierr.KindInvalid || e.Code != "SENDER_SESSION_NOT_FOUND" {
-		t.Fatalf("err = %v, want apierr Invalid SENDER_SESSION_NOT_FOUND", err)
+	if err := svc.Send(context.Background(), "mer-1", "ping", "ghost-session"); err != nil {
+		t.Fatalf("send must succeed despite unknown sender, got %v", err)
 	}
-	if len(fc.sent) != 0 {
-		t.Fatalf("manager must not be invoked when sender validation fails, sent=%v", fc.sent)
+	if len(fc.sent) != 1 || fc.sent[0] != "mer-1" {
+		t.Fatalf("manager sent = %v, want delivery to still happen", fc.sent)
 	}
-	if len(st.messages) != 0 {
-		t.Fatalf("nothing should be persisted when sender validation fails, messages=%+v", st.messages)
+	if len(st.messages) != 1 || st.messages[0].SenderSessionID != "" {
+		t.Fatalf("persisted messages = %+v, want one message with sender degraded to empty", st.messages)
 	}
 }
 

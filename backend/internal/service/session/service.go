@@ -437,16 +437,33 @@ func (s *Service) RollbackSpawn(ctx context.Context, id domain.SessionID) (Rollb
 // Send delegates agent messaging to the internal manager, then persists the
 // message as a durable session_message_created CDC fact. sender is "" for a
 // human-originated send (the controller supplied no senderSessionId) and is
-// validated to name a known session when non-empty. Persistence happens only
+// checked to name a known session when non-empty. Persistence happens only
 // after the manager confirms delivery, and a persistence failure is logged,
 // not surfaced: the agent already received the message, so the request
 // should not fail on a storage hiccup.
+//
+// Trust boundary: sender is caller-supplied and only existence-checked below
+// — it is never verified against the identity of the HTTP caller. This
+// daemon has no session-level auth (localhost, no-auth trust model), so any
+// process that can reach the API can claim to be any session. Treat the
+// persisted sender_session_id as a hint for debugging/UX, not a
+// cryptographic attribution of who actually sent the message.
+//
+// An unknown sender (named session no longer exists, e.g. a stale
+// AO_SESSION_ID from a since-terminated/rolled-back session) must never
+// block delivery: recording who sent it is an audit-log side-concern, never
+// more important than the primary job of delivering the message. So an
+// unknown sender degrades to "" — recorded the same as an unspecified/human
+// sender — with a warning logged, rather than failing the request.
 func (s *Service) Send(ctx context.Context, id domain.SessionID, message string, sender domain.SessionID) error {
 	if sender != "" && s.store != nil {
 		if _, ok, err := s.store.GetSession(ctx, sender); err != nil {
 			return fmt.Errorf("lookup sender session %s: %w", sender, err)
 		} else if !ok {
-			return apierr.Invalid("SENDER_SESSION_NOT_FOUND", "Unknown sender session", nil)
+			if s.logger != nil {
+				s.logger.Warn("send: sender session not found, recording as unknown", "sender", sender, "target", id)
+			}
+			sender = ""
 		}
 	}
 	if err := toAPIError(s.manager.Send(ctx, id, message)); err != nil {

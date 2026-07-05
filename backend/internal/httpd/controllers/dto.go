@@ -230,6 +230,13 @@ type SendSessionMessageRequest struct {
 	// SenderSessionID names the sending agent session for an agent-to-agent
 	// send (e.g. `ao send` run with AO_SESSION_ID set). Omitted/empty means a
 	// human sent the message.
+	//
+	// Trust boundary: this is caller-supplied and only checked to name an
+	// existing session, never verified against the identity of the HTTP
+	// caller — there is no session-level auth on this daemon's localhost
+	// trust model, so any process that can reach this endpoint can claim to
+	// be any session. Do not treat the persisted sender as proof of who sent
+	// the message.
 	SenderSessionID string `json:"senderSessionId,omitempty"`
 }
 
