@@ -58,6 +58,7 @@ func TestMigrateAllowsEveryShippedHarness(t *testing.T) {
 		domain.HarnessVibe,
 		domain.HarnessPi,
 		domain.HarnessAutohand,
+		domain.HarnessCommand,
 	}
 
 	for _, h := range harnesses {

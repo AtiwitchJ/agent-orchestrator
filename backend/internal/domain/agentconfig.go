@@ -1,6 +1,9 @@
 package domain
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // PermissionMode controls how much review an agent requires before acting. It
 // lives in domain (not ports) so the typed AgentConfig can carry it; ports
@@ -28,17 +31,26 @@ type AgentConfig struct {
 	// Permissions sets the agent's starting permission mode. Empty is treated
 	// like the adapter's default mode.
 	Permissions PermissionMode `json:"permissions,omitempty"`
+	// Command is the argv for the command harness (HarnessCommand). The first
+	// element must be an executable on PATH or an absolute path. Prompt and
+	// system instructions are exported as AO_PROMPT and AO_SYSTEM_PROMPT.
+	Command []string `json:"command,omitempty"`
 }
 
 // IsZero reports whether the config carries no settings, so storage can persist
 // SQL NULL and resolution can skip an empty config.
 func (c AgentConfig) IsZero() bool {
-	return c == AgentConfig{}
+	return c.Model == "" && c.Permissions == "" && len(c.Command) == 0
 }
 
 // Validate rejects values outside the typed vocabulary so a bad config is
 // refused when it is set (CLI/API) rather than silently dropped at spawn.
 func (c AgentConfig) Validate() error {
+	for i, arg := range c.Command {
+		if strings.TrimSpace(arg) == "" {
+			return fmt.Errorf("command[%d]: must not be empty", i)
+		}
+	}
 	switch c.Permissions {
 	case "", PermissionModeDefault, PermissionModeAcceptEdits, PermissionModeAuto, PermissionModeBypassPermissions:
 		return nil

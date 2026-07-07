@@ -114,6 +114,7 @@ func TestWiring_AgentResolverResolvesRealAdapters(t *testing.T) {
 		{domain.HarnessVibe, "vibe"},
 		{domain.HarnessPi, "pi"},
 		{domain.HarnessAutohand, "autohand"},
+		{domain.HarnessCommand, "command"},
 	} {
 		agent, ok := resolver.Agent(tc.harness)
 		if !ok {

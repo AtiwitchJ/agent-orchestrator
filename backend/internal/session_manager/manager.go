@@ -52,6 +52,10 @@ const (
 	EnvIssueID   = "AO_ISSUE_ID"
 	// EnvDataDir tells a spawned agent's AO hook commands where the store lives.
 	EnvDataDir = "AO_DATA_DIR"
+	// EnvPrompt carries the spawn prompt for the command harness.
+	EnvPrompt = "AO_PROMPT"
+	// EnvSystemPrompt carries standing instructions for the command harness.
+	EnvSystemPrompt = "AO_SYSTEM_PROMPT"
 )
 
 // hookBinaryName is the executable name the workspace hook commands invoke:
@@ -289,7 +293,7 @@ func (m *Manager) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 		SessionID:     id,
 		WorkspacePath: ws.Path,
 		Argv:          argv,
-		Env:           m.runtimeEnv(id, cfg.ProjectID, cfg.IssueID, project.Config.Env),
+		Env:           m.runtimeEnv(id, cfg.ProjectID, cfg.IssueID, project.Config.Env, cfg.Harness, prompt, systemPrompt),
 	})
 	if err != nil {
 		_ = m.workspace.Destroy(ctx, ws)
@@ -353,6 +357,9 @@ func effectiveAgentConfig(kind domain.SessionKind, cfg domain.ProjectConfig) por
 	}
 	if override.Permissions != "" {
 		merged.Permissions = override.Permissions
+	}
+	if len(override.Command) > 0 {
+		merged.Command = override.Command
 	}
 	return merged
 }
@@ -594,7 +601,7 @@ func (m *Manager) Restore(ctx context.Context, id domain.SessionID) (domain.Sess
 		SessionID:     id,
 		WorkspacePath: ws.Path,
 		Argv:          argv,
-		Env:           m.runtimeEnv(id, rec.ProjectID, rec.IssueID, project.Config.Env),
+		Env:           m.runtimeEnv(id, rec.ProjectID, rec.IssueID, project.Config.Env, rec.Harness, meta.Prompt, systemPrompt),
 	})
 	if err != nil {
 		return domain.SessionRecord{}, fmt.Errorf("restore %s: runtime: %w", id, err)
@@ -1021,6 +1028,9 @@ func buildPrompt(cfg ports.SpawnConfig) string {
 // empty input box rather than receiving an auto-generated kickoff turn.
 func (m *Manager) buildSpawnTexts(ctx context.Context, cfg ports.SpawnConfig) (prompt, systemPrompt string, err error) {
 	prompt = buildPrompt(cfg)
+	if cfg.Harness == domain.HarnessCommand {
+		return prompt, "", nil
+	}
 	systemPrompt, err = m.buildSystemPrompt(ctx, cfg.Kind, cfg.ProjectID)
 	if err != nil {
 		return "", "", err
@@ -1157,8 +1167,16 @@ func spawnEnv(id domain.SessionID, project domain.ProjectID, issue domain.IssueI
 // command, which fails every callback and silently kills activity tracking).
 // When the pin cannot be applied the inherited PATH is kept and a warning is
 // logged so the degradation isn't silent.
-func (m *Manager) runtimeEnv(id domain.SessionID, project domain.ProjectID, issue domain.IssueID, projectEnv map[string]string) map[string]string {
+func (m *Manager) runtimeEnv(id domain.SessionID, project domain.ProjectID, issue domain.IssueID, projectEnv map[string]string, harness domain.AgentHarness, prompt, systemPrompt string) map[string]string {
 	env := spawnEnv(id, project, issue, m.dataDir, projectEnv)
+	if harness == domain.HarnessCommand {
+		if prompt != "" {
+			env[EnvPrompt] = prompt
+		}
+		if systemPrompt != "" {
+			env[EnvSystemPrompt] = systemPrompt
+		}
+	}
 	path, err := HookPATH(m.executable, os.Getenv, projectEnv)
 	if err != nil {
 		m.logger.Warn("session PATH not pinned to the daemon binary; `ao hooks` callbacks may resolve to a different ao and activity tracking will stall",

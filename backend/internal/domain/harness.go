@@ -28,6 +28,11 @@ const (
 	HarnessVibe       AgentHarness = "vibe"
 	HarnessPi         AgentHarness = "pi"
 	HarnessAutohand   AgentHarness = "autohand"
+	// HarnessCommand runs a project-configured argv (scripts, CLIs, or other
+	// non-coding-agent workers). Prompt and standing instructions are passed via
+	// AO_PROMPT / AO_SYSTEM_PROMPT env vars; activity is reported through
+	// `ao hooks command <event>`.
+	HarnessCommand AgentHarness = "command"
 )
 
 // AllHarnesses lists every supported harness. It is the canonical set used to
@@ -38,6 +43,7 @@ var AllHarnesses = []AgentHarness{
 	HarnessCopilot, HarnessGoose, HarnessAuggie, HarnessContinue, HarnessDevin,
 	HarnessCline, HarnessKimi, HarnessKiro, HarnessKilocode, HarnessVibe, HarnessPi,
 	HarnessAutohand,
+	HarnessCommand,
 }
 
 // IsKnown reports whether h is one of the supported harnesses.

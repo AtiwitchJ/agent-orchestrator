@@ -588,6 +588,7 @@ export interface components {
             requestId?: string;
         };
         AddProjectInput: {
+            asDocsRepo?: boolean;
             asWorkspace?: boolean;
             config?: components["schemas"]["ProjectConfig"];
             name?: null | string;
@@ -595,6 +596,7 @@ export interface components {
             projectId?: null | string;
         };
         AgentConfig: {
+            command?: string[];
             model?: string;
             permissions?: string;
         };
@@ -648,6 +650,8 @@ export interface components {
             branch?: string;
             /** Format: date-time */
             createdAt: string;
+            /** Format: date-time */
+            deliverableConfirmedAt?: string;
             displayName?: string;
             harness?: string;
             id: string;
@@ -660,7 +664,7 @@ export interface components {
             projectId: string;
             prs: components["schemas"]["SessionPRFacts"][];
             /** @enum {string} */
-            status: "working" | "pr_open" | "draft" | "ci_failed" | "review_pending" | "changes_requested" | "approved" | "mergeable" | "merged" | "needs_input" | "idle" | "terminated" | "no_signal" | "stalled";
+            status: "working" | "pr_open" | "draft" | "ci_failed" | "review_pending" | "changes_requested" | "approved" | "mergeable" | "merged" | "needs_input" | "idle" | "terminated" | "no_signal" | "stalled" | "report_pending" | "report_ready";
             terminalHandleId?: string;
             /** Format: date-time */
             updatedAt: string;
@@ -680,8 +684,30 @@ export interface components {
             lastActivityAt: string;
             state: string;
         };
+        DomainDatabaseSpec: {
+            condition: string;
+            expected?: unknown;
+            query: string;
+        };
+        DomainDeliverableConfig: {
+            database?: components["schemas"]["DomainDatabaseSpec"];
+            filesystem?: components["schemas"]["DomainFilesystemSpec"];
+            type: string;
+            webhook?: components["schemas"]["DomainWebhookSpec"];
+        };
+        DomainFilesystemSpec: {
+            glob: string;
+        };
         DomainReviewerConfig: {
             harness: string;
+        };
+        DomainWebhookSpec: {
+            authHeader?: string;
+            authHeaderValue?: string;
+            bearerToken?: string;
+            condition: string;
+            pollInterval?: string;
+            url: string;
         };
         ImportReport: {
             dryRun: boolean;
@@ -799,6 +825,7 @@ export interface components {
         ProjectConfig: {
             agentConfig?: components["schemas"]["AgentConfig"];
             defaultBranch?: string;
+            deliverable?: components["schemas"]["DomainDeliverableConfig"];
             env?: {
                 [key: string]: string;
             };
@@ -1022,7 +1049,7 @@ export interface components {
             branch?: string;
             displayName?: string;
             /** @enum {string} */
-            harness?: "claude-code" | "codex" | "aider" | "opencode" | "grok" | "droid" | "amp" | "agy" | "crush" | "cursor" | "qwen" | "copilot" | "goose" | "auggie" | "continue" | "devin" | "cline" | "kimi" | "kiro" | "kilocode" | "vibe" | "pi" | "autohand";
+            harness?: "claude-code" | "codex" | "aider" | "opencode" | "grok" | "droid" | "amp" | "agy" | "crush" | "cursor" | "qwen" | "copilot" | "goose" | "auggie" | "continue" | "devin" | "cline" | "kimi" | "kiro" | "kilocode" | "vibe" | "pi" | "autohand" | "command";
             issueId?: string;
             /** @enum {string} */
             kind?: "worker" | "orchestrator";

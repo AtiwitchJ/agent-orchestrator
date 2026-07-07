@@ -1671,6 +1671,8 @@ components:
       type: object
     AddProjectInput:
       properties:
+        asDocsRepo:
+          type: boolean
         asWorkspace:
           type: boolean
         config:
@@ -1690,6 +1692,10 @@ components:
       type: object
     AgentConfig:
       properties:
+        command:
+          items:
+            type: string
+          type: array
         model:
           type: string
         permissions:
@@ -1821,6 +1827,9 @@ components:
         createdAt:
           format: date-time
           type: string
+        deliverableConfirmedAt:
+          format: date-time
+          type: string
         displayName:
           type: string
         harness:
@@ -1860,6 +1869,8 @@ components:
           - terminated
           - no_signal
           - stalled
+          - report_pending
+          - report_ready
           type: string
         terminalHandleId:
           type: string
@@ -1914,12 +1925,61 @@ components:
       - state
       - lastActivityAt
       type: object
+    DomainDatabaseSpec:
+      properties:
+        condition:
+          type: string
+        expected: {}
+        query:
+          type: string
+      required:
+      - query
+      - condition
+      type: object
+    DomainDeliverableConfig:
+      properties:
+        database:
+          $ref: '#/components/schemas/DomainDatabaseSpec'
+        filesystem:
+          $ref: '#/components/schemas/DomainFilesystemSpec'
+        type:
+          type: string
+        webhook:
+          $ref: '#/components/schemas/DomainWebhookSpec'
+      required:
+      - type
+      type: object
+    DomainFilesystemSpec:
+      properties:
+        glob:
+          type: string
+      required:
+      - glob
+      type: object
     DomainReviewerConfig:
       properties:
         harness:
           type: string
       required:
       - harness
+      type: object
+    DomainWebhookSpec:
+      properties:
+        authHeader:
+          type: string
+        authHeaderValue:
+          type: string
+        bearerToken:
+          type: string
+        condition:
+          type: string
+        pollInterval:
+          type: string
+        url:
+          type: string
+      required:
+      - url
+      - condition
       type: object
     ImportReport:
       properties:
@@ -2234,6 +2294,8 @@ components:
           $ref: '#/components/schemas/AgentConfig'
         defaultBranch:
           type: string
+        deliverable:
+          $ref: '#/components/schemas/DomainDeliverableConfig'
         env:
           additionalProperties:
             type: string
@@ -2835,6 +2897,7 @@ components:
           - vibe
           - pi
           - autohand
+          - command
           type: string
         issueId:
           type: string
