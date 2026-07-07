@@ -32,4 +32,12 @@ const (
 	// terminated session, or a session in the sticky ActivityWaitingInput
 	// state can never be stalled; see IsStalled for the exact gate.
 	StatusStalled SessionStatus = "stalled"
+	// StatusReportPending marks a docs-repo session whose agent is still working
+	// and has not yet produced its deliverable artifact. It is derived from
+	// the project kind and activity state, never persisted.
+	StatusReportPending SessionStatus = "report_pending"
+	// StatusReportReady marks a docs-repo session where the agent has exited
+	// AND the deliverable artifact has been confirmed by the deliverable
+	// watcher. It is derived, never persisted.
+	StatusReportReady SessionStatus = "report_ready"
 )

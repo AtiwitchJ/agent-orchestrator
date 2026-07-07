@@ -7,6 +7,11 @@ const (
 	ProjectKindSingleRepo ProjectKind = "single_repo"
 	// ProjectKindWorkspace is a parent root-as-repo plus child repositories.
 	ProjectKindWorkspace ProjectKind = "workspace"
+	// ProjectKindDocsRepo is a docs-repository project: sessions produce
+	// deliverables (markdown reports, analysis files) via the worktree instead
+	// of pull requests. No PR/CI status is expected; the deliverable watcher
+	// marks StatusReportReady when the artifact appears and the agent exits.
+	ProjectKindDocsRepo ProjectKind = "docs_repo"
 	// RootWorkspaceRepoName is the reserved repo_name used for the parent root repo.
 	RootWorkspaceRepoName = "__root__"
 )

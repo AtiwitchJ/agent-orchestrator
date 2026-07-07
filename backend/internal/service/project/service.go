@@ -226,6 +226,17 @@ func (m *Service) Add(ctx context.Context, in AddInput) (Project, error) {
 	if !isGitRepo(path) {
 		return Project{}, apierr.Invalid("NOT_A_GIT_REPO", "Repository path must point to a git repository", nil)
 	}
+	row.RepoOriginURL = resolveGitOriginURL(path)
+	if in.AsDocsRepo {
+		// docs-repo: same git worktree as single_repo, but the deliverable
+		// watcher drives the session's completed status instead of PR/CI.
+		row.Kind = domain.ProjectKindDocsRepo
+		if err := m.store.UpsertProject(ctx, row); err != nil {
+			return Project{}, apierr.Internal("PROJECT_ADD_FAILED", "Failed to register docs-repo project")
+		}
+		m.emitProjectAdded(row, projectCountBefore == 0)
+		return m.projectFromRow(row), nil
+	}
 	// Record the repo's actual checked-out branch as the project default so
 	// session worktrees base off a branch that exists. Without this a repo on
 	// `master` (or any non-`main` default) falls back to DefaultBranchName and
@@ -236,7 +247,6 @@ func (m *Service) Add(ctx context.Context, in AddInput) (Project, error) {
 			row.Config.DefaultBranch = branch
 		}
 	}
-	row.RepoOriginURL = resolveGitOriginURL(path)
 	if err := m.store.UpsertProject(ctx, row); err != nil {
 		return Project{}, apierr.Internal("PROJECT_ADD_FAILED", "Failed to register project")
 	}

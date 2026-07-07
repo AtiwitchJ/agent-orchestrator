@@ -18,7 +18,8 @@ const noSignalGrace = 90 * time.Second
 // deriveStatus computes the display status. signalCapable says whether this
 // session's harness has an activity hook pipeline at all; only then can
 // prolonged silence mean the pipeline is broken (no_signal) rather than the
-// permanent, normal silence of a hook-less harness.
+// permanent, normal silence of a hook-less harness. projectKind is used to
+// bypass PR aggregation for docs-repo projects.
 //
 // A session may own several PRs at once (independent or stacked). The PR-derived
 // status is the worst-wins aggregate across its open PRs; stacked children whose
@@ -33,8 +34,14 @@ const noSignalGrace = 90 * time.Second
 // PR looks fine. It also runs after the waiting_input check, since
 // ActivityWaitingInput is sticky and structurally can never be stalled (see
 // domain.IsStalled).
-func deriveStatus(rec domain.SessionRecord, prs []domain.PRFacts, now time.Time, stallThreshold time.Duration, signalCapable bool) domain.SessionStatus {
+func deriveStatus(rec domain.SessionRecord, prs []domain.PRFacts, projectKind domain.ProjectKind, now time.Time, stallThreshold time.Duration, signalCapable bool) domain.SessionStatus {
 	if rec.IsTerminated {
+		if projectKind == domain.ProjectKindDocsRepo {
+			if !rec.DeliverableConfirmedAt.IsZero() {
+				return domain.StatusReportReady
+			}
+			return domain.StatusTerminated
+		}
 		if anyMerged(prs) {
 			return domain.StatusMerged
 		}
@@ -47,6 +54,16 @@ func deriveStatus(rec domain.SessionRecord, prs []domain.PRFacts, now time.Time,
 
 	if domain.IsStalled(rec, now, stallThreshold) {
 		return domain.StatusStalled
+	}
+
+	if projectKind == domain.ProjectKindDocsRepo {
+		if rec.Activity.State == domain.ActivityActive {
+			return domain.StatusReportPending
+		}
+		if signalCapable && rec.FirstSignalAt.IsZero() && now.Sub(rec.Activity.LastActivityAt) > noSignalGrace {
+			return domain.StatusNoSignal
+		}
+		return domain.StatusIdle
 	}
 
 	open := openPRs(prs)

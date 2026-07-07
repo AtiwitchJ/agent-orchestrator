@@ -263,6 +263,21 @@ func (m *Manager) MarkTerminated(ctx context.Context, id domain.SessionID) error
 	})
 }
 
+// ApplyDeliverableConfirmed records that the deliverable watcher has confirmed
+// the session's artifact exists. It is a no-op if the session is already
+// terminated or already has a confirmed deliverable timestamp.
+func (m *Manager) ApplyDeliverableConfirmed(ctx context.Context, id domain.SessionID, confirmedAt time.Time) error {
+	return m.mutate(ctx, id, func(cur domain.SessionRecord, now time.Time) (domain.SessionRecord, bool) {
+		if !cur.DeliverableConfirmedAt.IsZero() {
+			return cur, false
+		}
+		next := cur
+		next.DeliverableConfirmedAt = confirmedAt
+		next.UpdatedAt = now
+		return next, true
+	})
+}
+
 // sameActivity reports whether two activity signals describe the same state.
 // LastActivityAt is intentionally ignored: same-state repeats (e.g. a stream
 // of idle notifications) must not rewrite UpdatedAt or fan out a CDC event.

@@ -80,7 +80,7 @@ func TestServiceDerivesStatusFromSessionFactsAndPR(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := deriveStatus(tt.rec, tt.pr, statusNow, statusStallThreshold, !tt.hookless); got != tt.want {
+			if got := deriveStatus(tt.rec, tt.pr, domain.ProjectKindSingleRepo, statusNow, statusStallThreshold, !tt.hookless); got != tt.want {
 				t.Fatalf("got %q want %q", got, tt.want)
 			}
 		})
@@ -124,7 +124,7 @@ func TestAggregateStackedChildSignals(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := deriveStatus(statusRec(domain.ActivityIdle, false), tt.prs, statusNow, statusStallThreshold, true); got != tt.want {
+			if got := deriveStatus(statusRec(domain.ActivityIdle, false), tt.prs, domain.ProjectKindSingleRepo, statusNow, statusStallThreshold, true); got != tt.want {
 				t.Fatalf("got %q want %q", got, tt.want)
 			}
 		})
@@ -200,7 +200,62 @@ func TestDeriveStatusStalled(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := deriveStatus(tt.rec, tt.prs, statusNow, statusStallThreshold, true); got != tt.want {
+			if got := deriveStatus(tt.rec, tt.prs, domain.ProjectKindSingleRepo, statusNow, statusStallThreshold, true); got != tt.want {
+				t.Fatalf("got %q want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDeriveStatusDocsRepo(t *testing.T) {
+	docsRepo := domain.ProjectKindDocsRepo
+	tests := []struct {
+		name    string
+		rec     domain.SessionRecord
+		prs     []domain.PRFacts
+		want    domain.SessionStatus
+	}{
+		{
+			"terminated-no-deliverable",
+			func() domain.SessionRecord {
+				r := statusRec(domain.ActivityExited, true)
+				return r
+			}(),
+			nil,
+			domain.StatusTerminated,
+		},
+		{
+			"terminated-with-deliverable",
+			func() domain.SessionRecord {
+				r := statusRec(domain.ActivityExited, true)
+				r.DeliverableConfirmedAt = statusNow
+				return r
+			}(),
+			nil,
+			domain.StatusReportReady,
+		},
+		{
+			"active-no-deliverable",
+			statusRec(domain.ActivityActive, false),
+			nil,
+			domain.StatusReportPending,
+		},
+		{
+			"idle-no-deliverable",
+			statusRec(domain.ActivityIdle, false),
+			nil,
+			domain.StatusIdle,
+		},
+		{
+			"waiting-input",
+			statusRec(domain.ActivityWaitingInput, false),
+			nil,
+			domain.StatusNeedsInput,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := deriveStatus(tt.rec, tt.prs, docsRepo, statusNow, statusStallThreshold, true); got != tt.want {
 				t.Fatalf("got %q want %q", got, tt.want)
 			}
 		})

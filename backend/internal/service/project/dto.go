@@ -16,6 +16,9 @@ type AddInput struct {
 	Name        *string               `json:"name,omitempty"`
 	Config      *domain.ProjectConfig `json:"config,omitempty"`
 	AsWorkspace bool                  `json:"asWorkspace,omitempty"`
+	// AsDocsRepo registers a docs-repo project: git worktree like single_repo, but
+	// the deliverable watcher (not PR/CI) drives the session's completed status.
+	AsDocsRepo  bool                  `json:"asDocsRepo,omitempty"`
 }
 
 // SetConfigInput is the body shape for PUT /api/v1/projects/{id}/config. Config

@@ -36,6 +36,13 @@ func NewStore(writeDB, readDB *sql.DB) *Store {
 	}
 }
 
+// DB returns the reader pool for read-only external consumers (e.g. the
+// deliverable database watcher). The writer pool is never exposed: callers must
+// not perform writes outside the Store's own methods.
+func (s *Store) DB() *sql.DB {
+	return s.readDB
+}
+
 // Close closes both pools.
 func (s *Store) Close() error {
 	err := s.writeDB.Close()

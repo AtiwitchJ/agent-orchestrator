@@ -15,7 +15,8 @@ import (
 // Only fields with a live consumer are modeled: DefaultBranch, Env, Symlinks,
 // PostCreate, AgentConfig, and the role overrides are consumed at spawn;
 // SessionPrefix feeds the display prefix. TrackerIntake feeds the background
-// issue-intake loop.
+// issue-intake loop. Deliverable configures the artifact a docs-repo session
+// produces, consumed by the deliverable watcher.
 type ProjectConfig struct {
 	// DefaultBranch is the base branch new session worktrees are created from.
 	DefaultBranch string `json:"defaultBranch,omitempty"`
@@ -45,6 +46,62 @@ type ProjectConfig struct {
 	// read-only toward the tracker in v1: matching issues spawn sessions, but the
 	// tracker is not commented on or transitioned.
 	TrackerIntake TrackerIntakeConfig `json:"trackerIntake,omitempty"`
+
+	// Deliverable describes the artifact a docs-repo session produces. It is
+	// consumed by the deliverable watcher: the session is marked StatusReportReady
+	// when the agent exits AND the watcher confirms the artifact exists.
+	Deliverable *DeliverableConfig `json:"deliverable,omitempty"`
+}
+
+// DeliverableType discriminates the deliverable watcher implementation.
+type DeliverableType string
+
+const (
+	// DeliverableTypeFilesystem watches for a file matching a glob pattern.
+	DeliverableTypeFilesystem DeliverableType = "filesystem"
+	// DeliverableTypeDatabase polls a database query for a completion condition.
+	DeliverableTypeDatabase DeliverableType = "database"
+	// DeliverableTypeWebhook polls an HTTP endpoint for a success signal.
+	DeliverableTypeWebhook DeliverableType = "webhook"
+)
+
+// DeliverableConfig describes the artifact a docs-repo session produces and how
+// the watcher confirms it exists. Exactly one Spec field is non-nil based on Type.
+type DeliverableConfig struct {
+	Type        DeliverableType  `json:"type"`
+	Filesystem  *FilesystemSpec  `json:"filesystem,omitempty"`
+	Database    *DatabaseSpec    `json:"database,omitempty"`
+	Webhook     *WebhookSpec    `json:"webhook,omitempty"`
+}
+
+// FilesystemSpec describes a file-system watcher for a docs-repo deliverable.
+type FilesystemSpec struct {
+	// Glob is a glob pattern relative to the worktree root, e.g. "**/*.md"
+	// or "reports/*.pdf". The watcher uses fsnotify to detect creation.
+	Glob string `json:"glob"`
+}
+
+// DatabaseSpec describes a database-query watcher for a docs-repo deliverable.
+type DatabaseSpec struct {
+	// Query is a SELECT statement that returns a single row. The watcher runs
+	// it on PollInterval and checks Condition against the result.
+	Query string `json:"query"`
+	// Condition specifies what constitutes "found": "exists" (row exists),
+	// "count_gt_0" (row count > 0), or "value_equals" (first column == Expected).
+	Condition string `json:"condition"`
+	// Expected is the value to compare against when Condition is "value_equals".
+	Expected any `json:"expected,omitempty"`
+}
+
+// WebhookSpec describes an HTTP endpoint watcher for a docs-repo deliverable.
+type WebhookSpec struct {
+	// URL is the endpoint to poll. The watcher uses GET requests.
+	URL string `json:"url"`
+	// Condition specifies what constitutes "found": "received" (any 2xx response),
+	// "status_2xx" (2xx status code).
+	Condition string `json:"condition"`
+	// PollInterval is the polling cadence, e.g. "30s". Defaults to "60s".
+	PollInterval string `json:"pollInterval,omitempty"`
 }
 
 // ReviewerConfig names one reviewer agent by harness. The harness is drawn from
@@ -131,6 +188,49 @@ func (c ProjectConfig) Validate() error {
 	}
 	if err := c.TrackerIntake.Validate(); err != nil {
 		return err
+	}
+	if err := c.Deliverable.Validate(); err != nil {
+		return fmt.Errorf("deliverable: %w", err)
+	}
+	return nil
+}
+
+// Validate checks that exactly one Spec is non-nil for the given Type and that
+// each spec's fields are valid. Nil Deliverable is valid (no deliverable configured).
+func (d *DeliverableConfig) Validate() error {
+	if d == nil {
+		return nil
+	}
+	switch d.Type {
+	case DeliverableTypeFilesystem:
+		if d.Filesystem == nil {
+			return fmt.Errorf("type is %q but filesystem spec is nil", d.Type)
+		}
+		if d.Filesystem.Glob == "" {
+			return fmt.Errorf("filesystem.glob: is empty")
+		}
+	case DeliverableTypeDatabase:
+		if d.Database == nil {
+			return fmt.Errorf("type is %q but database spec is nil", d.Type)
+		}
+		if d.Database.Query == "" {
+			return fmt.Errorf("database.query: is empty")
+		}
+		if d.Database.Condition != "exists" && d.Database.Condition != "count_gt_0" && d.Database.Condition != "value_equals" {
+			return fmt.Errorf("database.condition: must be one of exists, count_gt_0, value_equals")
+		}
+	case DeliverableTypeWebhook:
+		if d.Webhook == nil {
+			return fmt.Errorf("type is %q but webhook spec is nil", d.Type)
+		}
+		if d.Webhook.URL == "" {
+			return fmt.Errorf("webhook.url: is empty")
+		}
+		if d.Webhook.Condition != "received" && d.Webhook.Condition != "status_2xx" {
+			return fmt.Errorf("webhook.condition: must be one of received, status_2xx")
+		}
+	default:
+		return fmt.Errorf("unknown deliverable type %q", d.Type)
 	}
 	return nil
 }

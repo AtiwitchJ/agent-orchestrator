@@ -672,7 +672,21 @@ func (s *Service) toSession(ctx context.Context, rec domain.SessionRecord) (doma
 	if err != nil {
 		return domain.Session{}, fmt.Errorf("pr facts %s: %w", rec.ID, err)
 	}
-	return domain.Session{SessionRecord: rec, Status: deriveStatus(rec, prs, s.now(), s.stallThreshold, s.harnessSignals(rec.Harness)), TerminalHandleID: rec.Metadata.RuntimeHandleID, PRs: prs}, nil
+	projectKind, _ := s.projectKind(ctx, rec.ProjectID)
+	return domain.Session{SessionRecord: rec, Status: deriveStatus(rec, prs, projectKind, s.now(), s.stallThreshold, s.harnessSignals(rec.Harness)), TerminalHandleID: rec.Metadata.RuntimeHandleID, PRs: prs}, nil
+}
+
+// projectKind returns the project kind for the given projectID. It returns
+// ProjectKindSingleRepo as a safe default if the project is not found.
+func (s *Service) projectKind(ctx context.Context, projectID domain.ProjectID) (domain.ProjectKind, bool) {
+	if projectID == "" || s.store == nil {
+		return domain.ProjectKindSingleRepo, false
+	}
+	rec, ok, err := s.store.GetProject(ctx, string(projectID))
+	if err != nil || !ok {
+		return domain.ProjectKindSingleRepo, false
+	}
+	return rec.Kind.WithDefault(), true
 }
 
 // now tolerates a zero-value Service (tests construct the struct literally
