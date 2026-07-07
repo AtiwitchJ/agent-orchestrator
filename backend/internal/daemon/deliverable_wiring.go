@@ -9,9 +9,9 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/lifecycle"
-	deliverableobserve "github.com/aoagents/agent-orchestrator/backend/internal/observe/deliverable"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
+	"github.com/modernagent/modern-agent/backend/internal/lifecycle"
+	deliverableobserve "github.com/modernagent/modern-agent/backend/internal/observe/deliverable"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
 )
 
 // startDeliverableObserver wires the deliverable watcher over the store and LCM.

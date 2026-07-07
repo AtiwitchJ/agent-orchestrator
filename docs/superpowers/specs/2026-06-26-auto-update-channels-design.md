@@ -4,7 +4,7 @@ _Design spec. 2026-06-26. Branch `feat/ao-auto-update` (off `main`)._
 
 ## Goal
 
-Give the Agent Orchestrator desktop app channel-aware auto-update with two
+Give the Modern Agent desktop app channel-aware auto-update with two
 channels:
 
 - **stable**: real semver releases (`vX.Y.Z`), cut manually by a human.
@@ -53,7 +53,7 @@ per-OS atomic install, signature verification, and delta downloads.
 - Replace `updateElectronApp()` in `initAutoUpdates()` with an `autoUpdater`
   setup that:
   - Resolves the GitHub provider from the same release-repo source `ao start`
-    uses (`AgentWrapper/agent-orchestrator` by default, override-aware).
+    uses (`ModernAgent/modern-agent` by default, override-aware).
   - Sets `autoUpdater.channel` from the saved user choice
     (`latest` | `nightly`).
   - Gates `autoUpdater.autoDownload` on the user's auto-update opt-in.

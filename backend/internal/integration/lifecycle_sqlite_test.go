@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/cdc"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/lifecycle"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	prsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/pr"
-	sessionsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/session"
-	sessionmanager "github.com/aoagents/agent-orchestrator/backend/internal/session_manager"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
+	"github.com/modernagent/modern-agent/backend/internal/cdc"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/lifecycle"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
+	prsvc "github.com/modernagent/modern-agent/backend/internal/service/pr"
+	sessionsvc "github.com/modernagent/modern-agent/backend/internal/service/session"
+	sessionmanager "github.com/modernagent/modern-agent/backend/internal/session_manager"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
 )
 
 type stubRuntime struct {

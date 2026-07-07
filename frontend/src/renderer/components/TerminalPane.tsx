@@ -159,7 +159,7 @@ function AttachedTerminal({ session, theme, daemonReady, terminalTarget, fontSiz
 				{showEmptyState && (
 					<div className="absolute inset-0 grid place-items-center bg-terminal font-mono text-[13px]">
 						<div className="text-center">
-							<div className="text-[var(--term-fg)]">Agent Orchestrator</div>
+							<div className="text-[var(--term-fg)]">Modern Agent</div>
 							<div className="mt-2 text-[var(--term-dim)]">
 								No session selected. Pick a worker to attach its terminal.
 							</div>

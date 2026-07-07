@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
 // fakeStore is an in-memory Store with the importer's idempotency semantics.
@@ -32,7 +32,7 @@ func (f *fakeStore) UpsertProject(_ context.Context, r domain.ProjectRecord) err
 // legacy root.
 func writeLegacyRoot(t *testing.T) string {
 	t.Helper()
-	root := filepath.Join(t.TempDir(), ".agent-orchestrator")
+	root := filepath.Join(t.TempDir(), ".modern-agent")
 	mustMkdir(t, filepath.Join(root, "projects", "alpha", "sessions"))
 	mustMkdir(t, filepath.Join(root, "projects", "beta", "sessions"))
 

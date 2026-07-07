@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 func TestGetLaunchCommandRequiresArgv(t *testing.T) {

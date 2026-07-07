@@ -10,9 +10,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	yaml "gopkg.in/yaml.v3"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apispec"
+	"github.com/modernagent/modern-agent/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/httpd"
+	"github.com/modernagent/modern-agent/backend/internal/httpd/apispec"
 )
 
 // TestRouteSpecParity asserts the mounted /api/v1 routes and the OpenAPI

@@ -1,8 +1,8 @@
-// Package legacyimport reads the legacy Agent Orchestrator flat-file store
-// (~/.agent-orchestrator) read-only and ports it into the rewrite's native
+// Package legacyimport reads the legacy Modern Agent flat-file store
+// (~/.modern-agent) read-only and ports it into the rewrite's native
 // SQLite store. It maps the legacy project registry and per-project settings.
 //
-// This is the Go port of the legacy-side TypeScript reader (AgentWrapper PR
+// This is the Go port of the legacy-side TypeScript reader (ModernAgent PR
 // #2144 / issue #2129); the field mapping is ReverbCode issue #247. The legacy
 // files are NEVER modified: a declined or failed import loses nothing, and a
 // re-run skips rows that already exist.
@@ -18,13 +18,13 @@ import (
 var userHomeDir = os.UserHomeDir
 
 // DefaultLegacyRootDir returns the canonical legacy state root,
-// ~/.agent-orchestrator, or "" when the home directory cannot be resolved.
+// ~/.modern-agent, or "" when the home directory cannot be resolved.
 func DefaultLegacyRootDir() string {
 	home, err := userHomeDir()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, ".agent-orchestrator")
+	return filepath.Join(home, ".modern-agent")
 }
 
 // globalConfigPath is the legacy global config file, root/config.yaml.

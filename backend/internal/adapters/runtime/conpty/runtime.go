@@ -10,14 +10,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/conpty/ptyregistry"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/runtime/conpty/ptyregistry"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 // Ensure Runtime satisfies the port at compile time (Attach in attach.go).
 var _ ports.Runtime = (*Runtime)(nil)
 
-// validSessionID matches agent-orchestrator's assertValidSessionId.
+// validSessionID matches modern-agent's assertValidSessionId.
 var validSessionID = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
 // hostSession is the in-memory state for a live pty-host connection.

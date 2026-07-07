@@ -14,7 +14,7 @@ import (
 // GitignoreSentinel marks a workspace .gitignore as AO-managed so
 // EnsureWorkspaceGitignore can rewrite its own file idempotently while never
 // touching a user- or repo-provided .gitignore at the same path.
-const GitignoreSentinel = "# managed by agent-orchestrator: AO hook files stay out of git status"
+const GitignoreSentinel = "# managed by modern-agent: AO hook files stay out of git status"
 
 // EnsureWorkspaceGitignore writes a self-ignoring .gitignore into dir covering
 // the named AO-installed files. Hook files land in fresh session worktrees as

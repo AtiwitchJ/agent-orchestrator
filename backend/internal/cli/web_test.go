@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/config"
 )
 
 func TestWebCommand_Flags(t *testing.T) {

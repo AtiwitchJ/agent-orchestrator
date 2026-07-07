@@ -9,17 +9,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/runtimeselect"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/tmux"
-	telemetryadapter "github.com/aoagents/agent-orchestrator/backend/internal/adapters/telemetry"
-	"github.com/aoagents/agent-orchestrator/backend/internal/cdc"
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/lifecycle"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	sessionmanager "github.com/aoagents/agent-orchestrator/backend/internal/session_manager"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
+	"github.com/modernagent/modern-agent/backend/internal/adapters"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/runtime/runtimeselect"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/runtime/tmux"
+	telemetryadapter "github.com/modernagent/modern-agent/backend/internal/adapters/telemetry"
+	"github.com/modernagent/modern-agent/backend/internal/cdc"
+	"github.com/modernagent/modern-agent/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/lifecycle"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
+	sessionmanager "github.com/modernagent/modern-agent/backend/internal/session_manager"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
 )
 
 // TestWiring_WriteFlowsToBroadcaster exercises the real boot path end to end:

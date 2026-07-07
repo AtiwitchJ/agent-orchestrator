@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   description: Loopback-only HTTP surface served by the Go daemon. Generated from
     Go (code-first) — do not edit by hand; run `go generate ./...`.
-  title: Agent Orchestrator HTTP daemon
+  title: Modern Agent HTTP daemon
   version: 0.1.0-route-shell
 servers:
 - description: Local daemon (loopback only)

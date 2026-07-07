@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	sqlitestore "github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite/store"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	sqlitestore "github.com/modernagent/modern-agent/backend/internal/storage/sqlite/store"
 )
 
 func TestTelemetryStore_CreateListAndPrune(t *testing.T) {

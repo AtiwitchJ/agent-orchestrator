@@ -30,9 +30,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/claudecode"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/adapters"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/claudecode"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 // adapterID is the AO harness / manifest id. It is the string "continue"

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/cdc"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/cdc"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
 // TestInsertSessionMessage_PersistsAndEmitsChangeLogRow is the primary

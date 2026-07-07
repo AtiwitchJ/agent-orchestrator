@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 
 	yaml "gopkg.in/yaml.v3"
 )

@@ -15,9 +15,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/ptyexec"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/runtime/ptyexec"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 const (

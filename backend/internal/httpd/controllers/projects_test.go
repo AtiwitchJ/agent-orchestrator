@@ -23,15 +23,15 @@ import (
 
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/config"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd"
+	"github.com/modernagent/modern-agent/backend/internal/httpd"
 
-	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
+	projectsvc "github.com/modernagent/modern-agent/backend/internal/service/project"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
 )
 
 // emptyGetManager returns a GetResult that sets neither Project nor Degraded —
@@ -120,7 +120,7 @@ func TestProjectsAPI_ListAddGet(t *testing.T) {
 
 	srv := newTestServer(t)
 
-	repo := gitRepo(t, "agent-orchestrator")
+	repo := gitRepo(t, "modern-agent")
 
 	body, status, headers := doRequest(t, srv, "GET", "/api/v1/projects", "")
 
@@ -144,7 +144,7 @@ func TestProjectsAPI_ListAddGet(t *testing.T) {
 
 	}
 
-	body, status, _ = doRequest(t, srv, "POST", "/api/v1/projects", `{"path":`+quote(repo)+`,"projectId":"ao","name":"Agent Orchestrator"}`)
+	body, status, _ = doRequest(t, srv, "POST", "/api/v1/projects", `{"path":`+quote(repo)+`,"projectId":"ao","name":"Modern Agent"}`)
 
 	if status != http.StatusCreated {
 
@@ -158,7 +158,7 @@ func TestProjectsAPI_ListAddGet(t *testing.T) {
 
 	mustJSON(t, body, &add)
 
-	if add.Project.ID != "ao" || add.Project.Name != "Agent Orchestrator" || add.Project.DefaultBranch != "main" {
+	if add.Project.ID != "ao" || add.Project.Name != "Modern Agent" || add.Project.DefaultBranch != "main" {
 
 		t.Fatalf("created project = %#v", add.Project)
 

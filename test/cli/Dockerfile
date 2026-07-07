@@ -19,11 +19,11 @@ RUN cd backend && go mod download
 COPY backend ./backend
 # Pure-Go SQLite (modernc) builds fine with CGO disabled -> a static binary.
 # Build against a release repo with NO published assets so `ao start` reaches the
-# fetch path and fails cleanly (404) on a fresh box. The real AgentWrapper repo
+# fetch path and fails cleanly (404) on a fresh box. The real ModernAgent repo
 # now publishes a linux-x64 AppImage, so an unpinned binary would download it and
 # exit 0, defeating the fresh-install assertion below. See install-check.sh.
 RUN cd backend && CGO_ENABLED=0 go build -trimpath \
-      -ldflags "-X github.com/aoagents/agent-orchestrator/backend/internal/cli.releaseRepo=AgentWrapper/ao-fresh-install-fixture" \
+      -ldflags "-X github.com/modernagent/modern-agent/backend/internal/cli.releaseRepo=ModernAgent/ao-fresh-install-fixture" \
       -o /out/ao ./cmd/ao
 
 # ---- stage 2: a clean machine with NO Go toolchain, just like an end user ----

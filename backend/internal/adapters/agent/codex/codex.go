@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/adapters"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 // Plugin is the Codex agent adapter. It is safe for concurrent use; the binary

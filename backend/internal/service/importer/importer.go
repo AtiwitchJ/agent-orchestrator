@@ -9,7 +9,7 @@ package importer
 import (
 	"context"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/legacyimport"
+	"github.com/modernagent/modern-agent/backend/internal/legacyimport"
 )
 
 // Store is the storage slice the import runs through; *sqlite.Store satisfies it.

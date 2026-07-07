@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 	if runtime.GOOS == "windows" {
 		aoBin += ".exe"
 	}
-	build := exec.Command("go", "build", "-o", aoBin, "github.com/aoagents/agent-orchestrator/backend/cmd/ao")
+	build := exec.Command("go", "build", "-o", aoBin, "github.com/modernagent/modern-agent/backend/cmd/ao")
 	build.Stdout, build.Stderr = os.Stderr, os.Stderr
 	if err := build.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, "e2e: build ao:", err)
@@ -251,7 +251,7 @@ func TestE2E_Lifecycle(t *testing.T) {
 
 	// /healthz identity
 	body := httpGet(t, e.port, "/healthz")
-	mustContain(t, body, "agent-orchestrator-daemon")
+	mustContain(t, body, "modern-agent-daemon")
 
 	if out, code := e.run(t, "stop"); code != 0 || !strings.Contains(out, "stopped") {
 		t.Fatalf("stop: exit %d, out %s", code, out)

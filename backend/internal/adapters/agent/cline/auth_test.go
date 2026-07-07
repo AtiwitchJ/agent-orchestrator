@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 func TestClineProviderAuthStatusAuthorizedWithOAuth(t *testing.T) {

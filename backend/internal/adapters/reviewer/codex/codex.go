@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"os"
 
-	workeragent "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/codex"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	workeragent "github.com/modernagent/modern-agent/backend/internal/adapters/agent/codex"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 // Reviewer is the codex code-review adapter.

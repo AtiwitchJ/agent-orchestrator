@@ -24,9 +24,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/claudecode"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/adapters"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/claudecode"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 // Plugin is the Grok Build agent adapter.

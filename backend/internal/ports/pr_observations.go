@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
 // ErrSCMPRNotFound is the legacy PR-observation not-found sentinel. It aliases

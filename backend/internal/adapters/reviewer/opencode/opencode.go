@@ -5,9 +5,9 @@ import (
 	"context"
 	"strings"
 
-	workeragent "github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/opencode"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	workeragent "github.com/modernagent/modern-agent/backend/internal/adapters/agent/opencode"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 const reviewerConfig = `{"permission":{"*":"deny","read":"allow","glob":"allow","grep":"allow","bash":{"*":"deny","gh api *":"allow","git diff*":"allow","git log*":"allow","git show*":"allow","git status*":"allow","ao review submit *":"allow","printf * | gh api *":"allow","printf * | ao review submit *":"allow"}}}`

@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/cdc"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite/gen"
+	"github.com/modernagent/modern-agent/backend/internal/cdc"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite/gen"
 )
 
 // EventsAfter implements cdc.Source over the SQLite change_log table.

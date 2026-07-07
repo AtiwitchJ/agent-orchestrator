@@ -10,8 +10,8 @@ import (
 
 	_ "embed"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/hookutil"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/hookutil"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 const (
@@ -33,7 +33,7 @@ const (
 	// opencodePluginSentinel marks the file as AO-managed. AreHooksInstalled and
 	// UninstallHooks key off it so AO never deletes a user file that happens to
 	// share the name. It must appear verbatim in the embedded plugin source.
-	opencodePluginSentinel = "agent-orchestrator: managed opencode activity plugin"
+	opencodePluginSentinel = "modern-agent: managed opencode activity plugin"
 
 	// opencodeHookCommandPrefix identifies the hook commands AO owns. The
 	// embedded plugin shells `ao hooks opencode <event>`; this prefix is the

@@ -203,7 +203,7 @@ reuses the existing `POST /api/v1/orchestrators` (clean=true) path.
 ## Constraints (binding)
 
 - No em dashes or en dashes anywhere (prose, comments, commit messages).
-- Renderer clones the agent-orchestrator web app; build the dialog from shadcn
+- Renderer clones the modern-agent web app; build the dialog from shadcn
   primitives (`components/ui/*`) and the Radix Dialog pattern already used by
   `NewTaskDialog.tsx`. (See `DESIGN.md`.)
 - App state under `~/.ao` only (not directly touched here).

@@ -171,8 +171,8 @@ jobs:
           tag="v$(node -p "require('./package.json').version")"
           arch="$(uname -m)"
           case "$arch" in
-            arm64) alias_name="agent-orchestrator-darwin-arm64.zip" ;;
-            x86_64) alias_name="agent-orchestrator-darwin-x64.zip" ;;
+            arm64) alias_name="modern-agent-darwin-arm64.zip" ;;
+            x86_64) alias_name="modern-agent-darwin-x64.zip" ;;
             *) echo "unsupported macOS arch: $arch" >&2; exit 1 ;;
           esac
           src="$(ls out/make/zip/darwin/*/*.zip | head -n1)"

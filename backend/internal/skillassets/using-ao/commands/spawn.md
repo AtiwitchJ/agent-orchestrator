@@ -28,11 +28,11 @@ Available harnesses: `claude-code`, `codex`, `aider`, `opencode`, `grok`, `droid
 ## Examples
 
 ```bash
-# Spawn a worker for issue 142 in the agent-orchestrator project
-ao spawn --project agent-orchestrator --issue 142 --name "fix-session-leak" --prompt "Fix the session leak described in issue 142. Branch off upstream/main."
+# Spawn a worker for issue 142 in the modern-agent project
+ao spawn --project modern-agent --issue 142 --name "fix-session-leak" --prompt "Fix the session leak described in issue 142. Branch off upstream/main."
 ```
 
 ```bash
 # Spawn a worker and immediately claim an open PR
-ao spawn --project agent-orchestrator --name "review-pr-88" --claim-pr 88 --harness claude-code
+ao spawn --project modern-agent --name "review-pr-88" --claim-pr 88 --harness claude-code
 ```

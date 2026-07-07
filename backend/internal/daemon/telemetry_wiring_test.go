@@ -4,9 +4,9 @@ import (
 	"log/slog"
 	"testing"
 
-	telemetryadapter "github.com/aoagents/agent-orchestrator/backend/internal/adapters/telemetry"
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
+	telemetryadapter "github.com/modernagent/modern-agent/backend/internal/adapters/telemetry"
+	"github.com/modernagent/modern-agent/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
 )
 
 func TestNewTelemetrySink_DefaultsToNoopWhenDisabled(t *testing.T) {

@@ -12,13 +12,13 @@
 
 ## Global Constraints
 
-- Grounded on `upstream/main` @ `514946fd8`. Module path `github.com/aoagents/agent-orchestrator/backend`.
+- Grounded on `upstream/main` @ `514946fd8`. Module path `github.com/modernagent/modern-agent/backend`.
 - **No em dashes** in any prose, comment, or UI copy.
 - `openapi.yaml` and `frontend/src/api/schema.ts` are **generated**; never hand-edit. Run `npm run api:spec && npm run api:ts`.
 - App is the **sole writer** of `~/.ao/app-state.json`; daemon is the **sole writer** of the DB. Marker writes are atomic (temp + rename).
 - Import is **projects + per-project settings only** (no orchestrator sessions, no transcripts) and **idempotent**; it **never deletes or modifies** legacy files.
-- v1 popup copy must **not** promise a Settings location (Settings deferred to AgentWrapper/agent-orchestrator#2205).
-- Branch `ao/agent-orchestrator-3/legacy-migration-popup`; PR target `main` on `AgentWrapper/agent-orchestrator`. Commit after every task (AO worktrees can be force-removed).
+- v1 popup copy must **not** promise a Settings location (Settings deferred to ModernAgent/modern-agent#2205).
+- Branch `ao/modern-agent-3/legacy-migration-popup`; PR target `main` on `ModernAgent/modern-agent`. Commit after every task (AO worktrees can be force-removed).
 
 ## File Structure
 
@@ -71,7 +71,7 @@ package importer
 import (
 	"context"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/legacyimport"
+	"github.com/modernagent/modern-agent/backend/internal/legacyimport"
 )
 
 // Store is the storage slice the import runs through; *sqlite.Store satisfies it.
@@ -140,7 +140,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
 type fakeStore struct{ projects map[string]domain.ProjectRecord }
@@ -157,7 +157,7 @@ func (f *fakeStore) UpsertProject(_ context.Context, r domain.ProjectRecord) err
 
 func writeLegacyRoot(t *testing.T) string {
 	t.Helper()
-	root := filepath.Join(t.TempDir(), ".agent-orchestrator")
+	root := filepath.Join(t.TempDir(), ".modern-agent")
 	if err := os.MkdirAll(filepath.Join(root, "projects"), 0o750); err != nil {
 		t.Fatal(err)
 	}
@@ -496,7 +496,7 @@ beforeEach(() => {
 	getMigration.mockReset();
 	setMigration.mockReset();
 	getMigration.mockResolvedValue({ status: "pending" });
-	getMock.mockResolvedValue({ data: { available: true, legacyRoot: "/home/u/.agent-orchestrator" }, error: undefined });
+	getMock.mockResolvedValue({ data: { available: true, legacyRoot: "/home/u/.modern-agent" }, error: undefined });
 	postMock.mockResolvedValue({ data: { report: { projectsImported: 2, projectsSkipped: 1 } }, error: undefined });
 	setMigration.mockResolvedValue(undefined);
 });
@@ -505,7 +505,7 @@ describe("MigrationPopup", () => {
 	it("shows when a legacy install is available and the marker is pending", async () => {
 		renderPopup();
 		expect(await screen.findByText(/Import projects from your earlier AO/i)).toBeInTheDocument();
-		expect(screen.getByText("/home/u/.agent-orchestrator")).toBeInTheDocument();
+		expect(screen.getByText("/home/u/.modern-agent")).toBeInTheDocument();
 	});
 
 	it("renders nothing when the marker is declined", async () => {
@@ -691,7 +691,7 @@ export const Route = createFileRoute("/_shell/")({
 - [ ] `npm --prefix frontend run typecheck && npm --prefix frontend run test` → green.
 - [ ] `git status` shows no uncommitted drift after `npm run api:spec && npm run api:ts`.
 - [ ] **Full frontend production build** (rollup tree-shaking can hide missing emits).
-- [ ] Manual: seed `~/.agent-orchestrator` with a legacy `config.yaml`, empty rewrite DB, launch the app → popup appears. Proceed → projects appear, `~/.ao/app-state.json` shows `migration.status: "completed"`, relaunch → no popup. Separately test Skip (re-prompts next launch) and Don't Migrate (`declined`, no re-prompt).
+- [ ] Manual: seed `~/.modern-agent` with a legacy `config.yaml`, empty rewrite DB, launch the app → popup appears. Proceed → projects appear, `~/.ao/app-state.json` shows `migration.status: "completed"`, relaunch → no popup. Separately test Skip (re-prompts next launch) and Don't Migrate (`declined`, no re-prompt).
 
 ---
 

@@ -1,6 +1,6 @@
 package crush
 
-import "github.com/aoagents/agent-orchestrator/backend/internal/domain"
+import "github.com/modernagent/modern-agent/backend/internal/domain"
 
 // DeriveActivityState maps a Crush hook event onto an AO activity state.
 // Currently a no-op since Crush doesn't have full hooks support like Claude Code and Codex.

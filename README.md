@@ -1,38 +1,38 @@
 <div align="center">
 
-<p style="text-align: center;"><img src="ao-logo.svg" alt="Agent Orchestrator" width="200" height="200" style="max-width: 100%; height: auto; margin-left: 50px;" /></p>
+<p style="text-align: center;"><img src="ao-logo.svg" alt="Modern Agent" width="200" height="200" style="max-width: 100%; height: auto; margin-left: 50px;" /></p>
 
-# Agent Orchestrator
+# Modern Agent
 
 **The orchestration layer for parallel AI coding agents**
 
-[![Stars](https://img.shields.io/github/stars/AgentWrapper/agent-orchestrator)](https://github.com/AgentWrapper/agent-orchestrator/stargazers)
-[![Contributors](https://img.shields.io/github/contributors/AgentWrapper/agent-orchestrator)](https://github.com/AgentWrapper/agent-orchestrator/graphs/contributors)
-[![Twitter](https://img.shields.io/badge/Twitter-1DA1F2?logo=twitter&logoColor=white)](https://x.com/aoagents)
+[![Stars](https://img.shields.io/github/stars/ModernAgent/modern-agent)](https://github.com/ModernAgent/modern-agent/stargazers)
+[![Contributors](https://img.shields.io/github/contributors/ModernAgent/modern-agent)](https://github.com/ModernAgent/modern-agent/graphs/contributors)
+[![Twitter](https://img.shields.io/badge/Twitter-1DA1F2?logo=twitter&logoColor=white)](https://x.com/modernagent)
 [![Discord](https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.com/invite/UZv7JjxbwG)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 An Agentic IDE that supervises parallel AI coding agents in isolated workspaces, with complete control and automatic feedback loops from CI failures, review comments, and merge conflicts.
 
-![Agent Orchestrator Dashboard](ao-dashboard-preview.png)
+![Modern Agent Dashboard](ao-dashboard-preview.png)
 
 </div>
 
 ---
 
-## What is Agent Orchestrator?
+## What is Modern Agent?
 
-Agent Orchestrator is a meta-harness agent IDE for running AI coding agents in parallel. It gives terminal-based agents like Claude Code, Codex, Cursor, Aider, Goose, and others a shared workspace where their sessions, terminals, branches, pull requests, and feedback loops can be supervised from one place.
+Modern Agent is a meta-harness agent IDE for running AI coding agents in parallel. It gives terminal-based agents like Claude Code, Codex, Cursor, Aider, Goose, and others a shared workspace where their sessions, terminals, branches, pull requests, and feedback loops can be supervised from one place.
 
 The agents still do the coding. AO provides the harness around them: isolated workspaces, live terminal access, session state, PR awareness, and automatic loops that send CI failures, review comments, and merge conflicts back to the right agent. Instead of manually coordinating a pile of agent terminals, AO turns parallel agent work into a managed workflow.
 
 ---
 
-## Why Agent Orchestrator?
+## Why Modern Agent?
 
 AI coding agents become much more useful when they can work in parallel, but parallel work gets messy quickly. Branches overlap, terminals get lost, CI failures need follow-up, review comments need replies, and merge conflicts have to reach the right worker.
 
-Agent Orchestrator is built to keep that loop visible and manageable. It helps you:
+Modern Agent is built to keep that loop visible and manageable. It helps you:
 
 - Start multiple agents from the same project without mixing their work
 - Keep every session in a separate git worktree
@@ -44,7 +44,7 @@ Agent Orchestrator is built to keep that loop visible and manageable. It helps y
 
 ## How it works
 
-At a high level, Agent Orchestrator follows a simple loop:
+At a high level, Modern Agent follows a simple loop:
 
 1. Add a project you want agents to work on.
 2. Start one or more sessions from the desktop app or CLI.
@@ -53,7 +53,7 @@ At a high level, Agent Orchestrator follows a simple loop:
 5. The local daemon watches session state, terminal activity, pull requests, CI, and review feedback.
 6. The desktop app and CLI show the current state and let you send follow-up instructions to the right session.
 
-The result is a local control layer for agentic coding: agents still do the coding, while Agent Orchestrator keeps their workspaces, status, terminals, and feedback loops organized.
+The result is a local control layer for agentic coding: agents still do the coding, while Modern Agent keeps their workspaces, status, terminals, and feedback loops organized.
 
 ---
 
@@ -84,7 +84,7 @@ The result is a local control layer for agentic coding: agents still do the codi
 </tr>
 </table>
 
-[What is Agent Orchestrator?](#what-is-agent-orchestrator) • [Why Agent Orchestrator?](#why-agent-orchestrator) • [How it works](#how-it-works) • [Features](#features) • [Quick Start](#quick-start) • [Architecture](#architecture) • [Documentation](#documentation) • [Contributing](#contributing)
+[What is Modern Agent?](#what-is-modern-agent) • [Why Modern Agent?](#why-modern-agent) • [How it works](#how-it-works) • [Features](#features) • [Quick Start](#quick-start) • [Architecture](#architecture) • [Documentation](#documentation) • [Contributing](#contributing)
 
 </div>
 
@@ -97,7 +97,8 @@ The result is a local control layer for agentic coding: agents still do the codi
 | **Agent-Agnostic Platform**    | 23+ agent adapters including [Claude Code](https://code.claude.com/docs/en/overview), [OpenAI Codex](https://openai.com/), [Cursor](https://cursor.com/), [OpenCode](https://opencode.ai/), [Aider](https://aider.chat/), [Amp](https://ampcode.com/manual), [Goose](https://goose-docs.ai/), [GitHub Copilot](https://github.com/features/copilot), [Grok](https://x.ai/grok), [Qwen Code](https://github.com/QwenLM/qwen-code), [Kimi Code](https://www.kimi.com/code), [Cline](https://cline.bot/), [Continue](https://www.continue.dev/), [Kiro](https://kiro.dev/), and more |
 | **Isolated Workspaces**        | Each session spawns into its own git worktree with dedicated runtime                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | **Platform-Native Runtimes**   | tmux on Darwin/Linux, conpty on Windows for optimal performance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| **Live PR Observation**        | Provider-neutral SCM observer with automatic feedback routing                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| **Tracker Intake**             | Auto-spawn worker sessions from matching GitHub issues assigned to you                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **Live PR Observation**        | Provider-neutral SCM observer scanning all project remotes with cross-fork support                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **Automatic Feedback Routing** | CI failures, review comments, and merge conflicts routed to the owning agent                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | **Durable Facts Storage**      | SQLite persists immutable facts with display status derived at read time                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | **CDC Broadcasting**           | DB triggers append changes to change_log, broadcasted via SSE                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -108,7 +109,7 @@ The result is a local control layer for agentic coding: agents still do the codi
 
 Works with 23+ CLI-based coding agents including Claude Code, OpenAI Codex, Cursor, OpenCode, Aider, Amp, Goose, GitHub Copilot, Grok, Qwen Code, Kimi Code, Crush, Cline, Droid, Devin, Auggie, Continue, Kiro, and Kilo Code.
 
-**If it runs in a terminal, it runs on Agent Orchestrator.**
+**If it runs in a terminal, it runs on Modern Agent.**
 
 ---
 
@@ -134,23 +135,23 @@ Download the latest release for your platform:
 
 | Platform    | Download                                                                                          |
 | ----------- | ------------------------------------------------------------------------------------------------- |
-| **Windows** | [Setup.exe](https://github.com/AgentWrapper/agent-orchestrator/releases/latest)                   |
-| **macOS**   | [Agent Orchestrator.dmg](https://github.com/AgentWrapper/agent-orchestrator/releases/latest)      |
-| **Linux**   | [Agent Orchestrator.AppImage](https://github.com/AgentWrapper/agent-orchestrator/releases/latest) |
+| **Windows** | [Setup.exe](https://github.com/ModernAgent/modern-agent/releases/latest)                   |
+| **macOS**   | [Modern Agent.dmg](https://github.com/ModernAgent/modern-agent/releases/latest)      |
+| **Linux**   | [Modern Agent.AppImage](https://github.com/ModernAgent/modern-agent/releases/latest) |
 
-**Direct Download:** [Latest Release](https://github.com/AgentWrapper/agent-orchestrator/releases/latest)
+**Direct Download:** [Latest Release](https://github.com/ModernAgent/modern-agent/releases/latest)
 
 ---
 
 ## Telemetry
 
-Agent Orchestrator collects minimal telemetry for reliability and product understanding. Data is stored locally by default; remote transmission is opt-in via environment variables. [Read the full telemetry policy](docs/telemetry.md).
+Modern Agent collects minimal telemetry for reliability and product understanding. Data is stored locally by default; remote transmission is opt-in via environment variables. [Read the full telemetry policy](docs/telemetry.md).
 
 ---
 
 ## Architecture
 
-Agent Orchestrator is a long-running Go daemon built around **inbound/outbound port contracts** with swappable adapters.
+Modern Agent is a long-running Go daemon built around **inbound/outbound port contracts** with swappable adapters.
 
 **Core mental model:** OBSERVE external facts → UPDATE durable facts → DERIVE display status / ACT
 
@@ -240,7 +241,7 @@ Get your issues verified by core contributors, ask questions, share progress, an
 
 1. **Join the Discord** - Connect with the community and get guidance
 2. **Read the contributor contract** - See [AGENTS.md](AGENTS.md) for repo layout, daemon/API boundaries, and coding conventions
-3. **Pick a focused problem** - Browse [open issues](https://github.com/AgentWrapper/agent-orchestrator/issues) and choose one small enough for a focused PR
+3. **Pick a focused problem** - Browse [open issues](https://github.com/ModernAgent/modern-agent/issues) and choose one small enough for a focused PR
 4. **Open a clear PR** - Keep changes narrow, explain user-visible impact, link issues, include tests
 5. **Iterate with contributors** - Use review feedback to tighten the PR until verified
 
@@ -254,8 +255,8 @@ Apache License 2.0 - see [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-**[Star us on GitHub](https://github.com/AgentWrapper/agent-orchestrator)** • **[Report Issues](https://github.com/AgentWrapper/agent-orchestrator/issues)** • **[Discussions](https://github.com/AgentWrapper/agent-orchestrator/discussions)**
+**[Star us on GitHub](https://github.com/ModernAgent/modern-agent)** • **[Report Issues](https://github.com/ModernAgent/modern-agent/issues)** • **[Discussions](https://github.com/ModernAgent/modern-agent/discussions)**
 
-Made with love by the Agent Orchestrator community
+Made with love by the Modern Agent community
 
 </div>

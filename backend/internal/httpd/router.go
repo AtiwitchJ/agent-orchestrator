@@ -13,12 +13,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/daemonmeta"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	"github.com/aoagents/agent-orchestrator/backend/internal/telemetrymeta"
-	"github.com/aoagents/agent-orchestrator/backend/internal/terminal"
+	"github.com/modernagent/modern-agent/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/daemonmeta"
+	"github.com/modernagent/modern-agent/backend/internal/httpd/envelope"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/telemetrymeta"
+	"github.com/modernagent/modern-agent/backend/internal/terminal"
 )
 
 // ControlDeps carries the daemon-control hooks the router exposes, such as the

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/cli"
+	"github.com/modernagent/modern-agent/backend/internal/cli"
 )
 
 func main() {

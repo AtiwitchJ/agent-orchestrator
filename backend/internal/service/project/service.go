@@ -10,11 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
+	"github.com/modernagent/modern-agent/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/httpd/apierr"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
+	aoprocess "github.com/modernagent/modern-agent/backend/internal/process"
 )
 
 // Manager is the controller-facing contract for the /api/v1/projects surface.

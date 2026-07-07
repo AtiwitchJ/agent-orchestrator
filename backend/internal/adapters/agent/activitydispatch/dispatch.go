@@ -9,21 +9,21 @@
 package activitydispatch
 
 import (
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/agy"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/autohand"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/claudecode"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/cline"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/codex"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/command"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/copilot"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/cursor"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/droid"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/goose"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/kilocode"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/kiro"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/opencode"
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/qwen"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/agy"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/autohand"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/claudecode"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/cline"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/codex"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/command"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/copilot"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/cursor"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/droid"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/goose"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/kilocode"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/kiro"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/opencode"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/qwen"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
 // DeriveFunc maps a native agent hook event and its raw stdin payload onto an AO

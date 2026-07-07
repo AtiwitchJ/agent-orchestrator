@@ -1,6 +1,6 @@
 # ao import
 
-Import reads the legacy Agent Orchestrator flat-file store (`~/.agent-orchestrator`) read-only and ports its projects and per-project settings into the rewrite database. Legacy files are never modified, and a re-run skips rows that already exist, so it is safe to run more than once. The daemon must be stopped before running: it is the sole writer of the database.
+Import reads the legacy Modern Agent flat-file store (`~/.modern-agent`) read-only and ports its projects and per-project settings into the rewrite database. Legacy files are never modified, and a re-run skips rows that already exist, so it is safe to run more than once. The daemon must be stopped before running: it is the sole writer of the database.
 
 ## Syntax
 
@@ -13,7 +13,7 @@ ao import [flags]
 | Flag | Meaning | Default / Required |
 |---|---|---|
 | `--dry-run` | Parse and report the planned import without writing | - |
-| `--from string` | Legacy AO root to read | `~/.agent-orchestrator` |
+| `--from string` | Legacy AO root to read | `~/.modern-agent` |
 | `--json` | Output the import report as JSON | - |
 | `-y, --yes` | Skip the confirmation prompt (for non-interactive use) | - |
 
@@ -31,5 +31,5 @@ ao import -y
 
 ```bash
 # Import from a custom legacy path
-ao import --from /tmp/old-agent-orchestrator -y
+ao import --from /tmp/old-modern-agent -y
 ```

@@ -3,7 +3,7 @@ package ports
 import (
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
 // NotificationIntent is the lifecycle-to-notification-producer contract. It is

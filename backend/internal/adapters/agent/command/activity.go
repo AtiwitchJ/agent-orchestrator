@@ -1,6 +1,6 @@
 package command
 
-import "github.com/aoagents/agent-orchestrator/backend/internal/domain"
+import "github.com/modernagent/modern-agent/backend/internal/domain"
 
 // DeriveActivityState maps `ao hooks command <event>` onto an AO activity state.
 func DeriveActivityState(event string, _ []byte) (domain.ActivityState, bool) {

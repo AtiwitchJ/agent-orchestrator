@@ -6,14 +6,14 @@ trigger: User reports a bug, or asks to triage/file an issue for a reported prob
 
 # Bug Triage Skill
 
-Triage bugs into well-structured GitHub issues on the upstream **`AgentWrapper/agent-orchestrator`** repo (issues are enabled there; the `origin` fork is not the issue tracker).
+Triage bugs into well-structured GitHub issues on the upstream **`ModernAgent/modern-agent`** repo (issues are enabled there; the `origin` fork is not the issue tracker).
 
-> **Agent Orchestrator (AO) is Go + Electron.** The backend is a Go daemon
+> **Modern Agent (AO) is Go + Electron.** The backend is a Go daemon
 > (`backend/`) exposing a loopback HTTP API on `127.0.0.1:3001`; the frontend is an
 > Electron + React supervisor (`frontend/`). There is **no** pm2/tmux-per-session
 > Node runtime here: the daemon owns lifecycle and terminals run under the **tmux**
 > runtime adapter (ConPTY on Windows). Triage against _this_ Go rewrite, not the old
-> TypeScript agent-orchestrator implementation.
+> TypeScript modern-agent implementation.
 
 ## ⚠️ Which `ao` are you running?
 
@@ -37,7 +37,7 @@ cd backend && go build -o /tmp/ao ./cmd/ao
 /tmp/ao status                   # must report port: 3001
 
 # Option B: the packaged app's bundled daemon
-"/Applications/Agent Orchestrator.app/Contents/Resources/daemon/ao" status
+"/Applications/Modern Agent.app/Contents/Resources/daemon/ao" status
 ```
 
 **Confirm `ao status` reports `port: 3001` before trusting any output.** Throughout
@@ -52,10 +52,10 @@ one), never a bare PATH lookup.
 ## 1. Pre-flight
 
 - **Pull latest code:** `git fetch upstream && git log --oneline upstream/main -5`.
-  Stale code means bad triage. (`upstream` = `AgentWrapper/agent-orchestrator`.)
-- **Target repo:** Always file on **`AgentWrapper/agent-orchestrator`** (the upstream
+  Stale code means bad triage. (`upstream` = `ModernAgent/modern-agent`.)
+- **Target repo:** Always file on **`ModernAgent/modern-agent`** (the upstream
   product repo, where issues live). Never file on the `origin` fork or on
-  `aoagents/*`.
+  `modernagent/*`.
 - **Verify your binary:** confirm `ao status` shows port **3001** (see warning above).
 - **Record source:** chat URL, reporter name, attachments.
 
@@ -66,7 +66,7 @@ one), never a bare PATH lookup.
 | Source                   | How to gather                                                                                                                        |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
 | **Discord/Slack thread** | Read full thread. Extract: reporter name, original description (the thread starter, not whoever tagged you), screenshots, follow-ups |
-| **GitHub issue**         | `gh issue view <number> --repo AgentWrapper/agent-orchestrator --json body,comments`                                                 |
+| **GitHub issue**         | `gh issue view <number> --repo ModernAgent/modern-agent --json body,comments`                                                 |
 | **Live observation**     | Pull live state via the daemon: `ao status`, `ao session ls`, `ao session get <id>`                                                  |
 
 ### 2b. Minimum viable report gate
@@ -183,16 +183,16 @@ Stop and ask for more info if:
 Search with multiple strategies, always using `--state all` (closed bugs regress):
 
 ```bash
-gh issue list --repo AgentWrapper/agent-orchestrator --state all --search "<symptom>"
-gh issue list --repo AgentWrapper/agent-orchestrator --state all --search "<component-name>"
-gh issue list --repo AgentWrapper/agent-orchestrator --state all --search "<error-message>"
-gh pr list --repo AgentWrapper/agent-orchestrator --state all --search "<keywords>"
+gh issue list --repo ModernAgent/modern-agent --state all --search "<symptom>"
+gh issue list --repo ModernAgent/modern-agent --state all --search "<component-name>"
+gh issue list --repo ModernAgent/modern-agent --state all --search "<error-message>"
+gh pr list --repo ModernAgent/modern-agent --state all --search "<keywords>"
 ```
 
 ### Duplicate found → comment on existing issue
 
 ```bash
-gh issue comment <number> --repo AgentWrapper/agent-orchestrator --body "$(cat <<'EOF'
+gh issue comment <number> --repo ModernAgent/modern-agent --body "$(cat <<'EOF'
 ## New Report
 **Reported by:** @<reporter> in [chat](<url>)
 **Date:** <YYYY-MM-DD> | **Checkout:** `<commit-hash>`
@@ -223,23 +223,23 @@ EOF
 ```bash
 SLUG="descriptive-slug"
 # Create asset branch
-gh api -X POST repos/AgentWrapper/agent-orchestrator/git/refs \
+gh api -X POST repos/ModernAgent/modern-agent/git/refs \
   -f ref="refs/heads/issue-assets-${SLUG}" \
   -f sha=$(git rev-parse upstream/main)
 
 # Upload (portable base64)
 IMG_B64=$(base64 < /path/to/screenshot.png | tr -d '\n')
-gh api -X PUT "repos/AgentWrapper/agent-orchestrator/contents/.issue-assets/${SLUG}/name.png" \
+gh api -X PUT "repos/ModernAgent/modern-agent/contents/.issue-assets/${SLUG}/name.png" \
   -f message="chore: upload screenshot" \
   -f content="$IMG_B64" \
   -f branch="issue-assets-${SLUG}"
-# Use: ![screenshot](https://raw.githubusercontent.com/AgentWrapper/agent-orchestrator/issue-assets-<slug>/.issue-assets/<file>)
+# Use: ![screenshot](https://raw.githubusercontent.com/ModernAgent/modern-agent/issue-assets-<slug>/.issue-assets/<file>)
 ```
 
 ### 5c. Create the issue
 
 ```bash
-gh issue create --repo AgentWrapper/agent-orchestrator --title "<title>" --body "$(cat <<'EOF'
+gh issue create --repo ModernAgent/modern-agent --title "<title>" --body "$(cat <<'EOF'
 ## Bug
 <summary>
 
@@ -266,8 +266,8 @@ EOF
 **Check which labels actually exist first**, then apply only those:
 
 ```bash
-gh label list --repo AgentWrapper/agent-orchestrator   # source of truth; apply only these
-gh issue edit <number> --repo AgentWrapper/agent-orchestrator --add-label "bug"
+gh label list --repo ModernAgent/modern-agent   # source of truth; apply only these
+gh issue edit <number> --repo ModernAgent/modern-agent --add-label "bug"
 ```
 
 The repo currently carries `bug`, `enhancement`, `documentation`, `question`,
@@ -321,7 +321,7 @@ against upstream. There is no remote-patch script. Branch off `upstream/main`.
 
   Fixes #<n>"
   git push -u origin fix/<slug>
-  gh pr create --repo AgentWrapper/agent-orchestrator --fill \
+  gh pr create --repo ModernAgent/modern-agent --fill \
     --title "fix(<scope>): <summary>" \
     --body "Fixes #<n>
 
@@ -337,9 +337,9 @@ against upstream. There is no remote-patch script. Branch off `upstream/main`.
   guess:
 
   ```bash
-  ao spawn --project agent-orchestrator --prompt "Fix #<n>: <one-line problem statement>. \
+  ao spawn --project modern-agent --prompt "Fix #<n>: <one-line problem statement>. \
   Root cause: <file:line + mechanism>. Suggested approach: <approach>. Branch off upstream/main. \
-  Build with 'cd backend && go build ./... && go test ./...' before opening a PR against AgentWrapper/agent-orchestrator."
+  Build with 'cd backend && go build ./... && go test ./...' before opening a PR against ModernAgent/modern-agent."
   ```
 
   Note the issue with which path you took (PR or spawned worker).
@@ -381,10 +381,10 @@ any priority/confidence stated in the body), root cause summary.
 ### B. Remote Code Inspection (no local clone)
 
 ```bash
-gh api repos/AgentWrapper/agent-orchestrator/git/trees/main?recursive=1 --jq '.tree[].path'    # list files
-gh api repos/AgentWrapper/agent-orchestrator/contents/{path} --jq '.content' | python3 -c "import base64,sys; sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))"  # read file
-gh search code "term" --repo AgentWrapper/agent-orchestrator --json path --jq '.[].path'        # search code
-gh api "repos/AgentWrapper/agent-orchestrator/commits?path={path}&per_page=10" --jq '.[] | "\(.sha[0:8]) \(.commit.message | split("\n")[0])"'  # file history
+gh api repos/ModernAgent/modern-agent/git/trees/main?recursive=1 --jq '.tree[].path'    # list files
+gh api repos/ModernAgent/modern-agent/contents/{path} --jq '.content' | python3 -c "import base64,sys; sys.stdout.buffer.write(base64.b64decode(sys.stdin.read()))"  # read file
+gh search code "term" --repo ModernAgent/modern-agent --json path --jq '.[].path'        # search code
+gh api "repos/ModernAgent/modern-agent/commits?path={path}&per_page=10" --jq '.[] | "\(.sha[0:8]) \(.commit.message | split("\n")[0])"'  # file history
 ```
 
 ### C. Build / Version Diagnostics
@@ -410,7 +410,7 @@ git checkout -
 
 ## Formatting Rules
 
-- **Linkify all issue/PR refs:** `[#123](https://github.com/AgentWrapper/agent-orchestrator/issues/123)`, `[PR #456](url)`. Never bare `#123`.
+- **Linkify all issue/PR refs:** `[#123](https://github.com/ModernAgent/modern-agent/issues/123)`, `[PR #456](url)`. Never bare `#123`.
 
 ## Pitfalls
 
@@ -418,12 +418,12 @@ git checkout -
   :3000). Always pin a rewrite binary and confirm `ao status` shows port **3001**.
 - **Verify the bug reproduces against the rewrite (:3001 / Go code path) before
   filing** (symptoms first seen in another AO install may not reproduce here).
-- **File on upstream, not the fork.** Issues go to `AgentWrapper/agent-orchestrator`;
+- **File on upstream, not the fork.** Issues go to `ModernAgent/modern-agent`;
   `origin` is a personal fork with no issue tracker.
 - **Reporter ≠ person who tagged you.** Always attribute to the original reporter.
 - **Record the commit hash** you analyzed; code changes fast.
 - **GitHub issue is mandatory**: every triaged bug gets one, even if fix is trivial.
-- **Only apply labels that exist** (`gh label list --repo AgentWrapper/agent-orchestrator`).
+- **Only apply labels that exist** (`gh label list --repo ModernAgent/modern-agent`).
   State priority/confidence in the body when no matching label exists.
 - **Build before you push.** `cd backend && go build ./... && go test ./...` must
   pass; never open a PR with an unverified Go change.

@@ -4,9 +4,9 @@ import MakerNSIS from "./makers/maker-nsis";
 import MakerAppImage from "./makers/maker-appimage";
 import { writeFileSync } from "node:fs";
 
-// Default GitHub release target (production). aoagents was the temporary rewrite
-// home; releases land on AgentWrapper (spec §1.1).
-const DEFAULT_RELEASE_REPO = "AgentWrapper/agent-orchestrator";
+// Default GitHub release target (production). modernagent was the temporary rewrite
+// home; releases land on ModernAgent (spec §1.1).
+const DEFAULT_RELEASE_REPO = "ModernAgent/modern-agent";
 
 // parseReleaseRepo turns an "owner/repo" string (from AO_RELEASE_REPO) into the
 // publisher-github { owner, name } shape, falling back to the production default
@@ -23,9 +23,9 @@ function parseReleaseRepo(value: string | undefined): { owner: string; name: str
 const config: ForgeConfig = {
 	packagerConfig: {
 		asar: true,
-		appBundleId: "dev.agent-orchestrator.desktop",
-		name: "Agent Orchestrator",
-		executableName: "agent-orchestrator",
+		appBundleId: "dev.modern-agent.desktop",
+		name: "Modern Agent",
+		executableName: "modern-agent",
 		appCategoryType: "public.app-category.developer-tools",
 		// App icon. electron-packager appends the per-platform extension
 		// (.icns on macOS, .ico on Windows); Linux menu icons come from the
@@ -69,7 +69,7 @@ const config: ForgeConfig = {
 				"provider: github",
 				`owner: ${owner}`,
 				`repo: ${name}`,
-				"updaterCacheDirName: agent-orchestrator-updater",
+				"updaterCacheDirName: modern-agent-updater",
 				"",
 			].join("\n");
 			writeFileSync("app-update.yml", yml);
@@ -82,8 +82,8 @@ const config: ForgeConfig = {
 		// custom install dir or proper uninstaller (issue #401).
 		new MakerNSIS(
 			{
-				appId: "dev.agent-orchestrator.desktop",
-				productName: "Agent Orchestrator",
+				appId: "dev.modern-agent.desktop",
+				productName: "Modern Agent",
 				icon: "assets/icon.ico",
 			},
 			["win32"],
@@ -95,8 +95,8 @@ const config: ForgeConfig = {
 		// prefer a system package.
 		new MakerAppImage(
 			{
-				appId: "dev.agent-orchestrator.desktop",
-				productName: "Agent Orchestrator",
+				appId: "dev.modern-agent.desktop",
+				productName: "Modern Agent",
 				icon: "assets/icon.png",
 			},
 			["linux"],
@@ -107,11 +107,11 @@ const config: ForgeConfig = {
 				options: {
 					// Must match packagerConfig.executableName, or the deb maker
 					// looks for the package name and fails with "could not find
-					// the Electron app binary". (Both are "agent-orchestrator".)
-					bin: "agent-orchestrator",
+					// the Electron app binary". (Both are "modern-agent".)
+					bin: "modern-agent",
 					icon: "assets/icon.png",
-					maintainer: "Agent Orchestrator",
-					homepage: "https://github.com/aoagents/agent-orchestrator",
+					maintainer: "Modern Agent",
+					homepage: "https://github.com/modernagent/modern-agent",
 				},
 			},
 		},
@@ -122,7 +122,7 @@ const config: ForgeConfig = {
 					icon: "assets/icon.png",
 					// rpmbuild rejects a spec with an empty License field.
 					license: "MIT",
-					homepage: "https://github.com/aoagents/agent-orchestrator",
+					homepage: "https://github.com/modernagent/modern-agent",
 				},
 			},
 		},
@@ -133,9 +133,9 @@ const config: ForgeConfig = {
 			// Release target is build-time overridable so a fork run publishes to the
 			// fork without a source edit. AO_RELEASE_REPO is "owner/repo"; it defaults
 			// to the production target. The dev/test loop sets
-			// AO_RELEASE_REPO=harshitsinghbhandari/agent-orchestrator (spec §1.1, §8).
-			// Note: aoagents/agent-orchestrator was the temporary rewrite home and is
-			// intentionally NOT the default; releases land on AgentWrapper.
+			// AO_RELEASE_REPO=harshitsinghbhandari/modern-agent (spec §1.1, §8).
+			// Note: modernagent/modern-agent was the temporary rewrite home and is
+			// intentionally NOT the default; releases land on ModernAgent.
 			config: {
 				repository: parseReleaseRepo(process.env.AO_RELEASE_REPO),
 				prerelease: process.env.AO_RELEASE_PRERELEASE === "true",

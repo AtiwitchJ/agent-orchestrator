@@ -6,7 +6,7 @@
 >
 > Builds on the marker concept from the `ao start` bootstrapper spec
 > (`docs/ao-start-bootstrapper-and-npm-deprecation.md`, §5). Deferred Settings
-> work is tracked in AgentWrapper/agent-orchestrator#2205.
+> work is tracked in ModernAgent/modern-agent#2205.
 
 ---
 
@@ -56,7 +56,7 @@ or declined import loses nothing.
 4. **Popup actions:** **Proceed** (run), **Skip** (re-prompt next launch),
    **Don't Migrate** (red; permanently declines). Small print points to a future
    Settings redo path.
-5. **Settings "Migration" section is deferred** to AgentWrapper/agent-orchestrator#2205.
+5. **Settings "Migration" section is deferred** to ModernAgent/modern-agent#2205.
    v1 ships the popup only. Until #2205 lands, `declined` is effectively
    permanent, so v1 copy must NOT promise a working Settings path (see §6).
 

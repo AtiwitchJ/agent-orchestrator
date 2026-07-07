@@ -9,10 +9,10 @@ import (
 	"errors"
 	"log/slog"
 
-	scmgithub "github.com/aoagents/agent-orchestrator/backend/internal/adapters/scm/github"
-	"github.com/aoagents/agent-orchestrator/backend/internal/lifecycle"
-	scmobserve "github.com/aoagents/agent-orchestrator/backend/internal/observe/scm"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
+	scmgithub "github.com/modernagent/modern-agent/backend/internal/adapters/scm/github"
+	"github.com/modernagent/modern-agent/backend/internal/lifecycle"
+	scmobserve "github.com/modernagent/modern-agent/backend/internal/observe/scm"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
 )
 
 // startSCMObserver wires the provider-neutral SCM observer with the GitHub

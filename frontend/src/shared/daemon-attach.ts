@@ -23,7 +23,7 @@ import { parseRunFile } from "./daemon-discovery";
 // The daemon's default bind port (backend/internal/config). AO_PORT overrides it.
 export const DEFAULT_DAEMON_PORT = 3001;
 // The `service` field every genuine AO daemon stamps on its health payloads.
-export const DAEMON_SERVICE_NAME = "agent-orchestrator-daemon";
+export const DAEMON_SERVICE_NAME = "modern-agent-daemon";
 
 export type DaemonProbe = {
 	status: string;

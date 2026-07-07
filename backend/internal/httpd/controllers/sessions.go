@@ -14,12 +14,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apispec"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	previewutil "github.com/aoagents/agent-orchestrator/backend/internal/preview"
-	sessionsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/session"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/httpd/apispec"
+	"github.com/modernagent/modern-agent/backend/internal/httpd/envelope"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
+	previewutil "github.com/modernagent/modern-agent/backend/internal/preview"
+	sessionsvc "github.com/modernagent/modern-agent/backend/internal/service/session"
 )
 
 const (

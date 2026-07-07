@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 func TestGetLaunchCommandBypassWithPrompt(t *testing.T) {

@@ -10,13 +10,14 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
 const getSession = `-- name: GetSession :one
 SELECT id, project_id, num, issue_id, kind, harness,
     activity_state, activity_last_at, is_terminated, branch, workspace_path,
-    runtime_handle_id, agent_session_id, prompt, created_at, updated_at, display_name, first_signal_at, preview_url, preview_revision
+    runtime_handle_id, agent_session_id, prompt, created_at, updated_at, display_name,
+    first_signal_at, preview_url, preview_revision, deliverable_confirmed_at
 FROM sessions WHERE id = ?
 `
 
@@ -44,6 +45,7 @@ func (q *Queries) GetSession(ctx context.Context, id domain.SessionID) (Session,
 		&i.FirstSignalAt,
 		&i.PreviewURL,
 		&i.PreviewRevision,
+		&i.DeliverableConfirmedAt,
 	)
 	return i, err
 }
@@ -53,31 +55,32 @@ INSERT INTO sessions (
     id, project_id, num, issue_id, kind, harness, display_name,
     activity_state, activity_last_at, first_signal_at, is_terminated,
     branch, workspace_path, runtime_handle_id, agent_session_id, prompt,
-    preview_url, preview_revision, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    preview_url, preview_revision, created_at, updated_at, deliverable_confirmed_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertSessionParams struct {
-	ID              domain.SessionID
-	ProjectID       domain.ProjectID
-	Num             int64
-	IssueID         domain.IssueID
-	Kind            domain.SessionKind
-	Harness         domain.AgentHarness
-	DisplayName     string
-	ActivityState   domain.ActivityState
-	ActivityLastAt  time.Time
-	FirstSignalAt   sql.NullTime
-	IsTerminated    bool
-	Branch          string
-	WorkspacePath   string
-	RuntimeHandleID string
-	AgentSessionID  string
-	Prompt          string
-	PreviewURL      string
-	PreviewRevision int64
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID                     domain.SessionID
+	ProjectID              domain.ProjectID
+	Num                    int64
+	IssueID                domain.IssueID
+	Kind                   domain.SessionKind
+	Harness                domain.AgentHarness
+	DisplayName            string
+	ActivityState          domain.ActivityState
+	ActivityLastAt         time.Time
+	FirstSignalAt          sql.NullTime
+	IsTerminated           bool
+	Branch                 string
+	WorkspacePath          string
+	RuntimeHandleID        string
+	AgentSessionID         string
+	Prompt                 string
+	PreviewURL             string
+	PreviewRevision        int64
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	DeliverableConfirmedAt sql.NullString
 }
 
 func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) error {
@@ -102,6 +105,7 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) er
 		arg.PreviewRevision,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+		arg.DeliverableConfirmedAt,
 	)
 	return err
 }
@@ -109,7 +113,8 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) er
 const listAllSessions = `-- name: ListAllSessions :many
 SELECT id, project_id, num, issue_id, kind, harness,
     activity_state, activity_last_at, is_terminated, branch, workspace_path,
-    runtime_handle_id, agent_session_id, prompt, created_at, updated_at, display_name, first_signal_at, preview_url, preview_revision
+    runtime_handle_id, agent_session_id, prompt, created_at, updated_at, display_name,
+    first_signal_at, preview_url, preview_revision, deliverable_confirmed_at
 FROM sessions ORDER BY project_id, num
 `
 
@@ -143,6 +148,7 @@ func (q *Queries) ListAllSessions(ctx context.Context) ([]Session, error) {
 			&i.FirstSignalAt,
 			&i.PreviewURL,
 			&i.PreviewRevision,
+			&i.DeliverableConfirmedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -160,7 +166,8 @@ func (q *Queries) ListAllSessions(ctx context.Context) ([]Session, error) {
 const listSessionsByProject = `-- name: ListSessionsByProject :many
 SELECT id, project_id, num, issue_id, kind, harness,
     activity_state, activity_last_at, is_terminated, branch, workspace_path,
-    runtime_handle_id, agent_session_id, prompt, created_at, updated_at, display_name, first_signal_at, preview_url, preview_revision
+    runtime_handle_id, agent_session_id, prompt, created_at, updated_at, display_name,
+    first_signal_at, preview_url, preview_revision, deliverable_confirmed_at
 FROM sessions WHERE project_id = ? ORDER BY num
 `
 
@@ -194,6 +201,7 @@ func (q *Queries) ListSessionsByProject(ctx context.Context, projectID domain.Pr
 			&i.FirstSignalAt,
 			&i.PreviewURL,
 			&i.PreviewRevision,
+			&i.DeliverableConfirmedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -287,28 +295,29 @@ UPDATE sessions SET
     issue_id = ?, kind = ?, harness = ?, display_name = ?,
     activity_state = ?, activity_last_at = ?, first_signal_at = ?, is_terminated = ?,
     branch = ?, workspace_path = ?, runtime_handle_id = ?, agent_session_id = ?, prompt = ?,
-    preview_url = ?, preview_revision = ?, updated_at = ?
+    preview_url = ?, preview_revision = ?, updated_at = ?, deliverable_confirmed_at = ?
 WHERE id = ?
 `
 
 type UpdateSessionParams struct {
-	IssueID         domain.IssueID
-	Kind            domain.SessionKind
-	Harness         domain.AgentHarness
-	DisplayName     string
-	ActivityState   domain.ActivityState
-	ActivityLastAt  time.Time
-	FirstSignalAt   sql.NullTime
-	IsTerminated    bool
-	Branch          string
-	WorkspacePath   string
-	RuntimeHandleID string
-	AgentSessionID  string
-	Prompt          string
-	PreviewURL      string
-	PreviewRevision int64
-	UpdatedAt       time.Time
-	ID              domain.SessionID
+	IssueID                domain.IssueID
+	Kind                   domain.SessionKind
+	Harness                domain.AgentHarness
+	DisplayName            string
+	ActivityState          domain.ActivityState
+	ActivityLastAt         time.Time
+	FirstSignalAt          sql.NullTime
+	IsTerminated           bool
+	Branch                 string
+	WorkspacePath          string
+	RuntimeHandleID        string
+	AgentSessionID         string
+	Prompt                 string
+	PreviewURL             string
+	PreviewRevision        int64
+	UpdatedAt              time.Time
+	DeliverableConfirmedAt sql.NullString
+	ID                     domain.SessionID
 }
 
 func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) error {
@@ -329,6 +338,7 @@ func (q *Queries) UpdateSession(ctx context.Context, arg UpdateSessionParams) er
 		arg.PreviewURL,
 		arg.PreviewRevision,
 		arg.UpdatedAt,
+		arg.DeliverableConfirmedAt,
 		arg.ID,
 	)
 	return err

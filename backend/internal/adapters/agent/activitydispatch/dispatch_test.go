@@ -3,7 +3,7 @@ package activitydispatch
 import (
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
 // Every deriver key must be a known harness name: SupportsHarness equates the

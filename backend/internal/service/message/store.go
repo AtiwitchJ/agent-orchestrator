@@ -3,7 +3,7 @@ package message
 import (
 	"context"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
 // Store is the message service's read persistence surface.

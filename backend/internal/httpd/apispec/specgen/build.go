@@ -15,10 +15,10 @@ import (
 	openapi "github.com/swaggest/openapi-go"
 	"github.com/swaggest/openapi-go/openapi31"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/controllers"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/envelope"
-	companysvc "github.com/aoagents/agent-orchestrator/backend/internal/service/company"
-	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
+	"github.com/modernagent/modern-agent/backend/internal/httpd/controllers"
+	"github.com/modernagent/modern-agent/backend/internal/httpd/envelope"
+	companysvc "github.com/modernagent/modern-agent/backend/internal/service/company"
+	projectsvc "github.com/modernagent/modern-agent/backend/internal/service/project"
 )
 
 // Build reflects the Go contract types and the operation registry below into
@@ -48,7 +48,7 @@ func Build() ([]byte, error) {
 		jsonschema.InterceptDefName(schemaName),
 	)
 
-	r.Spec.SetTitle("Agent Orchestrator HTTP daemon")
+	r.Spec.SetTitle("Modern Agent HTTP daemon")
 	r.Spec.SetVersion("0.1.0-route-shell")
 	r.Spec.SetDescription("Loopback-only HTTP surface served by the Go daemon. " +
 		"Generated from Go (code-first) — do not edit by hand; run `go generate ./...`.")

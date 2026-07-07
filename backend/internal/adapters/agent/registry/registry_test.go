@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/hookutil"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/hookutil"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 // TestGetAgentHooksFootprintIsGitignored enforces a contract every shipped

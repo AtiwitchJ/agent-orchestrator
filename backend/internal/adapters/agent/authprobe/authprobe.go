@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 // DefaultCommands are cheap local auth/status probes common across agent CLIs.

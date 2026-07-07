@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	reviewcore "github.com/aoagents/agent-orchestrator/backend/internal/review"
-	reviewsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/review"
+	"github.com/modernagent/modern-agent/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/httpd"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
+	reviewcore "github.com/modernagent/modern-agent/backend/internal/review"
+	reviewsvc "github.com/modernagent/modern-agent/backend/internal/service/review"
 )
 
 type fakeReviewService struct {

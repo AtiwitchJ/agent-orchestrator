@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 
 	_ "modernc.org/sqlite" // register sqlite driver for KiloCode auth database probes
 )

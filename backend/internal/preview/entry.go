@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
 var entryCandidates = []string{"index.html", "public/index.html", "dist/index.html", "build/index.html"}

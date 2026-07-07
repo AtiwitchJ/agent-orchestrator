@@ -171,7 +171,7 @@ export function Sidebar({
 	});
 	const isNightly = typeof appVersion === "string" && appVersion.includes("-nightly.");
 
-	// agent-orchestrator's sidebar resize: drag the right edge (200-420px,
+	// modern-agent's sidebar resize: drag the right edge (200-420px,
 	// persisted), double-click to reset to 240px. Drives --ao-sidebar-w on :root,
 	// which the provider forwards into shadcn's --sidebar-width.
 	const { onPointerDown: onResizePointerDown, onDoubleClick: onResizeDoubleClick } = useResizable({
@@ -217,7 +217,7 @@ export function Sidebar({
 						</TooltipContent>
 					</Tooltip>
 					<span className="min-w-0 flex-1 truncate text-[14px] font-bold tracking-[-0.015em] text-foreground group-data-[collapsible=icon]:hidden">
-						Agent Orchestrator
+						Modern Agent
 					</span>
 					{isNightly && (
 						<span

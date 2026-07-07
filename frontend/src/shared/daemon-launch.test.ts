@@ -26,11 +26,11 @@ describe("resolveDaemonLaunch", () => {
 
 	it("uses the bundled daemon binary for packaged macOS/Linux builds", () => {
 		expect(
-			resolveDaemonLaunch({}, true, "/Applications/Agent Orchestrator.app/Contents/Resources", "/app", "darwin"),
+			resolveDaemonLaunch({}, true, "/Applications/Modern Agent.app/Contents/Resources", "/app", "darwin"),
 		).toEqual({
-			command: "/Applications/Agent Orchestrator.app/Contents/Resources/daemon/ao",
+			command: "/Applications/Modern Agent.app/Contents/Resources/daemon/ao",
 			args: ["daemon"],
-			cwd: "/Applications/Agent Orchestrator.app/Contents/Resources",
+			cwd: "/Applications/Modern Agent.app/Contents/Resources",
 			shell: false,
 			source: "bundled",
 		});

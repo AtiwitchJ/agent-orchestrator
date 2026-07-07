@@ -31,14 +31,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/controllers"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	"github.com/aoagents/agent-orchestrator/backend/internal/runfile"
-	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
-	sessionsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/session"
+	"github.com/modernagent/modern-agent/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/httpd"
+	"github.com/modernagent/modern-agent/backend/internal/httpd/controllers"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/runfile"
+	projectsvc "github.com/modernagent/modern-agent/backend/internal/service/project"
+	sessionsvc "github.com/modernagent/modern-agent/backend/internal/service/session"
 )
 
 // fakeSessionService captures the ports.SpawnConfig the controller decodes from

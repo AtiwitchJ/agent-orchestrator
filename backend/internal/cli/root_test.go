@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/daemonmeta"
-	"github.com/aoagents/agent-orchestrator/backend/internal/runfile"
+	"github.com/modernagent/modern-agent/backend/internal/daemonmeta"
+	"github.com/modernagent/modern-agent/backend/internal/runfile"
 )
 
 func TestRootHelpDoesNotShowDaemon(t *testing.T) {

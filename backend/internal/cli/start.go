@@ -12,21 +12,21 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/config"
 )
 
 // releaseRepo is the GitHub "owner/repo" that `ao start` fetches the desktop app
 // from. It defaults to the production target and is overridable at build time so
 // a test binary fetches from the fork without a source edit:
 //
-//	go build -ldflags "-X github.com/aoagents/agent-orchestrator/backend/internal/cli.releaseRepo=harshitsinghbhandari/agent-orchestrator" ./cmd/ao
+//	go build -ldflags "-X github.com/modernagent/modern-agent/backend/internal/cli.releaseRepo=harshitsinghbhandari/modern-agent" ./cmd/ao
 //
 // Mirrors how version.go's Version var is stamped by release tooling.
-var releaseRepo = "AgentWrapper/agent-orchestrator"
+var releaseRepo = "ModernAgent/modern-agent"
 
 // appBundleName is the macOS bundle directory name produced by electron-forge
 // (spaced, per frontend/forge.config.ts).
-const appBundleName = "Agent Orchestrator.app"
+const appBundleName = "Modern Agent.app"
 
 // appStateFileName is the marker the desktop app writes under ~/.ao on every
 // launch (spec §5). `ao start` is a read-only consumer of it.
@@ -61,8 +61,8 @@ func newStartCommand(ctx *commandContext) *cobra.Command {
 	opts := startOptions{}
 	cmd := &cobra.Command{
 		Use:   "start",
-		Short: "Fetch (if needed) and open the Agent Orchestrator desktop app",
-		Long: "Fetch (if needed) and open the Agent Orchestrator desktop app.\n\n" +
+		Short: "Fetch (if needed) and open the Modern Agent desktop app",
+		Long: "Fetch (if needed) and open the Modern Agent desktop app.\n\n" +
 			"The desktop app now owns the daemon, state, and updates. `ao start` no\n" +
 			"longer runs a daemon: it resolves the installed app (or downloads the\n" +
 			"latest release), opens it, and exits.",
@@ -180,13 +180,13 @@ func knownAppLocations() []string {
 		}
 		// Per-machine fallback (if a user chose an all-users install).
 		if pf := os.Getenv("ProgramFiles"); pf != "" {
-			paths = append(paths, filepath.Join(pf, "Agent Orchestrator", "agent-orchestrator.exe"))
+			paths = append(paths, filepath.Join(pf, "Modern Agent", "modern-agent.exe"))
 		}
 		return paths
 	case "linux":
 		paths := []string{linuxAppImagePath()}
 		if home, err := os.UserHomeDir(); err == nil {
-			paths = append(paths, filepath.Join(home, "Applications", "agent-orchestrator.AppImage"))
+			paths = append(paths, filepath.Join(home, "Applications", "modern-agent.AppImage"))
 		}
 		return paths
 	default:
@@ -197,7 +197,7 @@ func knownAppLocations() []string {
 // windowsInstalledExe is the default per-user electron-builder NSIS install
 // target for the app exe under %LOCALAPPDATA%.
 func windowsInstalledExe(localAppData string) string {
-	return filepath.Join(localAppData, "Programs", "Agent Orchestrator", "agent-orchestrator.exe")
+	return filepath.Join(localAppData, "Programs", "Modern Agent", "modern-agent.exe")
 }
 
 // linuxAppImagePath is the stable location `ao start` downloads the AppImage to
@@ -208,9 +208,9 @@ func linuxAppImagePath() string {
 	if err != nil {
 		// Fall back to a bare filename so a misconfigured state dir surfaces as a
 		// clear "not found" rather than a panic; fetch will re-error on download.
-		return "agent-orchestrator.AppImage"
+		return "modern-agent.AppImage"
 	}
-	return filepath.Join(dir, "agent-orchestrator.AppImage")
+	return filepath.Join(dir, "modern-agent.AppImage")
 }
 
 // isUsableBundle reports whether p stats as a usable app bundle. On macOS a
@@ -409,9 +409,9 @@ func (c *commandContext) download(ctx context.Context, w io.Writer, url, asset, 
 	// percentage is unknown and we report transferred bytes instead.
 	total := resp.ContentLength
 	if total > 0 {
-		_, _ = fmt.Fprintf(w, "Downloading Agent Orchestrator (%s, ~%s) from %s...\n", asset, humanBytes(total), releaseRepo)
+		_, _ = fmt.Fprintf(w, "Downloading Modern Agent (%s, ~%s) from %s...\n", asset, humanBytes(total), releaseRepo)
 	} else {
-		_, _ = fmt.Fprintf(w, "Downloading Agent Orchestrator (%s) from %s...\n", asset, releaseRepo)
+		_, _ = fmt.Fprintf(w, "Downloading Modern Agent (%s) from %s...\n", asset, releaseRepo)
 	}
 
 	f, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
@@ -496,9 +496,9 @@ func humanBytes(n int64) string {
 
 // assetName maps the current GOOS/GOARCH to the stable release asset name the
 // release pipeline publishes (spec §6.3, §8). The pipeline uses "x64" for amd64.
-//   - darwin: agent-orchestrator-darwin-{arm64,x64}.zip (signed bundle zip)
-//   - windows: agent-orchestrator-win32-x64.exe (NSIS installer, amd64 only)
-//   - linux: agent-orchestrator-linux-x64.AppImage (self-contained, amd64 only)
+//   - darwin: modern-agent-darwin-{arm64,x64}.zip (signed bundle zip)
+//   - windows: modern-agent-win32-x64.exe (NSIS installer, amd64 only)
+//   - linux: modern-agent-linux-x64.AppImage (self-contained, amd64 only)
 func assetName() (string, error) {
 	switch runtime.GOOS {
 	case "darwin":
@@ -506,17 +506,17 @@ func assetName() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("agent-orchestrator-darwin-%s.zip", arch), nil
+		return fmt.Sprintf("modern-agent-darwin-%s.zip", arch), nil
 	case "windows":
 		if _, err := requireAMD64(); err != nil {
 			return "", err
 		}
-		return "agent-orchestrator-win32-x64.exe", nil
+		return "modern-agent-win32-x64.exe", nil
 	case "linux":
 		if _, err := requireAMD64(); err != nil {
 			return "", err
 		}
-		return "agent-orchestrator-linux-x64.AppImage", nil
+		return "modern-agent-linux-x64.AppImage", nil
 	default:
 		return "", fmt.Errorf("ao start: no release asset for %s", runtime.GOOS)
 	}
@@ -587,7 +587,7 @@ func (c *commandContext) openApp(ctx context.Context, appPath string) (bool, err
 // printDeprecationNotice explains the new role of the npm `ao` binary. Keep it
 // honest: Track B (live auto-update) is not done, so it does not promise it.
 func (c *commandContext) printDeprecationNotice(w io.Writer) {
-	_, _ = fmt.Fprint(w, "Agent Orchestrator is now a desktop app, and the npm `ao` is just its launcher.\n"+
+	_, _ = fmt.Fprint(w, "Modern Agent is now a desktop app, and the npm `ao` is just its launcher.\n"+
 		"The app is distributed from the website and GitHub Releases; it owns the daemon and updates itself.\n"+
 		"You can keep running `ao start` to fetch (if needed) and open it.\n")
 }

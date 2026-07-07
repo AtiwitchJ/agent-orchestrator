@@ -10,8 +10,8 @@ import (
 
 	_ "embed"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/hookutil"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/hookutil"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 const (
@@ -33,7 +33,7 @@ const (
 	// kilocodePluginSentinel marks the file as AO-managed. AreHooksInstalled and
 	// UninstallHooks key off it so AO never deletes a user file that happens to
 	// share the name. It must appear verbatim in the embedded plugin source.
-	kilocodePluginSentinel = "agent-orchestrator: managed kilocode activity plugin"
+	kilocodePluginSentinel = "modern-agent: managed kilocode activity plugin"
 
 	// kilocodeHookCommandPrefix identifies the hook commands AO owns. The
 	// embedded plugin shells `ao hooks kilocode <event>`; this prefix is the

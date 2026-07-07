@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/hookutil"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/hookutil"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 // Codex (0.136+) never loads hook config from AO's per-session worktrees, so

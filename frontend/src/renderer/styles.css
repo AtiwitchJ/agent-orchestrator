@@ -63,7 +63,7 @@
 	--color-border: var(--border);
 	--color-border-strong: var(--border-1);
 
-	/* Status — map 1:1 to the daemon's derived statuses (agent-orchestrator
+	/* Status — map 1:1 to the daemon's derived statuses (modern-agent
    * palette): working=orange, needs-you=amber, mergeable=green, fail=red. */
 	--color-working: var(--orange);
 	--color-success: var(--green);
@@ -90,7 +90,7 @@
 }
 
 :root {
-	/* Dark — cloned from the agent-orchestrator web app (packages/web). #0a0b0d
+	/* Dark — cloned from the modern-agent web app (packages/web). #0a0b0d
    * base, #15171b is the only bordered surface, hairline white-alpha lines,
    * blue accent, orange=working / amber=needs-you / green=mergeable / red=fail. */
 	--bg: #0a0b0d;
@@ -422,7 +422,7 @@ body.is-resizing-x [data-slot="sidebar-container"] {
 	transition: none;
 }
 
-/* ── Shell topbar (agent-orchestrator .dashboard-app-header) ──────────────
+/* ── Shell topbar (modern-agent .dashboard-app-header) ──────────────
  * One header for every screen (rendered by the shell layout), so one padding:
  * AO's session-topbar values. Upstream splits this into a 14px dashboard
  * header and a 16/14px session override; with the bar hoisted there is a
@@ -701,7 +701,7 @@ body.is-resizing-x [data-slot="sidebar-container"] {
 	color: var(--fg-passive);
 }
 
-/* ── Session inspector rail (agent-orchestrator SessionInspector) ───────── */
+/* ── Session inspector rail (modern-agent SessionInspector) ───────── */
 .session-inspector {
 	container-type: inline-size;
 	display: flex;

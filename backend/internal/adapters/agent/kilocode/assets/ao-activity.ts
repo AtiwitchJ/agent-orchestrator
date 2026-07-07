@@ -1,4 +1,4 @@
-// agent-orchestrator: managed kilocode activity plugin (do not edit)
+// modern-agent: managed kilocode activity plugin (do not edit)
 //
 // The Kilo Code CLI (binary "kilocode") is a fork of sst/opencode and loads the
 // @opencode-ai/plugin runtime, so this plugin uses the same lifecycle surface.

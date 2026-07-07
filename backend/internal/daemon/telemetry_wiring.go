@@ -3,10 +3,10 @@ package daemon
 import (
 	"log/slog"
 
-	telemetryadapter "github.com/aoagents/agent-orchestrator/backend/internal/adapters/telemetry"
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
+	telemetryadapter "github.com/modernagent/modern-agent/backend/internal/adapters/telemetry"
+	"github.com/modernagent/modern-agent/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
 )
 
 func newTelemetrySink(cfg config.Config, store *sqlite.Store, log *slog.Logger) ports.EventSink {

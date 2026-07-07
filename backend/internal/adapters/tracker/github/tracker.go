@@ -15,13 +15,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 const (
 	defaultBaseURL   = "https://api.github.com"
-	defaultUserAgent = "ao-agent-orchestrator/tracker-github"
+	defaultUserAgent = "ao-modern-agent/tracker-github"
 
 	// Status labels used by humans (and other tooling) on GitHub Issues.
 	// Get's reverse mapping recognizes them so an externally-labeled issue

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
 // ErrAgentBinaryNotFound is returned by agent adapters when neither PATH nor

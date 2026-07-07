@@ -1,6 +1,6 @@
 package goose
 
-import "github.com/aoagents/agent-orchestrator/backend/internal/domain"
+import "github.com/modernagent/modern-agent/backend/internal/domain"
 
 // DeriveActivityState maps a Goose hook event onto an AO activity state. The
 // bool is false when the event carries no activity signal.

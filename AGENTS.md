@@ -4,7 +4,7 @@ Operational guidance for coding agents working in this repository. Keep changes 
 
 ## Repo layout
 
-- `backend/` — Go rewrite of Agent Orchestrator: Cobra `ao` CLI, loopback HTTP daemon, services, SQLite storage, lifecycle/reaper, runtime/workspace/agent/tracker adapters, terminal mux, and tests.
+- `backend/` — Go rewrite of Modern Agent: Cobra `ao` CLI, loopback HTTP daemon, services, SQLite storage, lifecycle/reaper, runtime/workspace/agent/tracker adapters, terminal mux, and tests.
 - `frontend/` — Electron + React supervisor wired to the daemon via the generated typed client. Treat it as a thin supervisor/UI surface; do not move daemon logic into it.
 - `docs/` — current architecture/status notes. Start here before changing lifecycle, CLI, agents, storage, or daemon behavior.
 - `test/` — external smoke/e2e assets, including the CLI fresh-install container check.
@@ -60,6 +60,7 @@ For code entry points:
 - Service read/write boundaries: `backend/internal/service/`.
 - Domain vocabulary: `backend/internal/domain/`.
 - Port contracts: `backend/internal/ports/`.
+- Observers: `backend/internal/observe/` (SCM polling, Tracker Intake, and lifecycle reaper).
 - SQLite queries/migrations/store: `backend/internal/storage/sqlite/`.
 - Generated sqlc code: `backend/internal/storage/sqlite/gen/`.
 

@@ -1,4 +1,4 @@
-// agent-orchestrator: managed opencode activity plugin (do not edit)
+// modern-agent: managed opencode activity plugin (do not edit)
 //
 // It maps opencode's native lifecycle events onto AO's three normalized
 // activity events:

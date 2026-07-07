@@ -17,7 +17,7 @@ bin/
 vendor/
 # compiled daemon binary
 /backend/backend
-agent-orchestrator.yaml
+modern-agent.yaml
 
 # Backend runtime data artifacts (SQLite store + WAL, CDC event log).
 # Created at AO_DATA_DIR (outside the repo by default); ignored here so a
@@ -28,7 +28,7 @@ agent-orchestrator.yaml
 session-events.jsonl
 session-events.jsonl.*
 
-# Agent Orchestrator local session state
+# Modern Agent local session state
 .ao/
 
 # AO reviewer scratch output. The reviewer agent runs inside the worker's

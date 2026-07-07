@@ -1,6 +1,6 @@
 package session
 
-import "github.com/aoagents/agent-orchestrator/backend/internal/domain"
+import "github.com/modernagent/modern-agent/backend/internal/domain"
 
 // stackInfo is the derived position of one PR within its session's set of PRs.
 // PRs form a stack when one targets the source branch of another: PR B is a

@@ -9,9 +9,9 @@ import (
 	moderncsqlite "modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	notificationsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/notification"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite/gen"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	notificationsvc "github.com/modernagent/modern-agent/backend/internal/service/notification"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite/gen"
 )
 
 var _ notificationsvc.Store = (*Store)(nil)

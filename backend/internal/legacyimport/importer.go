@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	aoprocess "github.com/modernagent/modern-agent/backend/internal/process"
 )
 
 // Store is the narrow slice of the rewrite's native storage layer the importer
@@ -24,7 +24,7 @@ type Store interface {
 
 // Options configure one import run.
 type Options struct {
-	// Root is the legacy state root to read (default ~/.agent-orchestrator).
+	// Root is the legacy state root to read (default ~/.modern-agent).
 	Root string
 	// DryRun parses + plans every row but writes nothing.
 	DryRun bool

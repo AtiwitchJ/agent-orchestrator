@@ -13,7 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/activitydispatch"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/activitydispatch"
 )
 
 // sessionIDPattern bounds the AO_SESSION_ID we will place in a request path to

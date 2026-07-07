@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/hookutil"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/hookutil"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 // Cline's hook system is git-style: each lifecycle hook is an executable script

@@ -3,7 +3,7 @@
 // session_messages fact persisted by service/session's Send.
 package message
 
-import "github.com/aoagents/agent-orchestrator/backend/internal/domain"
+import "github.com/modernagent/modern-agent/backend/internal/domain"
 
 // ListFilter controls project-scoped message listing.
 type ListFilter struct {

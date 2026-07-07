@@ -5,15 +5,15 @@
 > - Radix/shadcn + xterm, in `frontend/src/renderer`). Read this before any visual
 >   or UI change. Created by `/design-consultation` on 2026-06-09.
 
-## ⚠️ Design direction — clone agent-orchestrator verbatim (SUPERSEDES emdash · 2026-06-10)
+## ⚠️ Design direction — clone modern-agent verbatim (SUPERSEDES emdash · 2026-06-10)
 
 By explicit user decision (2026-06-10), the renderer **clones the
-agent-orchestrator web app verbatim** in looks and design. This **supersedes the
+modern-agent web app verbatim** in looks and design. This **supersedes the
 "match emdash" direction** documented in _Aesthetic Direction_ and the palette
-sections below — where they conflict, **agent-orchestrator wins**. Do not re-flag
-"this doesn't match emdash" in QA/review; flag divergence from **agent-orchestrator**.
+sections below — where they conflict, **modern-agent wins**. Do not re-flag
+"this doesn't match emdash" in QA/review; flag divergence from **modern-agent**.
 
-- **Reference (the user's own app):** `~/Projects/agent-orchestrator/packages/web/src`
+- **Reference (the user's own app):** `~/Projects/modern-agent/packages/web/src`
   — `app/globals.css`, `app/mc-board.css`, `app/mc-sidebar.css`,
   `components/{ProjectSidebar,Dashboard,SessionCard,SessionDetailHeader,SessionInspector,StatusBadge}.tsx`.
 - **Palette (live in `frontend/src/renderer/styles.css` `:root`):** `--bg #0a0b0d`,
@@ -27,10 +27,10 @@ sections below — where they conflict, **agent-orchestrator wins**. Do not re-f
   the shared `DashboardTopbar`/`DashboardSubhead` chrome (Coding/Reviews tabs · "N
   working" pill · subhead) reused across board/review/PR/settings.
 - **Build with shadcn primitives** where a component fits (`components/ui/*`:
-  dropdown-menu, select, card, table, tooltip, …); agent-orchestrator's own
+  dropdown-menu, select, card, table, tooltip, …); modern-agent's own
   hand-rolled CSS components are structure/behaviour reference only.
 - The one carried-over divergence still holds: the **accent is refined blue**, and
-  the **terminal keeps its own palette**. Everything else tracks agent-orchestrator.
+  the **terminal keeps its own palette**. Everything else tracks modern-agent.
 - **Approved divergence (2026-06-10):** on macOS, a titlebar cluster (sidebar toggle +
   back/forward history arrows, `TitlebarNav`) sits beside the traffic lights,
   VS Code-style — the web reference has no window chrome, so no analogue exists.
@@ -87,9 +87,9 @@ ReverbCode is **orchestrator-led**, which is the one thing that differs from emd
 
 ## Aesthetic Direction
 
-> **Superseded (2026-06-10):** see the _Design direction — clone agent-orchestrator
+> **Superseded (2026-06-10):** see the _Design direction — clone modern-agent
 > verbatim_ banner at the top. The emdash framing below is retained for history; the
-> live look tracks agent-orchestrator (same flat near-black / hairline family, so most
+> live look tracks modern-agent (same flat near-black / hairline family, so most
 > of this still reads true).
 
 - **Direction:** match **emdash** exactly — flat, near-black, hairline-bordered,
@@ -258,7 +258,7 @@ mirrors emdash exactly. Launching from a project row pre-fills the Project field
 - Keep tokens as CSS custom properties under `:root` (dark) and `:root[data-theme="light"]`.
 - A faithful HTML reference of all of the above (both views + topbar + spawn modal,
   light/dark) is saved under
-  `~/.gstack/projects/aoagents-agent-orchestrator/designs/design-system-20260609/`.
+  `~/.gstack/projects/modernagent-modern-agent/designs/design-system-20260609/`.
 
 ## Decisions Log
 

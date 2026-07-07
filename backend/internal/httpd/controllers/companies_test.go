@@ -7,11 +7,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd"
-	companysvc "github.com/aoagents/agent-orchestrator/backend/internal/service/company"
-	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
+	"github.com/modernagent/modern-agent/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/httpd"
+	companysvc "github.com/modernagent/modern-agent/backend/internal/service/company"
+	projectsvc "github.com/modernagent/modern-agent/backend/internal/service/project"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
 )
 
 // newCompaniesTestServer builds a server whose Companies and Projects

@@ -45,7 +45,7 @@ function respondWithProjectAndPRs() {
 								{
 									number: 278,
 									state: "open",
-									url: "https://github.com/aoagents/ReverbCode/pull/278",
+									url: "https://github.com/modernagent/ReverbCode/pull/278",
 									ci: "passing",
 									review: "approved",
 									mergeability: "clean",
@@ -55,7 +55,7 @@ function respondWithProjectAndPRs() {
 								{
 									number: 279,
 									state: "draft",
-									url: "https://github.com/aoagents/ReverbCode/pull/279",
+									url: "https://github.com/modernagent/ReverbCode/pull/279",
 									ci: "pending",
 									review: "pending",
 									mergeability: "unknown",
@@ -84,13 +84,13 @@ function respondWithAttentionPR() {
 					sessionId: "sess-1",
 					prs: [
 						{
-							url: "https://github.com/aoagents/ReverbCode/pull/278",
-							htmlUrl: "https://github.com/aoagents/ReverbCode/pull/278",
+							url: "https://github.com/modernagent/ReverbCode/pull/278",
+							htmlUrl: "https://github.com/modernagent/ReverbCode/pull/278",
 							number: 278,
 							title: "fix the bug",
 							state: "open",
 							provider: "github",
-							repo: "aoagents/ReverbCode",
+							repo: "modernagent/ReverbCode",
 							author: "worker",
 							sourceBranch: "fix/bug",
 							targetBranch: "main",
@@ -106,10 +106,10 @@ function respondWithAttentionPR() {
 									{
 										reviewerId: "reviewer-a",
 										count: 1,
-										reviewUrl: "https://github.com/aoagents/ReverbCode/pull/278#pullrequestreview-1",
+										reviewUrl: "https://github.com/modernagent/ReverbCode/pull/278#pullrequestreview-1",
 										links: [
 											{
-												url: "https://github.com/aoagents/ReverbCode/pull/278#discussion_r1",
+												url: "https://github.com/modernagent/ReverbCode/pull/278#discussion_r1",
 												file: "main.go",
 												line: 12,
 											},
@@ -120,7 +120,7 @@ function respondWithAttentionPR() {
 							mergeability: {
 								state: "conflicting",
 								reasons: ["conflicts"],
-								prUrl: "https://github.com/aoagents/ReverbCode/pull/278",
+								prUrl: "https://github.com/modernagent/ReverbCode/pull/278",
 								conflictFiles: [],
 							},
 							updatedAt: "2026-06-10T16:15:04Z",
@@ -149,7 +149,7 @@ function respondWithAttentionPR() {
 								{
 									number: 278,
 									state: "open",
-									url: "https://github.com/aoagents/ReverbCode/pull/278",
+									url: "https://github.com/modernagent/ReverbCode/pull/278",
 									ci: "passing",
 									review: "changes_requested",
 									mergeability: "conflicting",
@@ -193,11 +193,11 @@ describe("PR hydration for a normal project (#251)", () => {
 
 		expect(await screen.findByRole("link", { name: "PR" })).toHaveAttribute(
 			"href",
-			"https://github.com/aoagents/ReverbCode/pull/278",
+			"https://github.com/modernagent/ReverbCode/pull/278",
 		);
 		expect(screen.getByRole("link", { name: "conflicts" })).toHaveAttribute(
 			"href",
-			"https://github.com/aoagents/ReverbCode/pull/278/conflicts",
+			"https://github.com/modernagent/ReverbCode/pull/278/conflicts",
 		);
 	});
 

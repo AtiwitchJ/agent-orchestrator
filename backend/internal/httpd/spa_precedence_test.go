@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/config"
 )
 
 // newSPATestRouter builds a router with a real SPA mounted so precedence

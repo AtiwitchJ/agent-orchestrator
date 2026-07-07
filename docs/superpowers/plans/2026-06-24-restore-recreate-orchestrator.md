@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - No em dashes or en dashes anywhere (prose, comments, commit messages). Use periods, commas, colons, semicolons, parentheses.
-- The renderer clones the agent-orchestrator web app; build UI from shadcn primitives (`components/ui/*`) and the Radix Dialog pattern already used by `NewTaskDialog.tsx`.
+- The renderer clones the modern-agent web app; build UI from shadcn primitives (`components/ui/*`) and the Radix Dialog pattern already used by `NewTaskDialog.tsx`.
 - App state under `~/.ao` only (not touched here).
 - The existing resume path and the interactive dirty-refusal removal path stay behaviorally unchanged.
 - Do not hand-edit generated sqlc/OpenAPI output. This feature adds no routes, so no regeneration is needed.

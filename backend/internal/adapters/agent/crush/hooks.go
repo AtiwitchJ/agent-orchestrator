@@ -3,7 +3,7 @@ package crush
 import (
 	"context"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 // GetAgentHooks is a no-op for Crush since it doesn't have full hooks support

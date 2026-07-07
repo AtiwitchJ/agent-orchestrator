@@ -8,13 +8,13 @@ import (
 	"sync"
 	"time"
 
-	trackergithub "github.com/aoagents/agent-orchestrator/backend/internal/adapters/tracker/github"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	trackerintake "github.com/aoagents/agent-orchestrator/backend/internal/observe/trackerintake"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	aoprocess "github.com/aoagents/agent-orchestrator/backend/internal/process"
-	sessionsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/session"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
+	trackergithub "github.com/modernagent/modern-agent/backend/internal/adapters/tracker/github"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	trackerintake "github.com/modernagent/modern-agent/backend/internal/observe/trackerintake"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
+	aoprocess "github.com/modernagent/modern-agent/backend/internal/process"
+	sessionsvc "github.com/modernagent/modern-agent/backend/internal/service/session"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
 )
 
 // startTrackerIntake wires the opt-in GitHub issue-intake loop. The observer

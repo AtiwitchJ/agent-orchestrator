@@ -510,7 +510,7 @@ EOF
 
 **Interfaces:**
 
-- Consumes: `readUpdateSettings` (Task 4); `releaseRepo` resolution (mirror the owner/repo default `AgentWrapper/agent-orchestrator`).
+- Consumes: `readUpdateSettings` (Task 4); `releaseRepo` resolution (mirror the owner/repo default `ModernAgent/modern-agent`).
 - Produces: `startAutoUpdates(stateDir: string): Promise<void>` that configures and starts electron-updater from settings. No-op-safe to call once on app ready.
 
 - [ ] **Step 1: Swap the dependency**
@@ -532,7 +532,7 @@ import { readUpdateSettings } from "./update-settings";
 
 // Default release repo, mirroring backend cli.releaseRepo. Override via env for
 // fork test builds (AO_RELEASE_REPO=owner/repo).
-const DEFAULT_RELEASE_REPO = "AgentWrapper/agent-orchestrator";
+const DEFAULT_RELEASE_REPO = "ModernAgent/modern-agent";
 
 function repo(): { owner: string; name: string } {
 	const [owner, name] = (process.env.AO_RELEASE_REPO || DEFAULT_RELEASE_REPO).split("/");
@@ -657,7 +657,7 @@ export async function ensureUpdatePrefs(stateDir: string): Promise<void> {
 		buttons: ["Enable auto-updates", "Not now"],
 		defaultId: 0,
 		cancelId: 1,
-		message: "Keep Agent Orchestrator up to date automatically?",
+		message: "Keep Modern Agent up to date automatically?",
 		detail: "You can change this later in Settings.",
 	});
 	if (optIn.response !== 0) {

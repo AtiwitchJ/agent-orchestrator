@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/config"
 )
 
 // TestShutdownGuard verifies that POST /shutdown only fires for a trusted local

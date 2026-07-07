@@ -10,10 +10,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/legacyimport"
-	"github.com/aoagents/agent-orchestrator/backend/internal/runfile"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
+	"github.com/modernagent/modern-agent/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/legacyimport"
+	"github.com/modernagent/modern-agent/backend/internal/runfile"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
 )
 
 type importOptions struct {
@@ -28,8 +28,8 @@ func newImportCommand(ctx *commandContext) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "import",
 		Short: "Import projects from a legacy AO install",
-		Long: "Import reads the legacy Agent Orchestrator flat-file store " +
-			"(~/.agent-orchestrator) read-only and ports its projects and per-project " +
+		Long: "Import reads the legacy Modern Agent flat-file store " +
+			"(~/.modern-agent) read-only and ports its projects and per-project " +
 			"settings into the rewrite database. Legacy files are never modified, and " +
 			"a re-run skips rows that already exist, so it is safe to run more than once.\n\n" +
 			"The daemon must be stopped: it is the sole writer of the database.",
@@ -38,7 +38,7 @@ func newImportCommand(ctx *commandContext) *cobra.Command {
 			return ctx.runImport(cmd, opts)
 		},
 	}
-	cmd.Flags().StringVar(&opts.from, "from", "", "Legacy AO root to read (default ~/.agent-orchestrator)")
+	cmd.Flags().StringVar(&opts.from, "from", "", "Legacy AO root to read (default ~/.modern-agent)")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Parse and report the planned import without writing")
 	cmd.Flags().BoolVarP(&opts.yes, "yes", "y", false, "Skip the confirmation prompt (for non-interactive use)")
 	cmd.Flags().BoolVar(&opts.json, "json", false, "Output the import report as JSON")

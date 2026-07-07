@@ -35,17 +35,17 @@ app present? if not, fetch it; then open it."
 
 | Fact                         | Value                                                                  | Source                          |
 | ---------------------------- | ---------------------------------------------------------------------- | ------------------------------- |
-| Product / bundle name        | **`Agent Orchestrator.app`** (spaced)                                  | `frontend/forge.config.ts:9,50` |
-| Bundle id                    | `dev.agent-orchestrator.desktop`                                       | `frontend/forge.config.ts:8`    |
-| Executable name              | `agent-orchestrator`                                                   | `frontend/forge.config.ts`      |
-| **Release repo (canonical)** | **`AgentWrapper/agent-orchestrator`**                                  | per release owner               |
-| Forge publisher repo (TODAY) | `aoagents/agent-orchestrator` — **stale, must change to AgentWrapper** | `frontend/forge.config.ts:86`   |
+| Product / bundle name        | **`Modern Agent.app`** (spaced)                                  | `frontend/forge.config.ts:9,50` |
+| Bundle id                    | `dev.modern-agent.desktop`                                       | `frontend/forge.config.ts:8`    |
+| Executable name              | `modern-agent`                                                   | `frontend/forge.config.ts`      |
+| **Release repo (canonical)** | **`ModernAgent/modern-agent`**                                  | per release owner               |
+| Forge publisher repo (TODAY) | `modernagent/modern-agent` — **stale, must change to ModernAgent** | `frontend/forge.config.ts:86`   |
 | GitHub release mode          | **`draft: true`**, `prerelease: false`                                 | `frontend/forge.config.ts`      |
 
-> `aoagents/agent-orchestrator` was the **temporary** home during the rewrite; the
-> code is now ported and releases land on **`AgentWrapper/agent-orchestrator`**.
-> The forge publisher still points at `aoagents` and must be corrected (task T3).
-> The Go **module path** is also `github.com/aoagents/agent-orchestrator`; renaming
+> `modernagent/modern-agent` was the **temporary** home during the rewrite; the
+> code is now ported and releases land on **`ModernAgent/modern-agent`**.
+> The forge publisher still points at `modernagent` and must be corrected (task T3).
+> The Go **module path** is also `github.com/modernagent/modern-agent`; renaming
 > the module is a large, separate change and is **out of scope** here (it does not
 > affect the release/download URL).
 
@@ -55,11 +55,11 @@ app present? if not, fetch it; then open it."
   `workflow_dispatch`. Build: `npm run publish` → `build:daemon` +
   `electron-forge publish`.
 - **Matrix: `[macos-latest, windows-latest]` only** (`:28`) — no Linux; deb/rpm
-  makers configured but never run (upstream issue AgentWrapper/agent-orchestrator#2191).
+  makers configured but never run (upstream issue ModernAgent/modern-agent#2191).
 - Maker outputs (today): macOS `@electron-forge/maker-zip` → versioned `.zip`
-  under `out/make/zip/darwin/<arch>/`; Windows `MakerNSIS` → `Agent Orchestrator
+  under `out/make/zip/darwin/<arch>/`; Windows `MakerNSIS` → `Modern Agent
 Setup.exe` (per-user installer); Linux `maker-deb`/`maker-rpm` →
-  `agent-orchestrator-<version>.{deb,rpm}`.
+  `modern-agent-<version>.{deb,rpm}`.
 - **No asset-rename step** and **`draft: true`** → a constant
   `releases/latest/download/<stable-name>` URL cannot resolve until both are fixed.
 
@@ -127,7 +127,7 @@ waits for ready) and runs a first-boot legacy import (`maybeFirstBootImport`,
 
 ## 2. Decisions locked
 
-1. **Releases land on `AgentWrapper/agent-orchestrator`.** Fix the forge publisher
+1. **Releases land on `ModernAgent/modern-agent`.** Fix the forge publisher
    to match; the download URL uses it.
 2. **`ao start` = fetch + open the desktop app.** It no longer starts the daemon;
    the frontend owns the daemon. The current daemon-spawn logic in `start.go` is
@@ -138,14 +138,14 @@ waits for ready) and runs a first-boot legacy import (`maybeFirstBootImport`,
 5. **Scope = Track A only** (de-scope auto-update copy; Track B is separate).
 6. **All three platforms; Windows installer is NSIS.**
 7. **Two release targets, never conflated:**
-   - **Production:** GitHub `AgentWrapper/agent-orchestrator`; npm = the real
+   - **Production:** GitHub `ModernAgent/modern-agent`; npm = the real
      package name (legacy `ao`). Cutting a prod release is a deliberate, gated
      step, never part of the dev/test loop.
-   - **Test/dev:** GitHub **`harshitsinghbhandari/agent-orchestrator`** (the fork);
+   - **Test/dev:** GitHub **`harshitsinghbhandari/modern-agent`** (the fork);
      npm scope **`@theharshitsingh/ao`**. All `ao start` download/open testing runs
      against fork releases and the test npm scope.
      The download repo and npm scope are **build-time overridable** (§6.3, §8) so a
-     test binary fetches from the fork and a prod binary from AgentWrapper, with no
+     test binary fetches from the fork and a prod binary from ModernAgent, with no
      code edit between them.
 
 ---
@@ -159,7 +159,7 @@ waits for ready) and runs a first-boot legacy import (`maybeFirstBootImport`,
 - Decide the fate of `ao start`'s current first-boot legacy import (§6.4).
 - **App-side:** write `~/.ao/app-state.json` every launch (app is sole writer);
   own `moveToApplicationsFolder()` relocation (macOS).
-- **Release wiring:** point forge publisher at `AgentWrapper/agent-orchestrator`,
+- **Release wiring:** point forge publisher at `ModernAgent/modern-agent`,
   add stable version-free asset names, finalize the draft (or Releases-API
   fallback), add Linux to the matrix.
 - **npm delivery** of the Go binary (port the old AO mechanism; zero install
@@ -171,7 +171,7 @@ waits for ready) and runs a first-boot legacy import (`maybeFirstBootImport`,
 - Track B: real version stamping, making the wired `update-electron-app` updater
   live, configuring signing/notarization CI secrets, any copy promising
   auto-update.
-- Renaming the Go module path off `aoagents` (separate, large, not needed here).
+- Renaming the Go module path off `modernagent` (separate, large, not needed here).
 - The other CLI subcommands (already wired; untouched).
 
 ---
@@ -204,7 +204,7 @@ New file, **app-written**, mirroring the daemon's proven atomic write
 ```json
 {
 	"schemaVersion": 1,
-	"appPath": "/Applications/Agent Orchestrator.app",
+	"appPath": "/Applications/Modern Agent.app",
 	"version": "0.0.0",
 	"installedAt": "2026-06-26T10:00:00Z",
 	"lastReconciledAt": "2026-06-26T10:05:00Z",
@@ -253,20 +253,20 @@ resolution already in `backend/internal/config`.
 
 1. Read `~/.ao/app-state.json`; if `appPath` `stat`s as a usable bundle, return it.
 2. Else scan known locations per platform (covers website installs / stale marker):
-   - macOS: `/Applications/Agent Orchestrator.app`, `~/Applications/…`
-   - Windows: `%LOCALAPPDATA%\Programs\agent-orchestrator\…`, `C:\Program Files\Agent Orchestrator\…`
-   - Linux: `/opt/Agent Orchestrator/…`, `~/.local/bin`, `/usr/bin`
+   - macOS: `/Applications/Modern Agent.app`, `~/Applications/…`
+   - Windows: `%LOCALAPPDATA%\Programs\modern-agent\…`, `C:\Program Files\Modern Agent\…`
+   - Linux: `/opt/Modern Agent/…`, `~/.local/bin`, `/usr/bin`
 3. Else return empty → caller fetches. Never compare versions.
 
 ### 6.3 `fetchApp()` + `openApp()` — platform asymmetry (real design point)
 
 Constant URL: `https://github.com/<owner>/<repo>/releases/latest/download/<stable-asset>`
 (302 → asset; requires non-draft release + stable names, §8). `<owner>/<repo>` is
-**build-time overridable**, not hardcoded: default `AgentWrapper/agent-orchestrator`
-(prod), overridden to `harshitsinghbhandari/agent-orchestrator` for test builds via
+**build-time overridable**, not hardcoded: default `ModernAgent/modern-agent`
+(prod), overridden to `harshitsinghbhandari/modern-agent` for test builds via
 a `-ldflags -X …cli.releaseRepo=<owner>/<repo>` injection (mirrors how the daemon
 version will be stamped). So the dev loop fetches from the fork; prod fetches from
-AgentWrapper, with no source edit.
+ModernAgent, with no source edit.
 
 - **macOS:** download `.zip` → unpack with **`ditto -x -k`** (preserves the `.app`
   signature; plain unzip corrupts it) → `open <app> --args --installed-via=npm-bootstrap`.
@@ -335,14 +335,14 @@ pin (`main.ts:64`) are in place. Do not re-implement.
 ## 8. Release / build wiring
 
 - **Publisher repo is overridable** (`forge.config.ts:86`): default prod
-  `AgentWrapper/agent-orchestrator`, but read from an env var (e.g.
+  `ModernAgent/modern-agent`, but read from an env var (e.g.
   `AO_RELEASE_REPO`) so a fork build publishes to
-  `harshitsinghbhandari/agent-orchestrator`. The dev loop publishes a draft+finalize
+  `harshitsinghbhandari/modern-agent`. The dev loop publishes a draft+finalize
   release **on the fork** and points the test binary's `cli.releaseRepo` at the same
-  fork. Never publish to AgentWrapper from a test run.
+  fork. Never publish to ModernAgent from a test run.
 - **Stable asset names:** add a release-workflow step renaming each maker output to
-  space-free names (`agent-orchestrator-darwin-arm64.zip`,
-  `agent-orchestrator-win32-x64.exe`, the Linux artifact per §11) before upload.
+  space-free names (`modern-agent-darwin-arm64.zip`,
+  `modern-agent-win32-x64.exe`, the Linux artifact per §11) before upload.
 - **Finalize the draft:** flip `draft: false` or add a CI publish step; the constant
   URL only resolves for a published release.
 - **`.zip` for macOS** unpacked with `ditto`; do not switch to `.tar.gz`.
@@ -368,7 +368,7 @@ website.
 | --- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | `npm i -g @theharshitsingh/ao` (test scope)               | Zero `allow-scripts` warning; nothing listed by `npm approve-scripts --allow-scripts-pending`.                                                              |
 | 2   | `npm i -g @theharshitsingh/ao --ignore-scripts` (v12 sim) | Install succeeds; `ao` runs; `ao start` works (binary delivered via optionalDeps, not a script).                                                            |
-| 3   | Fresh macOS `ao start`                                    | Fetches `.zip`, `ditto`-unpacks, opens `Agent Orchestrator.app`; app relocates to `/Applications`; `~/.ao/app-state.json` records the `/Applications` path. |
+| 3   | Fresh macOS `ao start`                                    | Fetches `.zip`, `ditto`-unpacks, opens `Modern Agent.app`; app relocates to `/Applications`; `~/.ao/app-state.json` records the `/Applications` path. |
 | 4   | Website install first, then `ao start`                    | Known-location scan finds it; opens; no second copy fetched.                                                                                                |
 | 5   | App trashed (marker stale), then `ao start`               | Marker `stat` misses → scan misses → re-fetch.                                                                                                              |
 | 6   | App relocated by the app                                  | Marker path rewritten; next `ao start` opens the right path; no orphan.                                                                                     |
@@ -402,7 +402,7 @@ website.
 7. **First-run tour + `installSource`:** in-app tour now (no auto-update promise),
    defer tour but keep `installSource`, or neither?
 8. **Website URL** for the deprecation notice copy.
-9. **Module-path rename** off `aoagents` — confirm out of scope for this effort.
+9. **Module-path rename** off `modernagent` — confirm out of scope for this effort.
 
 ---
 
@@ -422,8 +422,8 @@ website.
   repo + the `ao start` download repo build-time overridable (§6.3, §8); add the
   stable-asset rename step; finalize the draft (§11.4); add Linux to the matrix.
   Check: a `workflow_dispatch` **on the fork** produces a published
-  `harshitsinghbhandari/agent-orchestrator` release whose
-  `releases/latest/download/<stable-name>` 302-resolves. **No prod (AgentWrapper)
+  `harshitsinghbhandari/modern-agent` release whose
+  `releases/latest/download/<stable-name>` 302-resolves. **No prod (ModernAgent)
   release is cut during development.**
 
 **Batch 2 — app-side + macOS end-to-end (after T1):**
@@ -431,7 +431,7 @@ website.
 - **T4. App-side marker + relocation** (`main.ts whenReady`, §7.1). Check: a
   packaged launch writes/updates `~/.ao/app-state.json` with the real bundle path.
 - **T5. macOS `ao start` end-to-end against the FORK release** (needs T3): build the
-  test `ao` with `cli.releaseRepo=harshitsinghbhandari/agent-orchestrator`, install
+  test `ao` with `cli.releaseRepo=harshitsinghbhandari/modern-agent`, install
   it from `@theharshitsingh/ao`, run `ao start`. Check: acceptance #3–#7 on a mac,
   fetching from the fork.
 

@@ -42,7 +42,7 @@ export function LandingNav() {
 					height={28}
 					className="h-7 w-7 rounded-md object-cover"
 				/>
-				Agent Orchestrator
+				Modern Agent
 			</a>
 			<ul className="hidden md:flex items-center gap-8 list-none">
 				<li>
@@ -72,7 +72,7 @@ export function LandingNav() {
 			</ul>
 			<div className="flex items-center gap-2">
 				<a
-					href="https://x.com/aoagents"
+					href="https://x.com/modernagent"
 					target="_blank"
 					rel="noopener noreferrer"
 					aria-label="X (Twitter)"
@@ -90,7 +90,7 @@ export function LandingNav() {
 					<DiscordIcon />
 				</a>
 				<a
-					href="https://github.com/ComposioHQ/agent-orchestrator"
+					href="https://github.com/ComposioHQ/modern-agent"
 					target="_blank"
 					rel="noopener noreferrer"
 					aria-label="GitHub"

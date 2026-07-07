@@ -3,7 +3,7 @@ package telemetry
 import (
 	"context"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
 // NoopSink discards every event.

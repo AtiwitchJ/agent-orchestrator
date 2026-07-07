@@ -311,7 +311,7 @@ export function workerStatusPulses(status: WorkerDisplayStatus): boolean {
 
 /**
  * Kanban attention zone, ordered by human-action urgency — ported from
- * agent-orchestrator's getAttentionLevel (packages/web/src/lib/types.ts),
+ * modern-agent's getAttentionLevel (packages/web/src/lib/types.ts),
  * collapsed to its default "simple" set and rebound to reverbcode's
  * {@link SessionStatus}. The board groups sessions into these columns so the
  * highest-ROrI work (a one-click merge) sits leftmost.
@@ -340,7 +340,7 @@ export function attentionZone(session: WorkspaceSession): AttentionZone {
 		case "mergeable":
 			return "merge";
 		// Agent waiting on a human (respond) or a problem to investigate (review);
-		// agent-orchestrator collapses these into one "action" zone by default.
+		// modern-agent collapses these into one "action" zone by default.
 		case "needs_input":
 		case "no_signal":
 		case "ci_failed":

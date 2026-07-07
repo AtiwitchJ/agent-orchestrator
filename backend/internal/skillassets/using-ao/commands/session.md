@@ -39,7 +39,7 @@ ao session ls
 
 ```bash
 # List all sessions including terminated, scoped to one project
-ao session ls --include-terminated -p agent-orchestrator
+ao session ls --include-terminated -p modern-agent
 ```
 
 ---
@@ -171,7 +171,7 @@ ao session cleanup -y
 
 ```bash
 # Clean up terminated sessions for one project
-ao session cleanup -p agent-orchestrator
+ao session cleanup -p modern-agent
 ```
 
 ---

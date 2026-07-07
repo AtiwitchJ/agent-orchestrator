@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	sessionmanager "github.com/aoagents/agent-orchestrator/backend/internal/session_manager"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
+	sessionmanager "github.com/modernagent/modern-agent/backend/internal/session_manager"
 )
 
 // Launcher spawns, re-notifies, and probes a reviewer over a worker's worktree.

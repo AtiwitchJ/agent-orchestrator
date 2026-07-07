@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
 type fakeStore struct {
@@ -25,7 +25,7 @@ func (f *fakeStore) UpsertProject(_ context.Context, r domain.ProjectRecord) err
 
 func writeLegacyRoot(t *testing.T) string {
 	t.Helper()
-	root := filepath.Join(t.TempDir(), ".agent-orchestrator")
+	root := filepath.Join(t.TempDir(), ".modern-agent")
 	if err := os.MkdirAll(filepath.Join(root, "projects"), 0o750); err != nil {
 		t.Fatal(err)
 	}

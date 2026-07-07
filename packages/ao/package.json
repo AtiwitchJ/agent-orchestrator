@@ -1,7 +1,7 @@
 {
-	"name": "@aoagents/ao",
+	"name": "@modernagent/ao",
 	"version": "0.10.0",
-	"description": "Agent Orchestrator CLI. Resolves and runs the prebuilt Go binary for your platform.",
+	"description": "Modern Agent CLI. Resolves and runs the prebuilt Go binary for your platform.",
 	"license": "MIT",
 	"bin": {
 		"ao": "./bin/ao.js"
@@ -10,9 +10,9 @@
 		"bin/"
 	],
 	"optionalDependencies": {
-		"@aoagents/ao-darwin-arm64": "0.10.0",
-		"@aoagents/ao-darwin-x64": "0.10.0",
-		"@aoagents/ao-linux-x64": "0.10.0",
-		"@aoagents/ao-win32-x64": "0.10.0"
+		"@modernagent/ao-darwin-arm64": "0.10.0",
+		"@modernagent/ao-darwin-x64": "0.10.0",
+		"@modernagent/ao-linux-x64": "0.10.0",
+		"@modernagent/ao-win32-x64": "0.10.0"
 	}
 }

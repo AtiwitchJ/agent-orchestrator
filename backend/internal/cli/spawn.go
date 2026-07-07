@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/tmux"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/runtime/tmux"
 )
 
 // maxDisplayNameLen caps the sidebar label set by `--name`. Mirrored by the

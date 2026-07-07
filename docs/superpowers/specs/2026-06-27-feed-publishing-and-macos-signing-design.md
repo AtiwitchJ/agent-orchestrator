@@ -175,7 +175,7 @@ secret passthrough in both workflows. Gaps to fill:
 
 Only `APPLE_API_KEY_BASE64`/ID/issuer require the original `.p8`; if lost, the
 holder re-issues an App Store Connect API key (their only possible involvement).
-Set on the fork for testing, on AgentWrapper for prod.
+Set on the fork for testing, on ModernAgent for prod.
 
 **Out of scope:** Windows code signing (separate EV-cert concern; Windows
 auto-update works unsigned). This component is macOS-only because Squirrel.Mac is
@@ -227,4 +227,4 @@ there is no sequencing constraint between them.
 
 With this PR + the already-open #2221 merged: win/linux auto-update is live
 immediately; macOS auto-update is live as soon as the signing secrets are present
-on the production (AgentWrapper) repo. Only then may v1 copy promise auto-update.
+on the production (ModernAgent) repo. Only then may v1 copy promise auto-update.

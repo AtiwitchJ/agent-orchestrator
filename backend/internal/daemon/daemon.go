@@ -1,4 +1,4 @@
-// Package daemon owns the Agent Orchestrator backend process: config loading,
+// Package daemon owns the Modern Agent backend process: config loading,
 // loopback HTTP serving, durable storage, CDC fan-out, lifecycle wiring, and
 // graceful shutdown.
 package daemon
@@ -13,25 +13,25 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/runtime/runtimeselect"
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/daemon/supervisor"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd"
-	"github.com/aoagents/agent-orchestrator/backend/internal/notify"
-	"github.com/aoagents/agent-orchestrator/backend/internal/observe/stallmon"
-	"github.com/aoagents/agent-orchestrator/backend/internal/ports"
-	"github.com/aoagents/agent-orchestrator/backend/internal/preview"
-	"github.com/aoagents/agent-orchestrator/backend/internal/runfile"
-	agentsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/agent"
-	companysvc "github.com/aoagents/agent-orchestrator/backend/internal/service/company"
-	importsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/importer"
-	messagesvc "github.com/aoagents/agent-orchestrator/backend/internal/service/message"
-	notificationsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/notification"
-	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
-	"github.com/aoagents/agent-orchestrator/backend/internal/skillassets"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
-	"github.com/aoagents/agent-orchestrator/backend/internal/terminal"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/runtime/runtimeselect"
+	"github.com/modernagent/modern-agent/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/daemon/supervisor"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/httpd"
+	"github.com/modernagent/modern-agent/backend/internal/notify"
+	"github.com/modernagent/modern-agent/backend/internal/observe/stallmon"
+	"github.com/modernagent/modern-agent/backend/internal/ports"
+	"github.com/modernagent/modern-agent/backend/internal/preview"
+	"github.com/modernagent/modern-agent/backend/internal/runfile"
+	agentsvc "github.com/modernagent/modern-agent/backend/internal/service/agent"
+	companysvc "github.com/modernagent/modern-agent/backend/internal/service/company"
+	importsvc "github.com/modernagent/modern-agent/backend/internal/service/importer"
+	messagesvc "github.com/modernagent/modern-agent/backend/internal/service/message"
+	notificationsvc "github.com/modernagent/modern-agent/backend/internal/service/notification"
+	projectsvc "github.com/modernagent/modern-agent/backend/internal/service/project"
+	"github.com/modernagent/modern-agent/backend/internal/skillassets"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
+	"github.com/modernagent/modern-agent/backend/internal/terminal"
 )
 
 // Run starts the daemon and blocks until it exits. SIGINT/SIGTERM drive

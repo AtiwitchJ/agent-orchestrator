@@ -6,11 +6,11 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/apierr"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/company"
-	"github.com/aoagents/agent-orchestrator/backend/internal/service/project"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/httpd/apierr"
+	"github.com/modernagent/modern-agent/backend/internal/service/company"
+	"github.com/modernagent/modern-agent/backend/internal/service/project"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
 )
 
 // gitRepo creates a real git repository in a fresh temp dir and returns its

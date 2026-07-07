@@ -3,7 +3,7 @@ package droid
 import (
 	"testing"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
 func TestDeriveActivityState(t *testing.T) {

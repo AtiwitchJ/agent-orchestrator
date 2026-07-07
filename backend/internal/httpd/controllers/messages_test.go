@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd"
-	"github.com/aoagents/agent-orchestrator/backend/internal/httpd/controllers"
-	messagesvc "github.com/aoagents/agent-orchestrator/backend/internal/service/message"
-	"github.com/aoagents/agent-orchestrator/backend/internal/storage/sqlite"
+	"github.com/modernagent/modern-agent/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/httpd"
+	"github.com/modernagent/modern-agent/backend/internal/httpd/controllers"
+	messagesvc "github.com/modernagent/modern-agent/backend/internal/service/message"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
 )
 
 func TestMessagesRoute_DefaultsToStubWithoutManager(t *testing.T) {

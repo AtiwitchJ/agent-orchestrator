@@ -18,8 +18,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/codex"
-	"github.com/aoagents/agent-orchestrator/backend/internal/config"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/codex"
+	"github.com/modernagent/modern-agent/backend/internal/config"
 )
 
 type doctorLevel string
@@ -49,7 +49,7 @@ const (
 	doctorSectionAgents         = "Agent harnesses"
 	doctorSectionGitHub         = "GitHub"
 	minGitVersion               = "2.25.0"
-	githubDoctorUserAgent       = "ao-agent-orchestrator/doctor"
+	githubDoctorUserAgent       = "ao-modern-agent/doctor"
 	defaultDoctorGitHubRESTBase = "https://api.github.com"
 )
 

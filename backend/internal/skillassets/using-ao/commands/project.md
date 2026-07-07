@@ -36,7 +36,7 @@ ao project add [flags]
 
 ```bash
 # Register a repo as a project
-ao project add --path /Users/harshit/Downloads/side-quests/agent-orchestrator --name "agent-orchestrator"
+ao project add --path /Users/harshit/Downloads/side-quests/modern-agent --name "modern-agent"
 ```
 
 ```bash
@@ -88,8 +88,8 @@ ao project get <id> [flags]
 **Examples:**
 
 ```bash
-# Get details for the agent-orchestrator project
-ao project get agent-orchestrator
+# Get details for the modern-agent project
+ao project get modern-agent
 ```
 
 ---
@@ -114,12 +114,12 @@ ao project rm <id> [flags]
 
 ```bash
 # Remove a project (with confirmation)
-ao project rm agent-orchestrator
+ao project rm modern-agent
 ```
 
 ```bash
 # Remove without prompt
-ao project rm agent-orchestrator -y
+ao project rm modern-agent -y
 ```
 
 ---
@@ -154,10 +154,10 @@ ao project set-config <id> [flags]
 
 ```bash
 # Set default branch and model for a project
-ao project set-config agent-orchestrator --default-branch main --model claude-opus-4-5
+ao project set-config modern-agent --default-branch main --model claude-opus-4-5
 ```
 
 ```bash
 # Set an env var and a post-create command
-ao project set-config agent-orchestrator --env "NODE_ENV=development" --post-create "npm install"
+ao project set-config modern-agent --env "NODE_ENV=development" --post-create "npm install"
 ```

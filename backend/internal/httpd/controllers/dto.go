@@ -5,12 +5,12 @@ import (
 	"errors"
 	"time"
 
-	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
-	"github.com/aoagents/agent-orchestrator/backend/internal/legacyimport"
-	agentsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/agent"
-	companysvc "github.com/aoagents/agent-orchestrator/backend/internal/service/company"
-	projectsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/project"
-	sessionsvc "github.com/aoagents/agent-orchestrator/backend/internal/service/session"
+	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/legacyimport"
+	agentsvc "github.com/modernagent/modern-agent/backend/internal/service/agent"
+	companysvc "github.com/modernagent/modern-agent/backend/internal/service/company"
+	projectsvc "github.com/modernagent/modern-agent/backend/internal/service/project"
+	sessionsvc "github.com/modernagent/modern-agent/backend/internal/service/session"
 )
 
 // HTTP response envelopes for the projects surface — the SINGLE definition of
