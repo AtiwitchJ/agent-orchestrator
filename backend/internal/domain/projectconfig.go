@@ -86,10 +86,23 @@ type DatabaseSpec struct {
 	// Query is a SELECT statement that returns a single row. The watcher runs
 	// it on PollInterval and checks Condition against the result.
 	Query string `json:"query"`
-	// Condition specifies what constitutes "found": "exists" (row exists),
-	// "count_gt_0" (row count > 0), or "value_equals" (first column == Expected).
+	// Condition specifies what constitutes "found":
+	//   - "exists" (row exists)
+	//   - "count_gt_0" (row count > 0)
+	//   - "value_equals" (first column == Expected)
+	//   - "value_neq" (first column != Expected)
+	//   - "value_gt" (first column > Expected)
+	//   - "value_gte" (first column >= Expected)
+	//   - "value_lt" (first column < Expected)
+	//   - "value_lte" (first column <= Expected)
+	//   - "row_count_eq" (total rows == Expected)
+	//   - "row_count_neq" (total rows != Expected)
+	//   - "row_count_gt" (total rows > Expected)
+	//   - "row_count_gte" (total rows >= Expected)
+	//   - "row_count_lt" (total rows < Expected)
+	//   - "row_count_lte" (total rows <= Expected)
 	Condition string `json:"condition"`
-	// Expected is the value to compare against when Condition is "value_equals".
+	// Expected is the value to compare against.
 	Expected any `json:"expected,omitempty"`
 }
 
@@ -100,8 +113,15 @@ type WebhookSpec struct {
 	// Condition specifies what constitutes "found": "received" (any 2xx response),
 	// "status_2xx" (2xx status code).
 	Condition string `json:"condition"`
-	// PollInterval is the polling cadence, e.g. "30s". Defaults to "60s".
+	// PollInterval is the polling cadence, e.g. "30s". Defaults to "30s".
 	PollInterval string `json:"pollInterval,omitempty"`
+	// AuthHeader is the name of an HTTP header for authentication, e.g. "Authorization".
+	AuthHeader string `json:"authHeader,omitempty"`
+	// AuthHeaderValue is the full value for the authentication header.
+	// For Bearer tokens, use "Bearer <token>" format directly.
+	AuthHeaderValue string `json:"authHeaderValue,omitempty"`
+	// BearerToken is a shorthand for setting Authorization: Bearer <token>.
+	BearerToken string `json:"bearerToken,omitempty"`
 }
 
 // ReviewerConfig names one reviewer agent by harness. The harness is drawn from
@@ -216,8 +236,24 @@ func (d *DeliverableConfig) Validate() error {
 		if d.Database.Query == "" {
 			return fmt.Errorf("database.query: is empty")
 		}
-		if d.Database.Condition != "exists" && d.Database.Condition != "count_gt_0" && d.Database.Condition != "value_equals" {
-			return fmt.Errorf("database.condition: must be one of exists, count_gt_0, value_equals")
+		validConditions := map[string]bool{
+			"exists":       true,
+			"count_gt_0":   true,
+			"value_equals": true,
+			"value_neq":    true,
+			"value_gt":     true,
+			"value_gte":    true,
+			"value_lt":     true,
+			"value_lte":    true,
+			"row_count_eq":  true,
+			"row_count_neq": true,
+			"row_count_gt":  true,
+			"row_count_gte": true,
+			"row_count_lt":  true,
+			"row_count_lte": true,
+		}
+		if !validConditions[d.Database.Condition] {
+			return fmt.Errorf("database.condition: must be one of: exists, count_gt_0, value_equals, value_neq, value_gt, value_gte, value_lt, value_lte, row_count_eq, row_count_neq, row_count_gt, row_count_gte, row_count_lt, row_count_lte")
 		}
 	case DeliverableTypeWebhook:
 		if d.Webhook == nil {
@@ -228,6 +264,15 @@ func (d *DeliverableConfig) Validate() error {
 		}
 		if d.Webhook.Condition != "received" && d.Webhook.Condition != "status_2xx" {
 			return fmt.Errorf("webhook.condition: must be one of received, status_2xx")
+		}
+		if d.Webhook.AuthHeader != "" && d.Webhook.AuthHeaderValue == "" {
+			return fmt.Errorf("webhook.authHeader: is set but authHeaderValue is empty")
+		}
+		if d.Webhook.AuthHeader == "" && d.Webhook.AuthHeaderValue != "" {
+			return fmt.Errorf("webhook.authHeaderValue: is set but authHeader is empty")
+		}
+		if d.Webhook.BearerToken != "" && (d.Webhook.AuthHeader != "" || d.Webhook.AuthHeaderValue != "") {
+			return fmt.Errorf("webhook.bearerToken: cannot be used with authHeader or authHeaderValue")
 		}
 	default:
 		return fmt.Errorf("unknown deliverable type %q", d.Type)

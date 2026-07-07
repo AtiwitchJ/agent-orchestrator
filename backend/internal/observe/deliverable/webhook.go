@@ -41,6 +41,12 @@ func (w *webhookWatcher) check(ctx context.Context, spec *domain.WebhookSpec) (b
 		return false, err
 	}
 
+	if spec.AuthHeader != "" && spec.AuthHeaderValue != "" {
+		req.Header.Set(spec.AuthHeader, spec.AuthHeaderValue)
+	} else if spec.BearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+spec.BearerToken)
+	}
+
 	resp, err := w.client.Do(req)
 	if err != nil {
 		return false, err
