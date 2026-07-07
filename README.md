@@ -1,6 +1,6 @@
 <div align="center">
 
-<p style="text-align: center;"><img src="ao-logo.svg" alt="Modern Agent" width="200" height="200" style="max-width: 100%; height: auto; margin-left: 50px;" /></p>
+<p style="text-align: center;"><img src="modern_agent_logo.png" alt="Modern Agent" width="200" height="200" style="max-width: 100%; height: auto; margin-left: 50px;" /></p>
 
 # Modern Agent
 
@@ -14,7 +14,7 @@
 
 An Agentic IDE that supervises parallel AI coding agents in isolated workspaces, with complete control and automatic feedback loops from CI failures, review comments, and merge conflicts.
 
-![Modern Agent Dashboard](ao-dashboard-preview.png)
+![Modern Agent Dashboard](modern_agent_dashboard.png)
 
 </div>
 
@@ -24,7 +24,7 @@ An Agentic IDE that supervises parallel AI coding agents in isolated workspaces,
 
 Modern Agent is a meta-harness agent IDE for running AI coding agents in parallel. It gives terminal-based agents like Claude Code, Codex, Cursor, Aider, Goose, and others a shared workspace where their sessions, terminals, branches, pull requests, and feedback loops can be supervised from one place.
 
-The agents still do the coding. AO provides the harness around them: isolated workspaces, live terminal access, session state, PR awareness, and automatic loops that send CI failures, review comments, and merge conflicts back to the right agent. Instead of manually coordinating a pile of agent terminals, AO turns parallel agent work into a managed workflow.
+The agents still do the coding. Modern Agent provides the harness around them: isolated workspaces, live terminal access, session state, PR awareness, and automatic loops that send CI failures, review comments, and merge conflicts back to the right agent. Instead of manually coordinating a pile of agent terminals, Modern Agent turns parallel agent work into a managed workflow.
 
 ---
 
@@ -48,8 +48,8 @@ At a high level, Modern Agent follows a simple loop:
 
 1. Add a project you want agents to work on.
 2. Start one or more sessions from the desktop app or CLI.
-3. AO creates an isolated git worktree for each session.
-4. AO launches the selected coding agent in that session's terminal runtime.
+3. Modern Agent creates an isolated git worktree for each session.
+4. Modern Agent launches the selected coding agent in that session's terminal runtime.
 5. The local daemon watches session state, terminal activity, pull requests, CI, and review feedback.
 6. The desktop app and CLI show the current state and let you send follow-up instructions to the right session.
 
@@ -58,31 +58,6 @@ The result is a local control layer for agentic coding: agents still do the codi
 ---
 
 <div align="center">
-
-### Witness AO's Journey on X
-
-<table border="1" style="border-collapse: collapse; width: 100%;">
-<tr>
-<td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
-<a href="https://x.com/agent_wrapper/status/2026329204405723180"><img src="screenshots/first.png" alt="First" width="400"></a><br><br>
-<a href="https://x.com/agent_wrapper/status/2026329204405723180">Visit</a>
-</td>
-<td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
-<a href="https://x.com/agent_wrapper/status/2025986105485733945"><img src="screenshots/second.png" alt="Second" width="400"></a><br><br>
-<a href="https://x.com/agent_wrapper/status/2025986105485733945">Visit</a>
-</td>
-</tr>
-<tr>
-<td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
-<a href="https://x.com/agent_wrapper/status/2064157228400341312"><img src="screenshots/third.png" alt="Third" width="400"></a><br><br>
-<a href="https://x.com/agent_wrapper/status/2064157228400341312">Visit</a>
-</td>
-<td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
-<a href="https://x.com/agent_wrapper/status/2024885035774738700?s=20"><img src="screenshots/image.png" alt="Fourth" width="400"></a><br><br>
-<a href="https://x.com/agent_wrapper/status/2024885035774738700?s=20">Visit</a>
-</td>
-</tr>
-</table>
 
 [What is Modern Agent?](#what-is-modern-agent) • [Why Modern Agent?](#why-modern-agent) • [How it works](#how-it-works) • [Features](#features) • [Quick Start](#quick-start) • [Architecture](#architecture) • [Documentation](#documentation) • [Contributing](#contributing)
 

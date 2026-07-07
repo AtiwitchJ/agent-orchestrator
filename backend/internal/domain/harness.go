@@ -28,6 +28,8 @@ const (
 	HarnessVibe       AgentHarness = "vibe"
 	HarnessPi         AgentHarness = "pi"
 	HarnessAutohand   AgentHarness = "autohand"
+	HarnessOpenClaw   AgentHarness = "openclaw"
+	HarnessHermes     AgentHarness = "hermes"
 	// HarnessCommand runs a project-configured argv (scripts, CLIs, or other
 	// non-coding-agent workers). Prompt and standing instructions are passed via
 	// AO_PROMPT / AO_SYSTEM_PROMPT env vars; activity is reported through
@@ -42,7 +44,7 @@ var AllHarnesses = []AgentHarness{
 	HarnessDroid, HarnessAmp, HarnessAgy, HarnessCrush, HarnessCursor, HarnessQwen,
 	HarnessCopilot, HarnessGoose, HarnessAuggie, HarnessContinue, HarnessDevin,
 	HarnessCline, HarnessKimi, HarnessKiro, HarnessKilocode, HarnessVibe, HarnessPi,
-	HarnessAutohand,
+	HarnessAutohand, HarnessOpenClaw, HarnessHermes,
 	HarnessCommand,
 }
 

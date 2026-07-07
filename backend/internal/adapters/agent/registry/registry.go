@@ -16,6 +16,8 @@ import (
 	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/cline"
 	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/codex"
 	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/command"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/hermes"
+	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/openclaw"
 	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/continueagent"
 	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/copilot"
 	"github.com/modernagent/modern-agent/backend/internal/adapters/agent/crush"
@@ -65,6 +67,8 @@ func Constructors() []adapters.Adapter {
 		pi.New(),
 		autohand.New(),
 		command.New(),
+		openclaw.New(),
+		hermes.New(),
 	}
 }
 
