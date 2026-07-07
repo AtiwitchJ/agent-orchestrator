@@ -11,6 +11,7 @@ import type { SessionActivityState, WorkspaceSession } from "../types/workspace"
 import { canonicalTrackerIssueId, sortedPRs } from "../types/workspace";
 import { BrowserPanelView } from "./BrowserPanel";
 import type { BrowserViewModel } from "../hooks/useBrowserView";
+import { isElectron } from "../lib/env";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { cn } from "../lib/utils";
@@ -693,6 +694,31 @@ function BrowserView({
 	onTogglePopOut?: (next: boolean) => void;
 	browserView?: BrowserViewModel;
 }) {
+	if (!isElectron()) {
+		const url = session.previewUrl?.trim();
+		return (
+			<div className="inspector-empty inspector-empty--browser" role="tabpanel">
+				<p>Browser preview is hosted by the agent session.</p>
+				{url ? (
+					<Button
+						onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+						size="sm"
+						type="button"
+						variant="outline"
+					>
+						<ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+						Open in new tab
+					</Button>
+				) : (
+					<p className="text-[11px] text-passive">
+						No preview URL set. Run <span className="font-mono">ao preview &lt;url&gt;</span> from the session
+						terminal to attach a URL.
+					</p>
+				)}
+			</div>
+		);
+	}
+
 	if (browserPoppedOut) {
 		return (
 			<div role="tabpanel">

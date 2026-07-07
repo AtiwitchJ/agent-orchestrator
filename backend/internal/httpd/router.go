@@ -63,6 +63,7 @@ func NewRouterWithControl(cfg config.Config, log *slog.Logger, termMgr *terminal
 	mountControl(r, control)
 	mountTelemetry(r, deps.Telemetry)
 	NewAPI(cfg, deps).Register(r)
+	mountSPA(r, cfg, log)
 
 	return r
 }
@@ -198,6 +199,28 @@ func mountTelemetry(r chi.Router, sink ports.EventSink) {
 		})
 		w.WriteHeader(http.StatusAccepted)
 	})
+}
+
+// mountSPA serves the renderer SPA bundle at `/`. The API routes
+// (/api/v1/*, /healthz, /readyz, /mux/*, /shutdown, /internal/telemetry/*)
+// are mounted FIRST in NewRouterWithControl so chi's trie matches them
+// before falling through to the SPA handler — the SPA only catches
+// unmatched paths. When cfg.WebUIDir is empty or the directory does not
+// exist, this is a no-op (the daemon keeps the API-only behavior). Mount
+// last; do not move above mountAPI.
+func mountSPA(r chi.Router, cfg config.Config, log *slog.Logger) {
+	if cfg.WebUIDir == "" {
+		return
+	}
+	info, err := os.Stat(cfg.WebUIDir)
+	if err != nil || !info.IsDir() {
+		if log != nil && err != nil {
+			log.Warn("spa: configured directory not found; SPA not mounted", "dir", cfg.WebUIDir, "err", err)
+		}
+		return
+	}
+	handler := NewSPAHandler(http.Dir(cfg.WebUIDir), log)
+	r.Handle("/*", handler)
 }
 
 // localControlRequest reports whether a control request is a trusted local

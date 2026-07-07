@@ -96,6 +96,12 @@ type Config struct {
 	// AllowedOrigins are the browser origins granted CORS read access (see
 	// DefaultAllowedOrigins). Overridden by AO_ALLOWED_ORIGINS.
 	AllowedOrigins []string
+	// WebUIDir is the directory containing the static SPA bundle the daemon
+	// serves at `/`. Resolved from AO_WEB_UI_DIR (explicit override), then
+	// `<exe-dir>/web` beside the running binary, then `~/.ao/web`. An empty
+	// string (or a missing directory at startup) disables SPA serving — the
+	// daemon's HTTP API behaves exactly as before.
+	WebUIDir string
 	// Telemetry controls local/remote telemetry sinks.
 	Telemetry TelemetryConfig
 	// StallThreshold is how long a worker session's activity_state may stay
@@ -135,6 +141,7 @@ func (c Config) Addr() string {
 //	AO_TELEMETRY_POSTHOG_HOST  PostHog host (default DefaultTelemetryPostHogHost)
 //	AO_STALL_THRESHOLD   stall silence threshold (Go duration > 0, default 4m)
 //	AO_STALL_AUTOKILL    auto-kill confirmed-stalled sessions off|on (default on)
+//	AO_WEB_UI_DIR        SPA bundle directory served at / (default ~/.ao/web if present)
 //
 // The bind host is not configurable: the daemon is loopback-only by design.
 func Load() (Config, error) {
@@ -257,6 +264,7 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	cfg.DataDir = dataDir
+	cfg.WebUIDir = resolveWebUIDir()
 
 	return cfg, nil
 }
@@ -295,6 +303,36 @@ func parsePositiveDuration(name, raw string) (time.Duration, error) {
 		return 0, fmt.Errorf("invalid %s %q: must be > 0", name, raw)
 	}
 	return d, nil
+}
+
+// resolveWebUIDir picks the SPA bundle directory the daemon will serve at `/`.
+// Resolution order: explicit AO_WEB_UI_DIR (if set), then `<exe-dir>/web`,
+// then `~/.ao/web`. Returns "" when none of the candidates exist (or the env
+// is explicitly empty) — the httpd layer treats "" as "do not mount SPA", so
+// the daemon's HTTP API behaves exactly as before.
+func resolveWebUIDir() string {
+	if raw, ok := os.LookupEnv("AO_WEB_UI_DIR"); ok {
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" {
+			return ""
+		}
+		return trimmed
+	}
+	if exe, err := os.Executable(); err == nil && exe != "" {
+		candidate := filepath.Join(filepath.Dir(exe), "web")
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return candidate
+		}
+	}
+	stateDir, err := defaultStateDir()
+	if err != nil || stateDir == "" {
+		return ""
+	}
+	candidate := filepath.Join(stateDir, "web")
+	if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+		return candidate
+	}
+	return ""
 }
 
 // resolveRunFilePath picks where running.json lives. An explicit AO_RUN_FILE

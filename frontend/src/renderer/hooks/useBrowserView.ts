@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BrowserNavState, BrowserRect } from "../../main/browser-view-host";
+import { isElectron } from "../lib/env";
 
 export type { BrowserNavState };
 
@@ -78,6 +79,23 @@ export function useBrowserView({
 	previewUrl,
 	previewRevision,
 }: UseBrowserViewOptions): BrowserViewModel {
+	// Web mode renders the SPA outside Electron, so the native WebContentsView
+	// preview panel isn't available. Return a stable no-op model; the caller
+	// in SessionView uses `window.open(previewUrl, "_blank")` for the actual
+	// preview link in web mode (handled in the inspector Browser tab).
+	if (!isElectron()) {
+		return {
+			viewId: "",
+			navState: EMPTY_NAV_STATE,
+			slotRef: () => undefined,
+			navigate: async () => undefined,
+			goBack: async () => undefined,
+			goForward: async () => undefined,
+			reload: async () => undefined,
+			stop: async () => undefined,
+			destroy: () => undefined,
+		};
+	}
 	const [viewId, setViewId] = useState("");
 	const [navState, setNavState] = useState<BrowserNavState>(EMPTY_NAV_STATE);
 	const slotNodeRef = useRef<HTMLDivElement | null>(null);

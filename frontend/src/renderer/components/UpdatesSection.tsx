@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { aoBridge } from "../lib/bridge";
+import { isElectron } from "../lib/env";
 import type { UpdateChannel, UpdateSettings, UpdateStatus } from "../../main/update-settings";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -20,6 +21,12 @@ const CHANNEL_OPTIONS: { value: UpdateChannel; label: string }[] = [
 // (the same file auto-updater.ts consumes), letting a user pick Stable vs Nightly.
 // Changes apply on the next launch / update check.
 export function UpdatesSection() {
+	// Auto-update is an Electron-desktop concern: the daemon has no
+	// self-updater and the web build has no updatable artifact, so the
+	// controls are hidden outside the desktop app.
+	if (!isElectron()) {
+		return null;
+	}
 	const queryClient = useQueryClient();
 	const query = useQuery({
 		queryKey: updateSettingsQueryKey,

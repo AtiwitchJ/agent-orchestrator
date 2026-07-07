@@ -10,7 +10,7 @@ import (
 func TestLoadDefaults(t *testing.T) {
 	// Clear every recognised var so we observe pure defaults regardless of the
 	// surrounding environment.
-	for _, k := range []string{"AO_PORT", "AO_REQUEST_TIMEOUT", "AO_SHUTDOWN_TIMEOUT", "AO_RUN_FILE", "AO_DATA_DIR", "AO_AGENT", "AO_ALLOWED_ORIGINS", "AO_TELEMETRY_EVENTS", "AO_TELEMETRY_METRICS", "AO_TELEMETRY_REMOTE", "AO_TELEMETRY_POSTHOG_KEY", "AO_TELEMETRY_POSTHOG_HOST", "AO_STALL_THRESHOLD", "AO_STALL_AUTOKILL"} {
+	for _, k := range []string{"AO_PORT", "AO_REQUEST_TIMEOUT", "AO_SHUTDOWN_TIMEOUT", "AO_RUN_FILE", "AO_DATA_DIR", "AO_AGENT", "AO_ALLOWED_ORIGINS", "AO_TELEMETRY_EVENTS", "AO_TELEMETRY_METRICS", "AO_TELEMETRY_REMOTE", "AO_TELEMETRY_POSTHOG_KEY", "AO_TELEMETRY_POSTHOG_HOST", "AO_STALL_THRESHOLD", "AO_STALL_AUTOKILL", "AO_WEB_UI_DIR"} {
 		t.Setenv(k, "")
 	}
 
@@ -173,6 +173,67 @@ func TestLoadAllowedOrigins(t *testing.T) {
 			if cfg.AllowedOrigins[i] != origin {
 				t.Errorf("AllowedOrigins[%d] = %q, want %q", i, cfg.AllowedOrigins[i], origin)
 			}
+		}
+	})
+}
+
+func TestLoadWebUIDir(t *testing.T) {
+	t.Run("explicit empty disables SPA serving", func(t *testing.T) {
+		t.Setenv("AO_WEB_UI_DIR", "")
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.WebUIDir != "" {
+			t.Errorf("WebUIDir = %q, want empty", cfg.WebUIDir)
+		}
+	})
+
+	t.Run("explicit override wins", func(t *testing.T) {
+		dir := t.TempDir()
+		t.Setenv("AO_WEB_UI_DIR", dir)
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.WebUIDir != dir {
+			t.Errorf("WebUIDir = %q, want %q", cfg.WebUIDir, dir)
+		}
+	})
+
+	t.Run("falls back to ~/.ao/web when present", func(t *testing.T) {
+		// This subtest exercises the resolution path that runs when AO_WEB_UI_DIR
+		// is unset, so we must actually unset it. t.Setenv("k", "") does NOT
+		// unset — it sets to empty, which resolveWebUIDir treats as "explicit
+		// disable" and short-circuits before the home fallback. Use os.Unsetenv
+		// directly and restore in Cleanup.
+		if prev, ok := os.LookupEnv("AO_WEB_UI_DIR"); ok {
+			t.Cleanup(func() { os.Setenv("AO_WEB_UI_DIR", prev) })
+			os.Unsetenv("AO_WEB_UI_DIR")
+		}
+		home, err := os.UserHomeDir()
+		if err != nil {
+			t.Skipf("no home dir: %v", err)
+		}
+		web := filepath.Join(home, ".ao", "web")
+		// Skip rather than create when the real ~/.ao/web already exists so
+		// the test never modifies the developer's machine state.
+		if _, err := os.Stat(web); err == nil {
+			t.Skipf("real ~/.ao/web already exists at %s; remove it to run this test", web)
+		} else if !os.IsNotExist(err) {
+			t.Fatalf("Stat: %v", err)
+		}
+		if err := os.MkdirAll(web, 0o755); err != nil {
+			t.Fatalf("MkdirAll: %v", err)
+		}
+		t.Cleanup(func() { _ = os.RemoveAll(web) })
+
+		cfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if cfg.WebUIDir != web {
+			t.Errorf("WebUIDir = %q, want %q", cfg.WebUIDir, web)
 		}
 	})
 }

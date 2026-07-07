@@ -56,6 +56,12 @@ export default defineConfig({
 			"@": fileURLToPath(new URL("./src/renderer", import.meta.url)),
 		},
 	},
+	// Web build (`VITE_NO_ELECTRON=1`) is served by the daemon from `/`, so
+	// emitted assets need relative URLs (`./assets/...`) for deep-link asset
+	// resolution. The Electron renderer is loaded via `loadFile()` and
+	// expects absolute paths (`/assets/...`). Both go through this same
+	// config; only `base` differs.
+	base: process.env.VITE_NO_ELECTRON === "1" ? "./" : "/",
 	// Dev proxy for VITE_NO_ELECTRON=1 browser preview — forwards /api and /mux
 	// to the daemon so the renderer can be tested against a running daemon from
 	// a plain browser without an Electron shell.

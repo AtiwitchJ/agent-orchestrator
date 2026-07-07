@@ -66,6 +66,7 @@ type Deps struct {
 	HTTPClient         *http.Client
 	Executable         func() (string, error)
 	StartProcess       func(processStartConfig) error
+	DaemonRun          func(ctx context.Context) error
 	ProcessAlive       func(pid int) bool
 	LookPath           func(file string) (string, error)
 	CommandOutput      func(ctx context.Context, name string, args ...string) ([]byte, error)
@@ -86,6 +87,7 @@ func DefaultDeps() Deps {
 		HTTPClient:           &http.Client{Timeout: 2 * time.Second},
 		Executable:           os.Executable,
 		StartProcess:         startProcess,
+		DaemonRun:            nil, // default wires to daemon.Run in `ao web` when nil
 		ProcessAlive:         processalive.Alive,
 		LookPath:             exec.LookPath,
 		CommandOutput:        commandOutput,
@@ -125,6 +127,9 @@ func (d Deps) withDefaults() Deps {
 	}
 	if d.StartProcess == nil {
 		d.StartProcess = def.StartProcess
+	}
+	if d.DaemonRun == nil {
+		d.DaemonRun = def.DaemonRun
 	}
 	if d.ProcessAlive == nil {
 		d.ProcessAlive = def.ProcessAlive
@@ -181,6 +186,7 @@ func NewRootCommand(deps Deps) *cobra.Command {
 
 	root.AddCommand(newDaemonCommand())
 	root.AddCommand(newStartCommand(ctx))
+	root.AddCommand(newWebCommand(ctx))
 	root.AddCommand(newStopCommand(ctx))
 	root.AddCommand(newStatusCommand(ctx))
 	root.AddCommand(newDoctorCommand(ctx))
