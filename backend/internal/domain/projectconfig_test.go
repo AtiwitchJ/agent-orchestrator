@@ -35,6 +35,12 @@ func TestProjectConfigValidate(t *testing.T) {
 		{"tracker intake unknown provider", ProjectConfig{TrackerIntake: TrackerIntakeConfig{Enabled: true, Provider: "linear", Assignee: "alice"}}, true},
 		{"tracker intake repo with whitespace", ProjectConfig{TrackerIntake: TrackerIntakeConfig{Enabled: true, Repo: " acme/demo", Assignee: "alice"}}, true},
 		{"tracker intake assignee with whitespace", ProjectConfig{TrackerIntake: TrackerIntakeConfig{Enabled: true, Assignee: " alice"}}, true},
+		{"heartbeat disabled ok", ProjectConfig{Heartbeat: HeartbeatConfig{}}, false},
+		{"heartbeat enabled default interval", ProjectConfig{Heartbeat: HeartbeatConfig{Enabled: true}}, false},
+		{"heartbeat enabled explicit interval", ProjectConfig{Heartbeat: HeartbeatConfig{Enabled: true, Interval: "15m"}}, false},
+		{"heartbeat interval not a duration", ProjectConfig{Heartbeat: HeartbeatConfig{Enabled: true, Interval: "soon"}}, true},
+		{"heartbeat interval below minimum", ProjectConfig{Heartbeat: HeartbeatConfig{Enabled: true, Interval: "30s"}}, true},
+		{"heartbeat interval at minimum", ProjectConfig{Heartbeat: HeartbeatConfig{Enabled: true, Interval: "1m"}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

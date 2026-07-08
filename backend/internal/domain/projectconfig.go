@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 )
 
 // ProjectConfig is the typed per-project configuration — the SQLite twin of the
@@ -51,6 +52,56 @@ type ProjectConfig struct {
 	// consumed by the deliverable watcher: the session is marked StatusReportReady
 	// when the agent exits AND the watcher confirms the artifact exists.
 	Deliverable *DeliverableConfig `json:"deliverable,omitempty"`
+
+	// Heartbeat controls the periodic wake-up nudge sent to this project's
+	// orchestrator when the project is an HQ (see HQRole). It is a no-op on
+	// ordinary projects.
+	Heartbeat HeartbeatConfig `json:"heartbeat,omitempty"`
+}
+
+// DefaultHeartbeatInterval is the wake-up cadence an HQ project gets when it
+// enables the heartbeat without naming an interval.
+const DefaultHeartbeatInterval = "30m"
+
+// MinHeartbeatInterval is the shortest interval a heartbeat can be configured
+// with, to keep the wake-up loop from spamming an HQ orchestrator.
+const MinHeartbeatInterval = "1m"
+
+// HeartbeatConfig controls the periodic wake-up nudge for an HQ project's
+// PM/CEO orchestrator.
+type HeartbeatConfig struct {
+	Enabled bool `json:"enabled,omitempty"`
+	// Interval is a Go duration string (e.g. "30m"). Defaults to
+	// DefaultHeartbeatInterval when Enabled and left unset.
+	Interval string `json:"interval,omitempty"`
+}
+
+// WithDefaults fills Interval only when the heartbeat is enabled. Disabled
+// heartbeats leave the zero value untouched so empty project configs still
+// store as NULL.
+func (c HeartbeatConfig) WithDefaults() HeartbeatConfig {
+	if c.Enabled && c.Interval == "" {
+		c.Interval = DefaultHeartbeatInterval
+	}
+	return c
+}
+
+// Validate rejects an interval that does not parse as a Go duration or is
+// shorter than MinHeartbeatInterval.
+func (c HeartbeatConfig) Validate() error {
+	if !c.Enabled {
+		return nil
+	}
+	c = c.WithDefaults()
+	d, err := time.ParseDuration(c.Interval)
+	if err != nil {
+		return fmt.Errorf("heartbeat.interval: %w", err)
+	}
+	min, _ := time.ParseDuration(MinHeartbeatInterval)
+	if d < min {
+		return fmt.Errorf("heartbeat.interval: must be at least %s", MinHeartbeatInterval)
+	}
+	return nil
 }
 
 // DeliverableType discriminates the deliverable watcher implementation.
@@ -170,6 +221,7 @@ func (c ProjectConfig) WithDefaults() ProjectConfig {
 		c.DefaultBranch = def.DefaultBranch
 	}
 	c.TrackerIntake = c.TrackerIntake.WithDefaults()
+	c.Heartbeat = c.Heartbeat.WithDefaults()
 	return c
 }
 
@@ -211,6 +263,9 @@ func (c ProjectConfig) Validate() error {
 	}
 	if err := c.Deliverable.Validate(); err != nil {
 		return fmt.Errorf("deliverable: %w", err)
+	}
+	if err := c.Heartbeat.Validate(); err != nil {
+		return err
 	}
 	return nil
 }

@@ -39,6 +39,11 @@ type Notification struct {
 	CreatedAt time.Time
 }
 
+type OrgSetting struct {
+	Key   string
+	Value string
+}
+
 type PR struct {
 	URL                      string
 	SessionID                domain.SessionID
@@ -138,6 +143,7 @@ type Project struct {
 	Config        sql.NullString
 	Kind          string
 	CompanyID     sql.NullString
+	HqRole        sql.NullString
 }
 
 type Review struct {

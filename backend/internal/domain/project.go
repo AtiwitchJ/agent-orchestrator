@@ -19,6 +19,21 @@ const (
 // ProjectKind describes how a registered project materialises session workspaces.
 type ProjectKind string
 
+// HQRole marks a project as the standing "office" for a company's PM
+// orchestrator or the holding's CEO orchestrator, instead of an ordinary
+// delivery project. The empty value means "not an HQ project".
+type HQRole string
+
+const (
+	// HQRoleCompany marks a project as a company's PM headquarters. The
+	// project's CompanyID must be set.
+	HQRoleCompany HQRole = "company"
+	// HQRoleHolding marks the single holding-wide CEO headquarters. The
+	// project's CompanyID must be empty (the holding is implicit, not a row
+	// in the companies table).
+	HQRoleHolding HQRole = "holding"
+)
+
 // WithDefault returns ProjectKindSingleRepo when the stored value predates the kind column.
 func (k ProjectKind) WithDefault() ProjectKind {
 	if k == "" {
@@ -42,6 +57,9 @@ type ProjectRecord struct {
 	// CompanyID is the durable company grouping fact: the id (slug) of the
 	// CompanyRecord this project is assigned to, or "" when unassigned.
 	CompanyID string
+	// HQRole marks this project as a PM/CEO headquarters instead of an
+	// ordinary delivery project, or "" for ordinary projects.
+	HQRole HQRole
 }
 
 // WorkspaceRepoRecord is a child repo registered under a workspace project.

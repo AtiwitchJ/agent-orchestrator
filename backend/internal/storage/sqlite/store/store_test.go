@@ -111,6 +111,110 @@ func TestCompanyCreateListAssignUnassign(t *testing.T) {
 	}
 }
 
+// TestSetProjectHQRoleRoundTripAndUniqueness covers the store-layer round
+// trip for hq_role, plus the partial-unique-index guard that allows at most
+// one company HQ per company and at most one holding HQ.
+func TestSetProjectHQRoleRoundTripAndUniqueness(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	seedProject(t, s, "acme-hq")
+	seedProject(t, s, "acme-hq-2")
+	seedProject(t, s, "holding-hq")
+	seedProject(t, s, "holding-hq-2")
+
+	now := time.Now().UTC().Truncate(time.Second)
+	if err := s.InsertCompany(ctx, domain.CompanyRecord{ID: "acme", Name: "Acme Corp", CreatedAt: now}); err != nil {
+		t.Fatalf("insert company: %v", err)
+	}
+	if _, err := s.SetProjectCompany(ctx, "acme-hq", "acme"); err != nil {
+		t.Fatalf("assign acme-hq to acme: %v", err)
+	}
+	if _, err := s.SetProjectCompany(ctx, "acme-hq-2", "acme"); err != nil {
+		t.Fatalf("assign acme-hq-2 to acme: %v", err)
+	}
+
+	// Setting an unknown project reports no row affected.
+	ok, err := s.SetProjectHQRole(ctx, "no-such-project", domain.HQRoleCompany)
+	if err != nil {
+		t.Fatalf("set hq role on unknown project: %v", err)
+	}
+	if ok {
+		t.Fatal("set hq role on unknown project reported ok=true")
+	}
+
+	ok, err = s.SetProjectHQRole(ctx, "acme-hq", domain.HQRoleCompany)
+	if err != nil || !ok {
+		t.Fatalf("set acme-hq role: ok=%v err=%v", ok, err)
+	}
+	proj, ok, err := s.GetProject(ctx, "acme-hq")
+	if err != nil || !ok {
+		t.Fatalf("get project: ok=%v err=%v", ok, err)
+	}
+	if proj.HQRole != domain.HQRoleCompany {
+		t.Fatalf("project.HQRole = %q, want %q", proj.HQRole, domain.HQRoleCompany)
+	}
+
+	// A second company HQ for the same company violates the partial unique index.
+	if _, err := s.SetProjectHQRole(ctx, "acme-hq-2", domain.HQRoleCompany); err == nil {
+		t.Fatal("expected unique-index violation for a second company HQ, got nil")
+	}
+
+	ok, err = s.SetProjectHQRole(ctx, "holding-hq", domain.HQRoleHolding)
+	if err != nil || !ok {
+		t.Fatalf("set holding-hq role: ok=%v err=%v", ok, err)
+	}
+
+	// A second holding HQ violates the partial unique index.
+	if _, err := s.SetProjectHQRole(ctx, "holding-hq-2", domain.HQRoleHolding); err == nil {
+		t.Fatal("expected unique-index violation for a second holding HQ, got nil")
+	}
+
+	// Clearing (role == "") is idempotent and removes the row from the constraint.
+	ok, err = s.SetProjectHQRole(ctx, "acme-hq", "")
+	if err != nil || !ok {
+		t.Fatalf("clear acme-hq role: ok=%v err=%v", ok, err)
+	}
+	proj, ok, err = s.GetProject(ctx, "acme-hq")
+	if err != nil || !ok {
+		t.Fatalf("get project after clear: ok=%v err=%v", ok, err)
+	}
+	if proj.HQRole != "" {
+		t.Fatalf("project.HQRole after clear = %q, want empty", proj.HQRole)
+	}
+}
+
+// TestOrgSettingGetSet covers the store-layer round trip for org_settings:
+// unset key resolves ok=false, then set/get/overwrite works.
+func TestOrgSettingGetSet(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	_, ok, err := s.GetOrgSetting(ctx, "heartbeat_paused")
+	if err != nil {
+		t.Fatalf("get unset setting: %v", err)
+	}
+	if ok {
+		t.Fatal("unset org setting resolved ok=true")
+	}
+
+	if err := s.SetOrgSetting(ctx, "heartbeat_paused", "true"); err != nil {
+		t.Fatalf("set org setting: %v", err)
+	}
+	v, ok, err := s.GetOrgSetting(ctx, "heartbeat_paused")
+	if err != nil || !ok || v != "true" {
+		t.Fatalf("get org setting = %q, ok=%v, err=%v; want true", v, ok, err)
+	}
+
+	// Overwriting the same key replaces the value.
+	if err := s.SetOrgSetting(ctx, "heartbeat_paused", "false"); err != nil {
+		t.Fatalf("overwrite org setting: %v", err)
+	}
+	v, ok, err = s.GetOrgSetting(ctx, "heartbeat_paused")
+	if err != nil || !ok || v != "false" {
+		t.Fatalf("get org setting after overwrite = %q, ok=%v, err=%v; want false", v, ok, err)
+	}
+}
+
 func TestProjectCRUDAndArchive(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()

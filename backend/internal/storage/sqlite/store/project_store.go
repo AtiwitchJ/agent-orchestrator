@@ -85,6 +85,7 @@ func upsertProject(ctx context.Context, q *gen.Queries, r domain.ProjectRecord, 
 		Config:        config,
 		Kind:          string(kind),
 		CompanyID:     nullString(r.CompanyID),
+		HqRole:        nullString(string(r.HQRole)),
 	})
 }
 
@@ -149,6 +150,7 @@ func projectRowFromGen(p gen.Project) domain.ProjectRecord {
 		Kind:          domain.ProjectKind(p.Kind).WithDefault(),
 		Config:        unmarshalProjectConfig(p.Config),
 		CompanyID:     stringFromNull(p.CompanyID),
+		HQRole:        domain.HQRole(stringFromNull(p.HqRole)),
 	}
 	if p.ArchivedAt.Valid {
 		r.ArchivedAt = p.ArchivedAt.Time

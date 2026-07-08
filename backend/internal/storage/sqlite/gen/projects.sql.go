@@ -31,7 +31,7 @@ func (q *Queries) ArchiveProject(ctx context.Context, arg ArchiveProjectParams) 
 }
 
 const findProjectByPath = `-- name: FindProjectByPath :one
-SELECT id, path, repo_origin_url, display_name, registered_at, archived_at, config, kind, company_id
+SELECT id, path, repo_origin_url, display_name, registered_at, archived_at, config, kind, company_id, hq_role
 FROM projects WHERE path = ? AND archived_at IS NULL
 `
 
@@ -48,12 +48,13 @@ func (q *Queries) FindProjectByPath(ctx context.Context, path string) (Project, 
 		&i.Config,
 		&i.Kind,
 		&i.CompanyID,
+		&i.HqRole,
 	)
 	return i, err
 }
 
 const getProject = `-- name: GetProject :one
-SELECT id, path, repo_origin_url, display_name, registered_at, archived_at, config, kind, company_id
+SELECT id, path, repo_origin_url, display_name, registered_at, archived_at, config, kind, company_id, hq_role
 FROM projects WHERE id = ?
 `
 
@@ -70,12 +71,13 @@ func (q *Queries) GetProject(ctx context.Context, id domain.ProjectID) (Project,
 		&i.Config,
 		&i.Kind,
 		&i.CompanyID,
+		&i.HqRole,
 	)
 	return i, err
 }
 
 const listProjects = `-- name: ListProjects :many
-SELECT id, path, repo_origin_url, display_name, registered_at, archived_at, config, kind, company_id
+SELECT id, path, repo_origin_url, display_name, registered_at, archived_at, config, kind, company_id, hq_role
 FROM projects WHERE archived_at IS NULL ORDER BY id
 `
 
@@ -98,6 +100,7 @@ func (q *Queries) ListProjects(ctx context.Context) ([]Project, error) {
 			&i.Config,
 			&i.Kind,
 			&i.CompanyID,
+			&i.HqRole,
 		); err != nil {
 			return nil, err
 		}
@@ -113,8 +116,8 @@ func (q *Queries) ListProjects(ctx context.Context) ([]Project, error) {
 }
 
 const upsertProject = `-- name: UpsertProject :exec
-INSERT INTO projects (id, path, repo_origin_url, display_name, registered_at, archived_at, config, kind, company_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO projects (id, path, repo_origin_url, display_name, registered_at, archived_at, config, kind, company_id, hq_role)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (id) DO UPDATE SET
     path = excluded.path,
     repo_origin_url = excluded.repo_origin_url,
@@ -122,7 +125,8 @@ ON CONFLICT (id) DO UPDATE SET
     archived_at = excluded.archived_at,
     config = excluded.config,
     kind = excluded.kind,
-    company_id = excluded.company_id
+    company_id = excluded.company_id,
+    hq_role = excluded.hq_role
 `
 
 type UpsertProjectParams struct {
@@ -135,6 +139,7 @@ type UpsertProjectParams struct {
 	Config        sql.NullString
 	Kind          string
 	CompanyID     sql.NullString
+	HqRole        sql.NullString
 }
 
 func (q *Queries) UpsertProject(ctx context.Context, arg UpsertProjectParams) error {
@@ -148,6 +153,7 @@ func (q *Queries) UpsertProject(ctx context.Context, arg UpsertProjectParams) er
 		arg.Config,
 		arg.Kind,
 		arg.CompanyID,
+		arg.HqRole,
 	)
 	return err
 }
