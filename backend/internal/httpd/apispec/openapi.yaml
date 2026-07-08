@@ -513,6 +513,93 @@ paths:
       summary: Fetch one orchestrator session
       tags:
       - sessions
+  /api/v1/org/heartbeat:
+    get:
+      operationId: getOrgHeartbeat
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgHeartbeatResponse'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Read the global heartbeat kill-switch state
+      tags:
+      - org
+    put:
+      operationId: setOrgHeartbeat
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetOrgHeartbeatPauseInput'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgHeartbeatResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Pause or resume the global heartbeat kill switch
+      tags:
+      - org
+  /api/v1/org/overview:
+    get:
+      operationId: getOrgOverview
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgOverviewResponse'
+          description: OK
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: 'Read the whole holding tree: holding HQ, companies, their HQ and delivery
+        projects'
+      tags:
+      - org
   /api/v1/projects:
     get:
       operationId: listProjects
@@ -735,6 +822,63 @@ paths:
       summary: Replace a project's per-project config
       tags:
       - projects
+  /api/v1/projects/{id}/hq:
+    put:
+      operationId: setProjectHQRole
+      parameters:
+      - description: Project identifier (registry key).
+        in: path
+        name: id
+        required: true
+        schema:
+          description: Project identifier (registry key).
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetProjectHQRoleInput'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetProjectHQRoleResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Set (or, with an empty role, clear) a project's HQ role
+      tags:
+      - org
   /api/v1/projects/{id}/messages:
     get:
       operationId: listProjectMessages
@@ -2002,6 +2146,13 @@ components:
       required:
       - glob
       type: object
+    DomainHeartbeatConfig:
+      properties:
+        enabled:
+          type: boolean
+        interval:
+          type: string
+      type: object
     DomainReviewerConfig:
       properties:
         harness:
@@ -2277,6 +2428,90 @@ components:
       - id
       - projectId
       type: object
+    OrgCompanyOverview:
+      properties:
+        hq:
+          $ref: '#/components/schemas/OrgHQInfo'
+        id:
+          type: string
+        name:
+          type: string
+        projects:
+          items:
+            $ref: '#/components/schemas/OrgProjectStatus'
+          type: array
+      required:
+      - id
+      - name
+      - projects
+      type: object
+    OrgHQInfo:
+      properties:
+        activity:
+          type: string
+        heartbeatEnabled:
+          type: boolean
+        heartbeatInterval:
+          type: string
+        orchestratorSessionId:
+          type: string
+        projectId:
+          type: string
+      required:
+      - projectId
+      - heartbeatEnabled
+      type: object
+    OrgHeartbeatResponse:
+      properties:
+        paused:
+          type: boolean
+      required:
+      - paused
+      type: object
+    OrgOverview:
+      properties:
+        companies:
+          items:
+            $ref: '#/components/schemas/OrgCompanyOverview'
+          type: array
+        holdingHq:
+          $ref: '#/components/schemas/OrgHQInfo'
+        paused:
+          type: boolean
+      required:
+      - companies
+      - paused
+      type: object
+    OrgOverviewResponse:
+      properties:
+        overview:
+          $ref: '#/components/schemas/OrgOverview'
+      required:
+      - overview
+      type: object
+    OrgProjectStatus:
+      properties:
+        activeSessions:
+          type: integer
+        id:
+          type: string
+        kind:
+          type: string
+        name:
+          type: string
+        orchestratorActivity:
+          type: string
+        orchestratorSessionId:
+          type: string
+        totalSessions:
+          type: integer
+      required:
+      - id
+      - name
+      - kind
+      - activeSessions
+      - totalSessions
+      type: object
     PRReviewState:
       properties:
         latestRun:
@@ -2346,6 +2581,8 @@ components:
           additionalProperties:
             type: string
           type: object
+        heartbeat:
+          $ref: '#/components/schemas/DomainHeartbeatConfig'
         orchestrator:
           $ref: '#/components/schemas/RoleOverride'
         postCreate:
@@ -2881,12 +3118,35 @@ components:
       - sessionId
       - state
       type: object
+    SetOrgHeartbeatPauseInput:
+      properties:
+        paused:
+          type: boolean
+      required:
+      - paused
+      type: object
     SetProjectConfigInput:
       properties:
         config:
           $ref: '#/components/schemas/ProjectConfig'
       required:
       - config
+      type: object
+    SetProjectHQRoleInput:
+      properties:
+        role:
+          type: string
+      required:
+      - role
+      type: object
+    SetProjectHQRoleResponse:
+      properties:
+        projectId:
+          type: string
+        role:
+          type: string
+      required:
+      - projectId
       type: object
     SetSessionPreviewRequest:
       properties:
@@ -3043,6 +3303,9 @@ tags:
   name: projects
 - description: Company grouping for projects (multiple repos under one org)
   name: companies
+- description: Holding/company HQ orchestrator roles, the org-wide status tree, and
+    the heartbeat kill switch
+  name: org
 - description: Agent session lifecycle and messaging
   name: sessions
 - description: Pull-request actions (SCM lane)

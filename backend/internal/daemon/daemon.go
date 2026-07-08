@@ -25,6 +25,7 @@ import (
 	"github.com/modernagent/modern-agent/backend/internal/runfile"
 	agentsvc "github.com/modernagent/modern-agent/backend/internal/service/agent"
 	companysvc "github.com/modernagent/modern-agent/backend/internal/service/company"
+	orgsvc "github.com/modernagent/modern-agent/backend/internal/service/org"
 	importsvc "github.com/modernagent/modern-agent/backend/internal/service/importer"
 	messagesvc "github.com/modernagent/modern-agent/backend/internal/service/message"
 	notificationsvc "github.com/modernagent/modern-agent/backend/internal/service/notification"
@@ -158,6 +159,7 @@ func Run() error {
 	srv, err := httpd.NewWithDeps(cfg, log, termMgr, httpd.APIDeps{
 		Projects:           projectsvc.NewWithDeps(projectsvc.Deps{Store: store, Sessions: sessionSvc, DefaultHarness: domain.AgentHarness(cfg.Agent), Telemetry: telemetrySink}),
 		Companies:          companysvc.New(store),
+		Org:                orgsvc.New(store),
 		Messages:           messagesvc.New(messagesvc.Deps{Store: store}),
 		Agents:             agentsvc.New(),
 		Sessions:           sessionSvc,

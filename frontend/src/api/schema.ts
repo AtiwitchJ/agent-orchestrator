@@ -211,6 +211,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/org/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the global heartbeat kill-switch state */
+        get: operations["getOrgHeartbeat"];
+        /** Pause or resume the global heartbeat kill switch */
+        put: operations["setOrgHeartbeat"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the whole holding tree: holding HQ, companies, their HQ and delivery projects */
+        get: operations["getOrgOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects": {
         parameters: {
             query?: never;
@@ -274,6 +309,23 @@ export interface paths {
         get?: never;
         /** Replace a project's per-project config */
         put: operations["setProjectConfig"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/hq": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set (or, with an empty role, clear) a project's HQ role */
+        put: operations["setProjectHQRole"];
         post?: never;
         delete?: never;
         options?: never;
@@ -718,6 +770,10 @@ export interface components {
         DomainFilesystemSpec: {
             glob: string;
         };
+        DomainHeartbeatConfig: {
+            enabled?: boolean;
+            interval?: string;
+        };
         DomainReviewerConfig: {
             harness: string;
         };
@@ -822,6 +878,39 @@ export interface components {
             projectId: string;
             projectName?: string;
         };
+        OrgCompanyOverview: {
+            hq?: components["schemas"]["OrgHQInfo"];
+            id: string;
+            name: string;
+            projects: components["schemas"]["OrgProjectStatus"][];
+        };
+        OrgHQInfo: {
+            activity?: string;
+            heartbeatEnabled: boolean;
+            heartbeatInterval?: string;
+            orchestratorSessionId?: string;
+            projectId: string;
+        };
+        OrgHeartbeatResponse: {
+            paused: boolean;
+        };
+        OrgOverview: {
+            companies: components["schemas"]["OrgCompanyOverview"][];
+            holdingHq?: components["schemas"]["OrgHQInfo"];
+            paused: boolean;
+        };
+        OrgOverviewResponse: {
+            overview: components["schemas"]["OrgOverview"];
+        };
+        OrgProjectStatus: {
+            activeSessions: number;
+            id: string;
+            kind: string;
+            name: string;
+            orchestratorActivity?: string;
+            orchestratorSessionId?: string;
+            totalSessions: number;
+        };
         PRReviewState: {
             latestRun?: components["schemas"]["ReviewRun"];
             prNumber: number;
@@ -849,6 +938,7 @@ export interface components {
             env?: {
                 [key: string]: string;
             };
+            heartbeat?: components["schemas"]["DomainHeartbeatConfig"];
             orchestrator?: components["schemas"]["RoleOverride"];
             postCreate?: string[];
             reviewers?: components["schemas"]["DomainReviewerConfig"][];
@@ -1051,8 +1141,18 @@ export interface components {
             sessionId: string;
             state: string;
         };
+        SetOrgHeartbeatPauseInput: {
+            paused: boolean;
+        };
         SetProjectConfigInput: {
             config: components["schemas"]["ProjectConfig"];
+        };
+        SetProjectHQRoleInput: {
+            role: string;
+        };
+        SetProjectHQRoleResponse: {
+            projectId: string;
+            role?: string;
         };
         SetSessionPreviewRequest: {
             /** @description Preview target URL. When empty, the daemon autodetects a static entry point in the session workspace. */
@@ -1806,6 +1906,133 @@ export interface operations {
             };
         };
     };
+    getOrgHeartbeat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgHeartbeatResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    setOrgHeartbeat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetOrgHeartbeatPauseInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgHeartbeatResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    getOrgOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgOverviewResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
     listProjects: {
         parameters: {
             query?: never;
@@ -2085,6 +2312,78 @@ export interface operations {
             };
             /** @description Internal Server Error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    setProjectHQRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project identifier (registry key). */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetProjectHQRoleInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetProjectHQRoleResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };

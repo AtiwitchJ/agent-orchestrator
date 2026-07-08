@@ -97,8 +97,8 @@ func (c HeartbeatConfig) Validate() error {
 	if err != nil {
 		return fmt.Errorf("heartbeat.interval: %w", err)
 	}
-	min, _ := time.ParseDuration(MinHeartbeatInterval)
-	if d < min {
+	minInterval, _ := time.ParseDuration(MinHeartbeatInterval)
+	if d < minInterval {
 		return fmt.Errorf("heartbeat.interval: must be at least %s", MinHeartbeatInterval)
 	}
 	return nil

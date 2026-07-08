@@ -18,6 +18,7 @@ import (
 	"github.com/modernagent/modern-agent/backend/internal/httpd/controllers"
 	"github.com/modernagent/modern-agent/backend/internal/httpd/envelope"
 	companysvc "github.com/modernagent/modern-agent/backend/internal/service/company"
+	orgsvc "github.com/modernagent/modern-agent/backend/internal/service/org"
 	projectsvc "github.com/modernagent/modern-agent/backend/internal/service/project"
 )
 
@@ -62,6 +63,8 @@ func Build() ([]byte, error) {
 			"Project registry, configuration, and lifecycle administration"),
 		*(&openapi31.Tag{Name: "companies"}).WithDescription(
 			"Company grouping for projects (multiple repos under one org)"),
+		*(&openapi31.Tag{Name: "org"}).WithDescription(
+			"Holding/company HQ orchestrator roles, the org-wide status tree, and the heartbeat kill switch"),
 		*(&openapi31.Tag{Name: "sessions"}).WithDescription(
 			"Agent session lifecycle and messaging"),
 		*(&openapi31.Tag{Name: "prs"}).WithDescription(
@@ -224,6 +227,16 @@ var schemaNames = map[string]string{
 	"ControllersAssignProjectCompanyResponse": "AssignProjectCompanyResponse",
 	"ControllersCompanyIDParam":               "CompanyIDParam",
 	"ControllersDeleteCompanyResponse":        "DeleteCompanyResponse",
+	// service/org entities + DTOs
+	"OrgOverview":                       "OrgOverview",
+	"OrgCompanyOverview":                "OrgCompanyOverview",
+	"OrgHQInfo":                         "OrgHQInfo",
+	"OrgProjectStatus":                  "OrgProjectStatus",
+	"OrgSetHQRoleInput":                 "SetProjectHQRoleInput",
+	"OrgSetHeartbeatPauseInput":         "SetOrgHeartbeatPauseInput",
+	"ControllersOrgOverviewResponse":    "OrgOverviewResponse",
+	"ControllersOrgHeartbeatResponse":   "OrgHeartbeatResponse",
+	"ControllersSetProjectHQRoleResponse": "SetProjectHQRoleResponse",
 }
 
 // markRequestBodyRequired sets requestBody.required: true on the operation's
@@ -301,6 +314,7 @@ func operations() []operation {
 	ops = append(ops, agentOperations()...)
 	ops = append(ops, projectOperations()...)
 	ops = append(ops, companyOperations()...)
+	ops = append(ops, orgOperations()...)
 	ops = append(ops, sessionOperations()...)
 	ops = append(ops, messageOperations()...)
 	ops = append(ops, prOperations()...)
@@ -577,6 +591,58 @@ func companyOperations() []operation {
 			resps: []respUnit{
 				{http.StatusOK, controllers.DeleteCompanyResponse{}},
 				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+	}
+}
+
+// orgOperations declares the 4 org-hierarchy operations: the org overview,
+// the heartbeat kill switch (get/set), and the project-hq-role assignment
+// route. The set must stay 1:1 with the routes OrgController.Register mounts —
+// TestRouteSpecParity fails the build otherwise.
+func orgOperations() []operation {
+	return []operation{
+		{
+			method: http.MethodGet, path: "/api/v1/org/overview", id: "getOrgOverview", tag: "org",
+			summary: "Read the whole holding tree: holding HQ, companies, their HQ and delivery projects",
+			resps: []respUnit{
+				{http.StatusOK, controllers.OrgOverviewResponse{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodGet, path: "/api/v1/org/heartbeat", id: "getOrgHeartbeat", tag: "org",
+			summary: "Read the global heartbeat kill-switch state",
+			resps: []respUnit{
+				{http.StatusOK, controllers.OrgHeartbeatResponse{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodPut, path: "/api/v1/org/heartbeat", id: "setOrgHeartbeat", tag: "org",
+			summary: "Pause or resume the global heartbeat kill switch",
+			reqBody: orgsvc.SetHeartbeatPauseInput{},
+			resps: []respUnit{
+				{http.StatusOK, controllers.OrgHeartbeatResponse{}},
+				{http.StatusBadRequest, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodPut, path: "/api/v1/projects/{id}/hq", id: "setProjectHQRole", tag: "org",
+			summary:    "Set (or, with an empty role, clear) a project's HQ role",
+			pathParams: []any{controllers.ProjectIDParam{}},
+			reqBody:    orgsvc.SetHQRoleInput{},
+			resps: []respUnit{
+				{http.StatusOK, controllers.SetProjectHQRoleResponse{}},
+				{http.StatusBadRequest, envelope.APIError{}},
+				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusConflict, envelope.APIError{}},
 				{http.StatusInternalServerError, envelope.APIError{}},
 				{http.StatusNotImplemented, envelope.APIError{}},
 			},

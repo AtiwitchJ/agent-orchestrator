@@ -9,6 +9,7 @@ import (
 	"github.com/modernagent/modern-agent/backend/internal/legacyimport"
 	agentsvc "github.com/modernagent/modern-agent/backend/internal/service/agent"
 	companysvc "github.com/modernagent/modern-agent/backend/internal/service/company"
+	orgsvc "github.com/modernagent/modern-agent/backend/internal/service/org"
 	projectsvc "github.com/modernagent/modern-agent/backend/internal/service/project"
 	sessionsvc "github.com/modernagent/modern-agent/backend/internal/service/session"
 )
@@ -575,6 +576,23 @@ type CompanyIDParam struct {
 // DeleteCompanyResponse is the body of DELETE /api/v1/companies/{id}.
 type DeleteCompanyResponse struct {
 	Deleted bool `json:"deleted"`
+}
+
+// OrgOverviewResponse is the body of GET /api/v1/org/overview.
+type OrgOverviewResponse struct {
+	Overview orgsvc.Overview `json:"overview"`
+}
+
+// OrgHeartbeatResponse is the body of GET/PUT /api/v1/org/heartbeat.
+type OrgHeartbeatResponse struct {
+	Paused bool `json:"paused"`
+}
+
+// SetProjectHQRoleResponse is the body of PUT /api/v1/projects/{id}/hq (200).
+// Role echoes the now-current hq role ("" means cleared).
+type SetProjectHQRoleResponse struct {
+	ProjectID string `json:"projectId"`
+	Role      string `json:"role,omitempty"`
 }
 
 // ListProjectMessagesQuery is the query string accepted by

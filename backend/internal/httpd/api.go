@@ -13,6 +13,7 @@ import (
 	"github.com/modernagent/modern-agent/backend/internal/httpd/envelope"
 	"github.com/modernagent/modern-agent/backend/internal/ports"
 	companysvc "github.com/modernagent/modern-agent/backend/internal/service/company"
+	orgsvc "github.com/modernagent/modern-agent/backend/internal/service/org"
 	prsvc "github.com/modernagent/modern-agent/backend/internal/service/pr"
 	projectsvc "github.com/modernagent/modern-agent/backend/internal/service/project"
 	reviewsvc "github.com/modernagent/modern-agent/backend/internal/service/review"
@@ -23,6 +24,7 @@ type APIDeps struct {
 	Agents             controllers.AgentCatalog
 	Projects           projectsvc.Manager
 	Companies          companysvc.Manager
+	Org                orgsvc.Manager
 	Sessions           controllers.SessionService
 	Activity           controllers.ActivityRecorder
 	Messages           controllers.MessageService
@@ -43,6 +45,7 @@ type API struct {
 	agents        *controllers.AgentsController
 	projects      *controllers.ProjectsController
 	companies     *controllers.CompaniesController
+	org           *controllers.OrgController
 	sessions      *controllers.SessionsController
 	messages      *controllers.MessagesController
 	prs           *controllers.PRsController
@@ -66,6 +69,9 @@ func NewAPI(cfg config.Config, deps APIDeps) *API {
 		},
 		companies: &controllers.CompaniesController{
 			Mgr: deps.Companies,
+		},
+		org: &controllers.OrgController{
+			Mgr: deps.Org,
 		},
 		sessions: &controllers.SessionsController{
 			Svc:      deps.Sessions,
@@ -97,6 +103,7 @@ func (a *API) Register(root chi.Router) {
 			a.agents.Register(r)
 			a.projects.Register(r)
 			a.companies.Register(r)
+			a.org.Register(r)
 			a.sessions.Register(r)
 			a.messages.Register(r)
 			a.prs.Register(r)
