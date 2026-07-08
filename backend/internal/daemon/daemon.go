@@ -19,16 +19,17 @@ import (
 	"github.com/modernagent/modern-agent/backend/internal/domain"
 	"github.com/modernagent/modern-agent/backend/internal/httpd"
 	"github.com/modernagent/modern-agent/backend/internal/notify"
+	"github.com/modernagent/modern-agent/backend/internal/observe/heartbeat"
 	"github.com/modernagent/modern-agent/backend/internal/observe/stallmon"
 	"github.com/modernagent/modern-agent/backend/internal/ports"
 	"github.com/modernagent/modern-agent/backend/internal/preview"
 	"github.com/modernagent/modern-agent/backend/internal/runfile"
 	agentsvc "github.com/modernagent/modern-agent/backend/internal/service/agent"
 	companysvc "github.com/modernagent/modern-agent/backend/internal/service/company"
-	orgsvc "github.com/modernagent/modern-agent/backend/internal/service/org"
 	importsvc "github.com/modernagent/modern-agent/backend/internal/service/importer"
 	messagesvc "github.com/modernagent/modern-agent/backend/internal/service/message"
 	notificationsvc "github.com/modernagent/modern-agent/backend/internal/service/notification"
+	orgsvc "github.com/modernagent/modern-agent/backend/internal/service/org"
 	projectsvc "github.com/modernagent/modern-agent/backend/internal/service/project"
 	"github.com/modernagent/modern-agent/backend/internal/skillassets"
 	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
@@ -156,6 +157,19 @@ func Run() error {
 		Logger:      log,
 	}).Start(ctx)
 
+	// heartbeat periodically nudges a company PM or the holding CEO
+	// orchestrator to wake up, run `ao org status`, and act where needed. It
+	// is a hard no-op when AO_ORG_HEARTBEAT=off: heartbeatDone is a
+	// pre-closed channel so the shutdown drain below never blocks on it.
+	var heartbeatDone <-chan struct{}
+	if cfg.OrgHeartbeat {
+		heartbeatDone = heartbeat.New(store, sessionSvc, heartbeat.Config{Logger: log}).Start(ctx)
+	} else {
+		closed := make(chan struct{})
+		close(closed)
+		heartbeatDone = closed
+	}
+
 	srv, err := httpd.NewWithDeps(cfg, log, termMgr, httpd.APIDeps{
 		Projects:           projectsvc.NewWithDeps(projectsvc.Deps{Store: store, Sessions: sessionSvc, DefaultHarness: domain.AgentHarness(cfg.Agent), Telemetry: telemetrySink}),
 		Companies:          companysvc.New(store),
@@ -176,6 +190,7 @@ func Run() error {
 		stop()
 		<-previewDone
 		<-stallDone
+		<-heartbeatDone
 		lcStack.Stop()
 		if cdcErr := cdcPipe.Stop(); cdcErr != nil {
 			log.Error("cdc pipeline shutdown", "err", cdcErr)
@@ -223,6 +238,7 @@ func Run() error {
 	stop()
 	<-previewDone
 	<-stallDone
+	<-heartbeatDone
 	lcStack.Stop()
 	if err := cdcPipe.Stop(); err != nil {
 		log.Error("cdc pipeline shutdown", "err", err)

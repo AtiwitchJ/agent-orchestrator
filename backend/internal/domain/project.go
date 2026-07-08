@@ -34,6 +34,11 @@ const (
 	HQRoleHolding HQRole = "holding"
 )
 
+// OrgSettingHeartbeatPaused is the org_settings key for the global heartbeat
+// kill switch: a shared constant so service/org (which writes it) and
+// observe/heartbeat (which reads it) can't drift on the literal string.
+const OrgSettingHeartbeatPaused = "heartbeat_paused"
+
 // WithDefault returns ProjectKindSingleRepo when the stored value predates the kind column.
 func (k ProjectKind) WithDefault() ProjectKind {
 	if k == "" {

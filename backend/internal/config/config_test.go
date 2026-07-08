@@ -10,7 +10,7 @@ import (
 func TestLoadDefaults(t *testing.T) {
 	// Clear every recognised var so we observe pure defaults regardless of the
 	// surrounding environment.
-	for _, k := range []string{"AO_PORT", "AO_REQUEST_TIMEOUT", "AO_SHUTDOWN_TIMEOUT", "AO_RUN_FILE", "AO_DATA_DIR", "AO_AGENT", "AO_ALLOWED_ORIGINS", "AO_TELEMETRY_EVENTS", "AO_TELEMETRY_METRICS", "AO_TELEMETRY_REMOTE", "AO_TELEMETRY_POSTHOG_KEY", "AO_TELEMETRY_POSTHOG_HOST", "AO_STALL_THRESHOLD", "AO_STALL_AUTOKILL", "AO_WEB_UI_DIR"} {
+	for _, k := range []string{"AO_PORT", "AO_REQUEST_TIMEOUT", "AO_SHUTDOWN_TIMEOUT", "AO_RUN_FILE", "AO_DATA_DIR", "AO_AGENT", "AO_ALLOWED_ORIGINS", "AO_TELEMETRY_EVENTS", "AO_TELEMETRY_METRICS", "AO_TELEMETRY_REMOTE", "AO_TELEMETRY_POSTHOG_KEY", "AO_TELEMETRY_POSTHOG_HOST", "AO_STALL_THRESHOLD", "AO_STALL_AUTOKILL", "AO_ORG_HEARTBEAT", "AO_WEB_UI_DIR"} {
 		t.Setenv(k, "")
 	}
 
@@ -57,6 +57,9 @@ func TestLoadDefaults(t *testing.T) {
 	if !cfg.StallAutoKill {
 		t.Error("StallAutoKill = false, want true (default on)")
 	}
+	if !cfg.OrgHeartbeat {
+		t.Error("OrgHeartbeat = false, want true (default on)")
+	}
 }
 
 func TestLoadOverrides(t *testing.T) {
@@ -72,6 +75,7 @@ func TestLoadOverrides(t *testing.T) {
 	t.Setenv("AO_TELEMETRY_POSTHOG_HOST", "https://eu.i.posthog.com")
 	t.Setenv("AO_STALL_THRESHOLD", "90s")
 	t.Setenv("AO_STALL_AUTOKILL", "off")
+	t.Setenv("AO_ORG_HEARTBEAT", "off")
 
 	cfg, err := Load()
 	if err != nil {
@@ -103,6 +107,9 @@ func TestLoadOverrides(t *testing.T) {
 	}
 	if cfg.StallAutoKill {
 		t.Error("StallAutoKill = true, want false (overridden off)")
+	}
+	if cfg.OrgHeartbeat {
+		t.Error("OrgHeartbeat = true, want false (overridden off)")
 	}
 }
 

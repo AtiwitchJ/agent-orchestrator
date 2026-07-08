@@ -14,10 +14,6 @@ import (
 	"github.com/modernagent/modern-agent/backend/internal/httpd/apierr"
 )
 
-// heartbeatPausedSettingKey is the org_settings row that survives a daemon
-// restart so a human-initiated pause stays paused.
-const heartbeatPausedSettingKey = "heartbeat_paused"
-
 // Manager is the controller-facing contract for the /api/v1/org surface plus
 // the project-hq-role assignment endpoint.
 type Manager interface {
@@ -183,7 +179,7 @@ func (m *Service) Overview(ctx context.Context) (Overview, error) {
 // HeartbeatPaused reports the current global heartbeat kill-switch state. An
 // unset setting (never paused, or a fresh daemon) means not paused.
 func (m *Service) HeartbeatPaused(ctx context.Context) (bool, error) {
-	v, ok, err := m.store.GetOrgSetting(ctx, heartbeatPausedSettingKey)
+	v, ok, err := m.store.GetOrgSetting(ctx, domain.OrgSettingHeartbeatPaused)
 	if err != nil {
 		return false, apierr.Internal("ORG_SETTING_LOAD_FAILED", "Failed to load heartbeat pause setting")
 	}
@@ -199,7 +195,7 @@ func (m *Service) SetHeartbeatPaused(ctx context.Context, paused bool) error {
 	if paused {
 		value = "true"
 	}
-	if err := m.store.SetOrgSetting(ctx, heartbeatPausedSettingKey, value); err != nil {
+	if err := m.store.SetOrgSetting(ctx, domain.OrgSettingHeartbeatPaused, value); err != nil {
 		return apierr.Internal("ORG_SETTING_SET_FAILED", "Failed to set heartbeat pause setting")
 	}
 	return nil

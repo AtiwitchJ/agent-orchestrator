@@ -113,6 +113,10 @@ type Config struct {
 	// status badge is derived independently in deriveStatus and always shows
 	// regardless of this flag. Overridden by AO_STALL_AUTOKILL. Default on.
 	StallAutoKill bool
+	// OrgHeartbeat gates whether the heartbeat observer is wired up at all —
+	// a hard off-switch independent of the per-HQ config and the org_settings
+	// pause flag. Overridden by AO_ORG_HEARTBEAT. Default on.
+	OrgHeartbeat bool
 }
 
 // Addr returns the host:port the HTTP server binds. It uses net.JoinHostPort so
@@ -141,6 +145,7 @@ func (c Config) Addr() string {
 //	AO_TELEMETRY_POSTHOG_HOST  PostHog host (default DefaultTelemetryPostHogHost)
 //	AO_STALL_THRESHOLD   stall silence threshold (Go duration > 0, default 4m)
 //	AO_STALL_AUTOKILL    auto-kill confirmed-stalled sessions off|on (default on)
+//	AO_ORG_HEARTBEAT     wire up the HQ heartbeat observer off|on (default on)
 //	AO_WEB_UI_DIR        SPA bundle directory served at / (default ~/.ao/web if present)
 //
 // The bind host is not configurable: the daemon is loopback-only by design.
@@ -158,6 +163,7 @@ func Load() (Config, error) {
 		},
 		StallThreshold: DefaultStallThreshold,
 		StallAutoKill:  true,
+		OrgHeartbeat:   true,
 	}
 
 	if raw := os.Getenv("AO_PORT"); raw != "" {
@@ -251,6 +257,13 @@ func Load() (Config, error) {
 			return Config{}, err
 		}
 		cfg.StallAutoKill = v
+	}
+	if raw := os.Getenv("AO_ORG_HEARTBEAT"); raw != "" {
+		v, err := parseToggleEnv("AO_ORG_HEARTBEAT", raw)
+		if err != nil {
+			return Config{}, err
+		}
+		cfg.OrgHeartbeat = v
 	}
 
 	runFile, err := resolveRunFilePath()
