@@ -567,6 +567,16 @@ type AssignProjectCompanyResponse struct {
 	CompanyID string `json:"companyId,omitempty"`
 }
 
+// CompanyIDParam is the {id} path parameter for company routes.
+type CompanyIDParam struct {
+	ID string `path:"id" description:"Company identifier."`
+}
+
+// DeleteCompanyResponse is the body of DELETE /api/v1/companies/{id}.
+type DeleteCompanyResponse struct {
+	Deleted bool `json:"deleted"`
+}
+
 // ListProjectMessagesQuery is the query string accepted by
 // GET /api/v1/projects/{id}/messages.
 type ListProjectMessagesQuery struct {

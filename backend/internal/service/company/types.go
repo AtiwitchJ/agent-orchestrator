@@ -22,3 +22,8 @@ type CreateInput struct {
 type AssignProjectInput struct {
 	CompanyID string `json:"companyId"`
 }
+
+// DeleteResult is the body shape for DELETE /api/v1/companies/{id}.
+type DeleteResult struct {
+	Deleted bool `json:"deleted"`
+}

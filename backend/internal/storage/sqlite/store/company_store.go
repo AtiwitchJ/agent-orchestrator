@@ -62,6 +62,13 @@ func (s *Store) SetProjectCompany(ctx context.Context, projectID string, company
 	return n > 0, nil
 }
 
+// DeleteCompany removes a company by id.
+func (s *Store) DeleteCompany(ctx context.Context, id string) (int64, error) {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return s.qw.DeleteCompany(ctx, id)
+}
+
 func companyRowFromGen(c gen.Company) domain.CompanyRecord {
 	return domain.CompanyRecord{
 		ID:        c.ID,

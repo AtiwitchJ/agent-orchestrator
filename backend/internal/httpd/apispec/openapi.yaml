@@ -119,6 +119,45 @@ paths:
       summary: Register a new company
       tags:
       - companies
+  /api/v1/companies/{id}:
+    delete:
+      operationId: deleteCompany
+      parameters:
+      - description: Company identifier.
+        in: path
+        name: id
+        required: true
+        schema:
+          description: Company identifier.
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteCompanyResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Delete a company
+      tags:
+      - companies
   /api/v1/events:
     get:
       operationId: streamEvents
@@ -1913,6 +1952,13 @@ components:
       - kind
       - path
       - resolveError
+      type: object
+    DeleteCompanyResponse:
+      properties:
+        deleted:
+          type: boolean
+      required:
+      - deleted
       type: object
     DomainActivity:
       properties:

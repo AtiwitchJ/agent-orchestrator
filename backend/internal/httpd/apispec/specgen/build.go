@@ -222,6 +222,8 @@ var schemaNames = map[string]string{
 	"ControllersListCompaniesResponse":        "ListCompaniesResponse",
 	"ControllersCompanyResponse":              "CompanyResponse",
 	"ControllersAssignProjectCompanyResponse": "AssignProjectCompanyResponse",
+	"ControllersCompanyIDParam":               "CompanyIDParam",
+	"ControllersDeleteCompanyResponse":        "DeleteCompanyResponse",
 }
 
 // markRequestBodyRequired sets requestBody.required: true on the operation's
@@ -563,6 +565,17 @@ func companyOperations() []operation {
 			resps: []respUnit{
 				{http.StatusOK, controllers.AssignProjectCompanyResponse{}},
 				{http.StatusBadRequest, envelope.APIError{}},
+				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodDelete, path: "/api/v1/companies/{id}", id: "deleteCompany", tag: "companies",
+			summary:    "Delete a company",
+			pathParams: []any{controllers.CompanyIDParam{}},
+			resps: []respUnit{
+				{http.StatusOK, controllers.DeleteCompanyResponse{}},
 				{http.StatusNotFound, envelope.APIError{}},
 				{http.StatusInternalServerError, envelope.APIError{}},
 				{http.StatusNotImplemented, envelope.APIError{}},

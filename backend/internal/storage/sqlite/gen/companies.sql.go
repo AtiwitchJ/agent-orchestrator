@@ -13,6 +13,18 @@ import (
 	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
+const deleteCompany = `-- name: DeleteCompany :execrows
+DELETE FROM companies WHERE id = ?
+`
+
+func (q *Queries) DeleteCompany(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteCompany, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getCompany = `-- name: GetCompany :one
 SELECT id, name, created_at FROM companies WHERE id = ?
 `

@@ -137,19 +137,16 @@ export function Sidebar({
 	underTopbar = true,
 	workspaceError,
 	workspaces,
-	onCreateProject,
 	onRemoveProject,
 }: SidebarProps) {
 	const selection = useSelection();
 	const eventsConnection = useEventsConnection();
 	const { state } = useSidebar();
-	const isCollapsed = state === "collapsed";
 	// Companies group projects in the sidebar; an empty list (no companies ever
 	// created) means every existing user sees the exact flat list they always
 	// have — no grouping wrapper, no "Unassigned" header.
 	const companiesQuery = useCompaniesQuery();
 	const companies = companiesQuery.data ?? [];
-	const hasCompanies = companies.length > 0;
 	const theme = useUiStore((s) => s.theme);
 	const toggleTheme = useUiStore((s) => s.toggleTheme);
 	// Disclosure state: projects are expanded by default; a project id present in
@@ -247,9 +244,8 @@ export function Sidebar({
 					{/* Section label (project-sidebar__nav-label) */}
 					<div className="flex shrink-0 items-center justify-between px-2 pb-2 group-data-[collapsible=icon]:hidden">
 						<SidebarGroupLabel className="h-auto rounded-none p-0 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-passive">
-							Projects
+							UPPU Holdings Org
 						</SidebarGroupLabel>
-						<CreateProjectButton onCreateProject={onCreateProject} />
 					</div>
 
 					{/* Tree (project-sidebar__tree) */}
@@ -259,14 +255,7 @@ export function Sidebar({
 								<p className="text-[12px] text-foreground">Could not load projects.</p>
 								<p className="mt-1 text-[11px] text-passive">{workspaceError}</p>
 							</div>
-						) : workspaces.length === 0 ? (
-							<div className="px-2 py-3 group-data-[collapsible=icon]:hidden">
-								<p className="text-[12px] text-passive">No projects yet.</p>
-								<p className="mt-1 text-[11px] text-passive">
-									Click <span className="text-foreground">+</span> above to register a git repo.
-								</p>
-							</div>
-						) : hasCompanies ? (
+						) : (
 							<SidebarMenu className="gap-0 group-data-[collapsible=icon]:gap-1">
 								{groupWorkspacesByCompany(workspaces, companies).map((group) => (
 									<CompanyGroup
@@ -278,21 +267,6 @@ export function Sidebar({
 										selection={selection}
 									/>
 								))}
-								{isCollapsed && <CreateProjectListItem onCreateProject={onCreateProject} />}
-							</SidebarMenu>
-						) : (
-							<SidebarMenu className="gap-0 group-data-[collapsible=icon]:gap-1">
-								{workspaces.map((workspace) => (
-									<ProjectItem
-										key={workspace.id}
-										workspace={workspace}
-										expanded={!collapsedIds.has(workspace.id)}
-										selection={selection}
-										onToggle={() => toggleCollapsed(workspace.id)}
-										onRemoveProject={onRemoveProject}
-									/>
-								))}
-								{isCollapsed && <CreateProjectListItem onCreateProject={onCreateProject} />}
 							</SidebarMenu>
 						)}
 					</SidebarGroupContent>
@@ -794,55 +768,7 @@ function SessionRow({ session, active, onOpen }: { session: WorkspaceSession; ac
 	);
 }
 
-function CreateProjectButton({ onCreateProject }: Pick<SidebarProps, "onCreateProject">) {
-	return (
-		<CreateProjectFlow onCreateProject={onCreateProject}>
-			{({ disabled, choosePath, label }) => (
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<button
-							aria-label="New project"
-							className="grid h-[18px] w-[18px] place-items-center rounded-[4px] text-passive transition-colors hover:bg-interactive-hover hover:text-muted-foreground"
-							disabled={disabled}
-							onClick={choosePath}
-							type="button"
-						>
-							<Plus className="h-[13px] w-[13px]" aria-hidden="true" />
-						</button>
-					</TooltipTrigger>
-					<TooltipContent>{label}</TooltipContent>
-				</Tooltip>
-			)}
-		</CreateProjectFlow>
-	);
-}
-
-function CreateProjectListItem({ onCreateProject }: Pick<SidebarProps, "onCreateProject">) {
-	return (
-		<CreateProjectFlow onCreateProject={onCreateProject}>
-			{({ disabled, choosePath, label }) => (
-				<SidebarMenuItem className="mb-px group-data-[collapsible=icon]:mb-0">
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<button
-								aria-label="New project"
-								className="grid h-9 w-full place-items-center rounded-[5px] text-passive transition-colors hover:bg-interactive-hover hover:text-muted-foreground"
-								disabled={disabled}
-								onClick={choosePath}
-								type="button"
-							>
-								<Plus className="h-[13px] w-[13px]" aria-hidden="true" />
-							</button>
-						</TooltipTrigger>
-						<TooltipContent>{label}</TooltipContent>
-					</Tooltip>
-				</SidebarMenuItem>
-			)}
-		</CreateProjectFlow>
-	);
-}
-
-function CreateProjectFlow({
+export function CreateProjectFlow({
 	children,
 	onCreateProject,
 }: Pick<SidebarProps, "onCreateProject"> & {

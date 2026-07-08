@@ -28,6 +28,9 @@ type Manager interface {
 	// AssignProject sets (or, when CompanyID is "", clears) a project's company.
 	// A non-empty CompanyID must name an existing company.
 	AssignProject(ctx context.Context, projectID domain.ProjectID, in AssignProjectInput) error
+
+	// Delete removes a company.
+	Delete(ctx context.Context, id string) error
 }
 
 // Service implements the company use-cases for controllers.
@@ -110,6 +113,18 @@ func (m *Service) AssignProject(ctx context.Context, projectID domain.ProjectID,
 	}
 	if !ok {
 		return apierr.NotFound("PROJECT_NOT_FOUND", "Unknown project")
+	}
+	return nil
+}
+
+// Delete removes a company.
+func (m *Service) Delete(ctx context.Context, id string) error {
+	rows, err := m.store.DeleteCompany(ctx, id)
+	if err != nil {
+		return apierr.Internal("COMPANY_DELETE_FAILED", "Failed to delete company")
+	}
+	if rows == 0 {
+		return apierr.NotFound("COMPANY_NOT_FOUND", "Unknown company")
 	}
 	return nil
 }

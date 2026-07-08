@@ -22,6 +22,7 @@ func (c *CompaniesController) Register(r chi.Router) {
 	r.Get("/companies", c.list)
 	r.Post("/companies", c.create)
 	r.Put("/projects/{id}/company", c.assignProject)
+	r.Delete("/companies/{id}", c.delete)
 }
 
 func (c *CompaniesController) list(w http.ResponseWriter, r *http.Request) {
@@ -74,4 +75,17 @@ func (c *CompaniesController) assignProject(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	envelope.WriteJSON(w, http.StatusOK, AssignProjectCompanyResponse{ProjectID: string(id), CompanyID: in.CompanyID})
+}
+
+func (c *CompaniesController) delete(w http.ResponseWriter, r *http.Request) {
+	if c.Mgr == nil {
+		apispec.NotImplemented(w, r, "DELETE", "/api/v1/companies/{id}")
+		return
+	}
+	id := chi.URLParam(r, "id")
+	if err := c.Mgr.Delete(r.Context(), id); err != nil {
+		envelope.WriteError(w, r, err)
+		return
+	}
+	envelope.WriteJSON(w, http.StatusOK, DeleteCompanyResponse{Deleted: true})
 }

@@ -7,6 +7,7 @@ import { Sidebar } from "../components/Sidebar";
 import { SidebarProvider } from "../components/ui/sidebar";
 import { TitlebarNav } from "../components/TitlebarNav";
 import { agentsQueryKey, agentsQueryOptions, refreshAgents } from "../hooks/useAgentsQuery";
+import { companiesQueryKey, companiesQueryOptions } from "../hooks/useCompaniesQuery";
 import { useDaemonStatus } from "../hooks/useDaemonStatus";
 import { useWorkspaceQuery, workspaceQueryKey, workspaceQueryOptions } from "../hooks/useWorkspaceQuery";
 import { apiClient, apiErrorMessage } from "../lib/api-client";
@@ -26,7 +27,10 @@ export const Route = createFileRoute("/_shell")({
 	// nav target is warm before the click.
 	loader: async ({ context }) => {
 		await refreshDaemonStatus().catch(() => undefined);
-		return context.queryClient.ensureQueryData(workspaceQueryOptions);
+		return Promise.all([
+			context.queryClient.ensureQueryData(workspaceQueryOptions),
+			context.queryClient.ensureQueryData(companiesQueryOptions).catch(() => undefined)
+		]);
 	},
 	component: ShellLayout,
 });
@@ -69,6 +73,7 @@ function ShellLayout() {
 			workerAgent: string;
 			orchestratorAgent: string;
 			trackerIntake?: components["schemas"]["TrackerIntakeConfig"];
+			companyId?: string;
 		}) => {
 			void addRendererExceptionStep("Project add requested", {
 				source: "project-add",
@@ -101,11 +106,22 @@ function ShellLayout() {
 			}
 			if (!data?.project) throw new Error("Project creation returned no project");
 
+			if (input.companyId) {
+				const { error: companyError } = await apiClient.PUT("/api/v1/projects/{id}/company", {
+					params: { path: { id: data.project.id } },
+					body: { companyId: input.companyId },
+				});
+				if (companyError) {
+					console.warn("Failed to assign company during project creation:", companyError);
+				}
+			}
+
 			const workspace: WorkspaceSummary = {
 				id: data.project.id,
 				name: data.project.name,
 				path: data.project.path,
 				type: "main",
+				companyId: input.companyId,
 				orchestratorAgent: input.orchestratorAgent as WorkspaceSummary["orchestratorAgent"],
 				sessions: [],
 			};
@@ -183,6 +199,7 @@ function ShellLayout() {
 		void queryClient.invalidateQueries({ queryKey: agentsQueryKey });
 		void queryClient.fetchQuery({ ...agentsQueryOptions, queryFn: refreshAgents });
 		void queryClient.invalidateQueries({ queryKey: workspaceQueryKey });
+		void queryClient.invalidateQueries({ queryKey: companiesQueryKey });
 	}, [daemonStatus.port, daemonStatus.state, queryClient]);
 
 	// Follow OS appearance only until the user picks a theme explicitly.

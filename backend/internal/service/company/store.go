@@ -14,4 +14,5 @@ type Store interface {
 	// SetProjectCompany assigns (companyID != "") or unassigns (companyID == "")
 	// a project's company, reporting whether the project id was known.
 	SetProjectCompany(ctx context.Context, projectID string, companyID string) (bool, error)
+	DeleteCompany(ctx context.Context, id string) (int64, error)
 }

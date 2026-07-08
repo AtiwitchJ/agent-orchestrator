@@ -18,6 +18,7 @@ export type CreateProjectAgentSelection = {
 	workerAgent: string;
 	orchestratorAgent: string;
 	trackerIntake?: TrackerIntakeConfig;
+	companyId?: string;
 };
 
 const EMPTY_INTAKE: IntakeForm = { enabled: false, repo: "", assignee: "" };
@@ -29,6 +30,7 @@ type CreateProjectAgentSheetProps = {
 	onSubmit: (selection: CreateProjectAgentSelection) => Promise<void>;
 	open: boolean;
 	path: string | null;
+	targetCompanyId?: string;
 };
 
 export function CreateProjectAgentSheet({
@@ -38,6 +40,7 @@ export function CreateProjectAgentSheet({
 	onSubmit,
 	open,
 	path,
+	targetCompanyId,
 }: CreateProjectAgentSheetProps) {
 	const queryClient = useQueryClient();
 	const agentsQuery = useQuery({
@@ -101,7 +104,7 @@ export function CreateProjectAgentSheet({
 						onSubmit={(event) => {
 							event.preventDefault();
 							if (!canSubmit) return;
-							void onSubmit({ workerAgent, orchestratorAgent, trackerIntake: buildIntake(intake) });
+							void onSubmit({ workerAgent, orchestratorAgent, trackerIntake: buildIntake(intake), companyId: targetCompanyId });
 						}}
 					>
 						<div className="grid gap-3 sm:grid-cols-2">
