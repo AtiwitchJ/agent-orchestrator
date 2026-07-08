@@ -23,6 +23,7 @@ type fakeStore struct {
 	sessions  map[domain.SessionID]domain.SessionRecord
 	pr        map[domain.SessionID]domain.PRFacts
 	projects  map[string]domain.ProjectRecord
+	companies map[string]domain.CompanyRecord
 	num       int
 	deleteErr error
 	// worktrees maps session ID to its saved worktree rows (shutdown-saved marker).
@@ -37,12 +38,27 @@ func newFakeStore() *fakeStore {
 		sessions:  map[domain.SessionID]domain.SessionRecord{},
 		pr:        map[domain.SessionID]domain.PRFacts{},
 		projects:  map[string]domain.ProjectRecord{},
+		companies: map[string]domain.CompanyRecord{},
 		worktrees: map[domain.SessionID][]domain.SessionWorktreeRecord{},
 	}
 }
 func (f *fakeStore) GetProject(_ context.Context, id string) (domain.ProjectRecord, bool, error) {
 	r, ok := f.projects[id]
 	return r, ok, nil
+}
+func (f *fakeStore) ListProjects(context.Context) ([]domain.ProjectRecord, error) {
+	out := make([]domain.ProjectRecord, 0, len(f.projects))
+	for _, p := range f.projects {
+		out = append(out, p)
+	}
+	return out, nil
+}
+func (f *fakeStore) ListCompanies(context.Context) ([]domain.CompanyRecord, error) {
+	out := make([]domain.CompanyRecord, 0, len(f.companies))
+	for _, c := range f.companies {
+		out = append(out, c)
+	}
+	return out, nil
 }
 func (f *fakeStore) CreateSession(_ context.Context, rec domain.SessionRecord) (domain.SessionRecord, error) {
 	f.num++
@@ -852,6 +868,80 @@ func TestSpawnOrchestrator_UsesCoordinatorPrompt(t *testing.T) {
 	// must deliver nothing to the agent, leaving it idle at an empty input box.
 	if agent.lastLaunch.Prompt != "" {
 		t.Fatalf("prompt = %q, want empty (no kickoff turn)", agent.lastLaunch.Prompt)
+	}
+}
+
+// TestSpawnOrchestrator_CompanyHQUsesPMPrompt: an orchestrator spawned in a
+// project whose HQRole is HQRoleCompany gets the PM prompt, enumerating the
+// company's other projects and their running orchestrators, and omitting the
+// HQ project and any other company's projects.
+func TestSpawnOrchestrator_CompanyHQUsesPMPrompt(t *testing.T) {
+	st := newFakeStore()
+	st.projects["acme-hq"] = domain.ProjectRecord{ID: "acme-hq", CompanyID: "acme", HQRole: domain.HQRoleCompany, Config: testRoleAgents()}
+	st.projects["acme-api"] = domain.ProjectRecord{ID: "acme-api", DisplayName: "Acme API", CompanyID: "acme"}
+	st.projects["acme-web"] = domain.ProjectRecord{ID: "acme-web", DisplayName: "Acme Web", CompanyID: "acme"}
+	st.projects["other-co"] = domain.ProjectRecord{ID: "other-co", CompanyID: "other"}
+	st.sessions["acme-api-1"] = domain.SessionRecord{ID: "acme-api-1", ProjectID: "acme-api", Kind: domain.KindOrchestrator}
+	agent := &recordingAgent{}
+	lookPath := func(string) (string, error) { return "/bin/true", nil }
+	m := New(Deps{Runtime: &fakeRuntime{}, Agents: singleAgent{agent: agent}, Workspace: &fakeWorkspace{}, Store: st, Messenger: &fakeMessenger{}, Lifecycle: &fakeLCM{store: st}, LookPath: lookPath})
+
+	_, err := m.Spawn(ctx, ports.SpawnConfig{ProjectID: "acme-hq", Kind: domain.KindOrchestrator})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sp := agent.lastLaunch.SystemPrompt
+	for _, want := range []string{
+		"## PM role",
+		"PM (project manager) orchestrator for company acme",
+		"acme-api (Acme API) — orchestrator running: acme-api-1",
+		"acme-web (Acme Web) — no orchestrator running. Start one with `ao orchestrator spawn --project acme-web`.",
+		"ao org status",
+		"## Heartbeat protocol",
+	} {
+		if !strings.Contains(sp, want) {
+			t.Fatalf("system prompt missing %q:\n%s", want, sp)
+		}
+	}
+	for _, notWant := range []string{"acme-hq (", "other-co ("} {
+		if strings.Contains(sp, notWant) {
+			t.Fatalf("system prompt must not list %q:\n%s", notWant, sp)
+		}
+	}
+}
+
+// TestSpawnOrchestrator_HoldingHQUsesCEOPrompt: an orchestrator spawned in the
+// project whose HQRole is HQRoleHolding gets the CEO prompt, enumerating every
+// company and its PM's running orchestrator when the company has one.
+func TestSpawnOrchestrator_HoldingHQUsesCEOPrompt(t *testing.T) {
+	st := newFakeStore()
+	st.projects["uppu-hq"] = domain.ProjectRecord{ID: "uppu-hq", HQRole: domain.HQRoleHolding, Config: testRoleAgents()}
+	st.projects["acme-hq"] = domain.ProjectRecord{ID: "acme-hq", CompanyID: "acme", HQRole: domain.HQRoleCompany}
+	st.projects["bravo-hq"] = domain.ProjectRecord{ID: "bravo-hq", CompanyID: "bravo", HQRole: domain.HQRoleCompany}
+	st.companies["acme"] = domain.CompanyRecord{ID: "acme", Name: "Acme"}
+	st.companies["bravo"] = domain.CompanyRecord{ID: "bravo", Name: "Bravo"}
+	st.sessions["acme-hq-1"] = domain.SessionRecord{ID: "acme-hq-1", ProjectID: "acme-hq", Kind: domain.KindOrchestrator}
+	agent := &recordingAgent{}
+	lookPath := func(string) (string, error) { return "/bin/true", nil }
+	m := New(Deps{Runtime: &fakeRuntime{}, Agents: singleAgent{agent: agent}, Workspace: &fakeWorkspace{}, Store: st, Messenger: &fakeMessenger{}, Lifecycle: &fakeLCM{store: st}, LookPath: lookPath})
+
+	_, err := m.Spawn(ctx, ports.SpawnConfig{ProjectID: "uppu-hq", Kind: domain.KindOrchestrator})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sp := agent.lastLaunch.SystemPrompt
+	for _, want := range []string{
+		"## CEO role",
+		"CEO orchestrator for this holding",
+		"acme (Acme) — PM running: acme-hq-1",
+		"bravo (Bravo) — no PM running yet.",
+		"Escalate to the human only for decisions no PM can resolve",
+	} {
+		if !strings.Contains(sp, want) {
+			t.Fatalf("system prompt missing %q:\n%s", want, sp)
+		}
 	}
 }
 
