@@ -6,6 +6,7 @@ import { useWorkspaceQuery } from "../hooks/useWorkspaceQuery";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { CreateProjectFlow } from "../components/Sidebar";
+import { HQSection } from "../components/HQSection";
 import { useShell } from "../lib/shell-context";
 import { sessionIsActive } from "../types/workspace";
 import { apiClient, apiErrorMessage } from "../lib/api-client";
@@ -26,10 +27,12 @@ function CompanyDashboard() {
 	const isUnassigned = companyId === "unassigned";
 	
 	const workspaces = workspacesQuery.data ?? [];
-	const companyProjects = workspaces.filter((ws) => {
-		if (isUnassigned) return !ws.companyId;
-		return ws.companyId === companyId;
-	});
+	// All of the company's projects, including its HQ — used for the
+	// delete-blocking check so deleting a company never orphans its HQ project.
+	const allCompanyProjects = workspaces.filter((ws) => (isUnassigned ? !ws.companyId : ws.companyId === companyId));
+	// The ordinary project grid excludes the HQ project — it renders in
+	// HQSection above the grid instead.
+	const companyProjects = allCompanyProjects.filter((ws) => !ws.hqRole);
 
 	const deleteCompanyMutation = useMutation({
 		mutationFn: async () => {
@@ -48,7 +51,7 @@ function CompanyDashboard() {
 	});
 
 	const handleDeleteCompany = () => {
-		if (companyProjects.length > 0) {
+		if (allCompanyProjects.length > 0) {
 			alert("Cannot delete a company with active projects. Please reassign or delete the projects first.");
 			return;
 		}
@@ -104,6 +107,8 @@ function CompanyDashboard() {
 						</CreateProjectFlow>
 					</div>
 				</div>
+
+				{!isUnassigned && <HQSection scope={{ kind: "company", companyId }} />}
 
 				{workspacesQuery.isLoading ? (
 					<div className="text-slate-500">Loading projects...</div>

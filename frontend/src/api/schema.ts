@@ -958,6 +958,7 @@ export interface components {
         };
         ProjectSummary: {
             companyId?: string;
+            hqRole?: string;
             id: string;
             kind: string;
             name: string;

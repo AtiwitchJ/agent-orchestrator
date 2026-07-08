@@ -378,6 +378,8 @@ export type WorkspaceSummary = {
 	};
 	/** Company this project is grouped under in the sidebar, if any. */
 	companyId?: string;
+	/** "company" | "holding" when this project is a PM/CEO headquarters, else unset. */
+	hqRole?: string;
 	sessions: WorkspaceSession[];
 };
 

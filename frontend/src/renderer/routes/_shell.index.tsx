@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Building2, Plus, ArrowRight, Briefcase } from "lucide-react";
@@ -10,6 +10,8 @@ import { Input } from "../components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { groupWorkspacesByCompany, sessionIsActive } from "../types/workspace";
 import { MigrationPopup } from "../components/MigrationPopup";
+import { HQSection } from "../components/HQSection";
+import { HeartbeatPauseSwitch } from "../components/HeartbeatPauseSwitch";
 
 export const Route = createFileRoute("/_shell/")({
 	component: CEODashboard,
@@ -82,10 +84,13 @@ function CEODashboard() {
 							</Button>
 						</form>
 					) : (
-						<Button onClick={() => setIsCreating(true)} className="gap-2">
-							<Plus size={16} />
-							Add Company
-						</Button>
+						<div className="flex items-center gap-4">
+							<HeartbeatPauseSwitch />
+							<Button onClick={() => setIsCreating(true)} className="gap-2">
+								<Plus size={16} />
+								Add Company
+							</Button>
+						</div>
 					)}
 				</div>
 
@@ -94,6 +99,8 @@ function CEODashboard() {
 						{error}
 					</div>
 				)}
+
+				<HQSection scope={{ kind: "holding" }} />
 
 				{companiesQuery.isLoading || workspacesQuery.isLoading ? (
 					<div className="text-slate-500">Loading holdings data...</div>

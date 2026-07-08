@@ -2633,6 +2633,8 @@ components:
       properties:
         companyId:
           type: string
+        hqRole:
+          type: string
         id:
           type: string
         kind:

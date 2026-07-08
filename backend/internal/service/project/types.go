@@ -13,6 +13,8 @@ type Summary struct {
 	ResolveError      string              `json:"resolveError,omitempty"`
 	// CompanyID is the durable company grouping fact (see domain.ProjectRecord.CompanyID).
 	CompanyID string `json:"companyId,omitempty"`
+	// HQRole marks this project as a PM/CEO headquarters (see domain.ProjectRecord.HQRole).
+	HQRole string `json:"hqRole,omitempty"`
 }
 
 // Project is the full read-model returned by GET /api/v1/projects/{id}.

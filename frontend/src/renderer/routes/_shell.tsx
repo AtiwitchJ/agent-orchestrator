@@ -74,6 +74,7 @@ function ShellLayout() {
 			orchestratorAgent: string;
 			trackerIntake?: components["schemas"]["TrackerIntakeConfig"];
 			companyId?: string;
+			hqRole?: "company" | "holding";
 		}) => {
 			void addRendererExceptionStep("Project add requested", {
 				source: "project-add",
@@ -116,12 +117,25 @@ function ShellLayout() {
 				}
 			}
 
+			if (input.hqRole) {
+				// Set BEFORE the orchestrator spawn below so its very first system
+				// prompt is already the PM/CEO role prompt, not the ordinary one.
+				const { error: hqError } = await apiClient.PUT("/api/v1/projects/{id}/hq", {
+					params: { path: { id: data.project.id } },
+					body: { role: input.hqRole },
+				});
+				if (hqError) {
+					console.warn("Failed to set hq role during project creation:", hqError);
+				}
+			}
+
 			const workspace: WorkspaceSummary = {
 				id: data.project.id,
 				name: data.project.name,
 				path: data.project.path,
 				type: "main",
 				companyId: input.companyId,
+				hqRole: input.hqRole,
 				orchestratorAgent: input.orchestratorAgent as WorkspaceSummary["orchestratorAgent"],
 				sessions: [],
 			};

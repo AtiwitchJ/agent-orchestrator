@@ -7,7 +7,6 @@ import {
 	Moon,
 	MoreVertical,
 	Pencil,
-	Plus,
 	Search,
 	Settings,
 	Sun,
@@ -578,6 +577,14 @@ function ProjectItem({
 				/>
 				<span className="hidden group-data-[collapsible=icon]:block">{workspace.name.charAt(0).toUpperCase()}</span>
 				<span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">{workspace.name}</span>
+				{workspace.hqRole && (
+					<span
+						className="shrink-0 rounded bg-amber-500/20 px-1 font-mono text-[9px] font-semibold leading-none text-amber-400 group-data-[collapsible=icon]:hidden"
+						title={workspace.hqRole === "holding" ? "Holding CEO headquarters" : "Company PM headquarters"}
+					>
+						HQ
+					</span>
+				)}
 				<span className="hidden h-4 min-w-4 shrink-0 place-items-center rounded bg-interactive-hover px-1 font-mono text-[10px] leading-none text-passive">
 					{sessions.length}
 				</span>

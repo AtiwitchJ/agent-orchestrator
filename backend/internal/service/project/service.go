@@ -111,6 +111,7 @@ func (m *Service) List(ctx context.Context) ([]Summary, error) {
 			SessionPrefix:     resolveSessionPrefix(row),
 			OrchestratorAgent: row.Config.Orchestrator.Harness,
 			CompanyID:         row.CompanyID,
+			HQRole:            string(row.HQRole),
 		})
 	}
 	return out, nil
