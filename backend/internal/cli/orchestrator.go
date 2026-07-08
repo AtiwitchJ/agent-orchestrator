@@ -24,6 +24,54 @@ func newOrchestratorCommand(ctx *commandContext) *cobra.Command {
 		Short: "Manage orchestrator sessions",
 	}
 	cmd.AddCommand(newOrchestratorListCommand(ctx))
+	cmd.AddCommand(newOrchestratorSpawnCommand(ctx))
+	return cmd
+}
+
+type orchestratorSpawnOptions struct {
+	project string
+	clean   bool
+}
+
+// spawnOrchestratorRequest mirrors the daemon's SpawnOrchestratorRequest body
+// for POST /api/v1/orchestrators. The CLI keeps its own copy so it need not
+// import httpd.
+type spawnOrchestratorRequest struct {
+	ProjectID string `json:"projectId"`
+	Clean     bool   `json:"clean,omitempty"`
+}
+
+type spawnOrchestratorResult struct {
+	Orchestrator struct {
+		ID        string `json:"id"`
+		ProjectID string `json:"projectId"`
+	} `json:"orchestrator"`
+}
+
+func newOrchestratorSpawnCommand(ctx *commandContext) *cobra.Command {
+	var opts orchestratorSpawnOptions
+	cmd := &cobra.Command{
+		Use:   "spawn",
+		Short: "Spawn (or replace) a project's orchestrator session",
+		Long: "Spawn a project's orchestrator session. A project has at most one active\n" +
+			"orchestrator: without --clean, an existing active orchestrator is returned\n" +
+			"unchanged; with --clean, it is retired and a fresh one is spawned.",
+		Args: noArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if strings.TrimSpace(opts.project) == "" {
+				return usageError{fmt.Errorf("--project is required")}
+			}
+			var res spawnOrchestratorResult
+			req := spawnOrchestratorRequest{ProjectID: opts.project, Clean: opts.clean}
+			if err := ctx.postJSON(cmd.Context(), "orchestrators", req, &res); err != nil {
+				return err
+			}
+			_, err := fmt.Fprintf(cmd.OutOrStdout(), "spawned orchestrator %s for project %s\n", res.Orchestrator.ID, res.Orchestrator.ProjectID)
+			return err
+		},
+	}
+	cmd.Flags().StringVar(&opts.project, "project", "", "Project id to spawn the orchestrator in (required)")
+	cmd.Flags().BoolVar(&opts.clean, "clean", false, "Retire any existing active orchestrator and spawn a fresh one")
 	return cmd
 }
 

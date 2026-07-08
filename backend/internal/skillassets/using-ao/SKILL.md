@@ -13,7 +13,8 @@ trigger: Using the ao CLI in an AO workspace: spawning workers, managing session
 | `spawn` | Spawn a worker agent in a fresh git worktree | Starting a new task or issue | [commands/spawn.md](commands/spawn.md) |
 | `session` | Manage agent sessions (list, kill, rename, restore, etc.) | Inspecting or controlling running/terminated sessions | [commands/session.md](commands/session.md) |
 | `project` | Register, inspect, configure, or remove projects | Setting up or managing repos AO knows about | [commands/project.md](commands/project.md) |
-| `orchestrator` | List orchestrator sessions | Viewing which sessions are orchestrators | [commands/orchestrator.md](commands/orchestrator.md) |
+| `orchestrator` | List orchestrator sessions, or spawn a project's orchestrator | Viewing which sessions are orchestrators, or starting one | [commands/orchestrator.md](commands/orchestrator.md) |
+| `org` | Inspect the holding/company org tree and the heartbeat kill switch | You are a PM/CEO orchestrator reacting to an `[AO heartbeat]` wake-up, or checking overall org status | [commands/org.md](commands/org.md) |
 | `review` | Submit a reviewer result for a worker's PR | Completing a code review loop | [commands/review.md](commands/review.md) |
 | `send` | Send a message to a running agent session | Correcting or directing a live agent | [commands/send.md](commands/send.md) |
 | `preview` | Open a URL in the desktop browser panel | Demoing a local server or file from inside a session | [commands/preview.md](commands/preview.md) |
