@@ -155,6 +155,11 @@ export function Sidebar({
 	// have — no grouping wrapper, no "Unassigned" header.
 	const companiesQuery = useCompaniesQuery();
 	const companies = companiesQuery.data ?? [];
+	// HQ projects (CEO/PM headquarters) live in the CEO Dashboard's HQ section
+	// and Live Terminals, not the ordinary project tree — showing them here too
+	// just clutters the list (and dumps the holding CEO's HQ, which has no
+	// company, into "Unassigned").
+	const ordinaryWorkspaces = workspaces.filter((workspace) => !workspace.hqRole);
 	const theme = useUiStore((s) => s.theme);
 	const toggleTheme = useUiStore((s) => s.toggleTheme);
 	// Disclosure state: projects are expanded by default; a project id present in
@@ -273,7 +278,7 @@ export function Sidebar({
 							</div>
 						) : (
 							<SidebarMenu className="gap-0 group-data-[collapsible=icon]:gap-1">
-								{groupWorkspacesByCompany(workspaces, companies).map((group) => (
+								{groupWorkspacesByCompany(ordinaryWorkspaces, companies).map((group) => (
 									<CompanyGroup
 										key={group.id}
 										collapsedIds={collapsedIds}

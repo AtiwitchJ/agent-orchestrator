@@ -402,6 +402,39 @@ describe("Sidebar", () => {
 		expect(screen.getByText("Project Two")).toBeInTheDocument();
 	});
 
+	it("excludes HQ projects from the tree — they live in the CEO Dashboard/Live Terminals instead", () => {
+		const holdingHq: WorkspaceSummary = {
+			id: "holding-hq",
+			name: "holding-hq",
+			path: "/hq/holding",
+			hqRole: "holding",
+			sessions: [],
+		};
+		const companyHq: WorkspaceSummary = {
+			id: "qb-hq",
+			name: "qb-hq",
+			path: "/hq/qb",
+			hqRole: "company",
+			companyId: "co-1",
+			sessions: [],
+		};
+		// Assigned to co-1 so it doesn't itself land in "Unassigned" — isolates
+		// the assertion below to whether the (filtered-out) holding HQ would
+		// otherwise be the thing dumped there.
+		const assignedProject: WorkspaceSummary = { ...workspace, companyId: "co-1" };
+		renderSidebar({
+			companies: [{ id: "co-1", name: "OPEN-UPPU", createdAt: "2026-01-01T00:00:00Z" }],
+			workspaces: [assignedProject, holdingHq, companyHq],
+		});
+
+		expect(screen.getByText("Project One")).toBeInTheDocument();
+		expect(screen.queryByText("holding-hq")).not.toBeInTheDocument();
+		expect(screen.queryByText("qb-hq")).not.toBeInTheDocument();
+		// The holding HQ has no companyId, so if it weren't filtered it would
+		// otherwise be the only thing dumped into "Unassigned" here.
+		expect(screen.queryByText("Unassigned")).not.toBeInTheDocument();
+	});
+
 	it("navigates to Live Terminals from the settings menu", async () => {
 		const user = userEvent.setup();
 		renderSidebar();
