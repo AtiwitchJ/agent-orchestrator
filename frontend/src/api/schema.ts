@@ -211,6 +211,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/org/companies/{companyId}/hq": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Auto-provision (or return the existing) a company's PM HQ project — no folder picker involved */
+        post: operations["ensureCompanyHQ"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/org/heartbeat": {
         parameters: {
             query?: never;
@@ -223,6 +240,23 @@ export interface paths {
         /** Pause or resume the global heartbeat kill switch */
         put: operations["setOrgHeartbeat"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/org/holding-hq": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Auto-provision (or return the existing) holding CEO HQ project — no folder picker involved */
+        post: operations["ensureHoldingHQ"];
         delete?: never;
         options?: never;
         head?: never;
@@ -784,6 +818,9 @@ export interface components {
             condition: string;
             pollInterval?: string;
             url: string;
+        };
+        EnsureHQResponse: {
+            projectId: string;
         };
         ImportReport: {
             dryRun: boolean;
@@ -1907,6 +1944,56 @@ export interface operations {
             };
         };
     };
+    ensureCompanyHQ: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Company identifier. */
+                companyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnsureHQResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
     getOrgHeartbeat: {
         parameters: {
             query?: never;
@@ -1974,6 +2061,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    ensureHoldingHQ: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnsureHQResponse"];
                 };
             };
             /** @description Internal Server Error */

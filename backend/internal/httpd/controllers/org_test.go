@@ -34,6 +34,27 @@ func newOrgTestServer(t *testing.T) *httptest.Server {
 	return srv
 }
 
+// newOrgTestServerWithProvisioning is like newOrgTestServer but wires
+// orgsvc.Deps.Projects and orgsvc.Deps.DataDir, so POST /org/holding-hq and
+// POST /org/companies/{companyId}/hq can actually auto-provision a repo.
+func newOrgTestServerWithProvisioning(t *testing.T) *httptest.Server {
+	t.Helper()
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	store, err := sqlite.Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	projectMgr := projectsvc.New(store)
+	srv := httptest.NewServer(httpd.NewRouterWithControl(config.Config{}, log, nil, httpd.APIDeps{
+		Org:       orgsvc.NewWithDeps(orgsvc.Deps{Store: store, Projects: projectMgr, DataDir: t.TempDir()}),
+		Companies: companysvc.New(store),
+		Projects:  projectMgr,
+	}, httpd.ControlDeps{}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
 func TestOrgRoutes_DefaultToStubsWithoutManager(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	srv := httptest.NewServer(httpd.NewRouterWithControl(config.Config{}, log, nil, httpd.APIDeps{}, httpd.ControlDeps{}))
@@ -50,6 +71,12 @@ func TestOrgRoutes_DefaultToStubsWithoutManager(t *testing.T) {
 	assertErrorCode(t, body, status, http.StatusNotImplemented, "NOT_IMPLEMENTED")
 
 	body, status, _ = doRequest(t, srv, "PUT", "/api/v1/projects/whatever/hq", `{"role":"holding"}`)
+	assertErrorCode(t, body, status, http.StatusNotImplemented, "NOT_IMPLEMENTED")
+
+	body, status, _ = doRequest(t, srv, "POST", "/api/v1/org/holding-hq", "")
+	assertErrorCode(t, body, status, http.StatusNotImplemented, "NOT_IMPLEMENTED")
+
+	body, status, _ = doRequest(t, srv, "POST", "/api/v1/org/companies/acme/hq", "")
 	assertErrorCode(t, body, status, http.StatusNotImplemented, "NOT_IMPLEMENTED")
 }
 
@@ -154,4 +181,81 @@ func TestOrgAPI_SetHQRoleRoundTripAndValidation(t *testing.T) {
 	}
 	body, status, _ = doRequest(t, srv, "PUT", "/api/v1/projects/uppu-hq/hq", `{"role":"company"}`)
 	assertErrorCode(t, body, status, http.StatusBadRequest, "HQ_REQUIRES_COMPANY")
+}
+
+// TestOrgAPI_EnsureHoldingHQProvisionsWithoutAFolderPicker covers the whole
+// point of auto-provisioning: no request body carries a path — the endpoint
+// creates the repo itself under the daemon's data dir — and calling it twice
+// returns the same project id rather than creating a second HQ.
+func TestOrgAPI_EnsureHoldingHQProvisionsWithoutAFolderPicker(t *testing.T) {
+	srv := newOrgTestServerWithProvisioning(t)
+
+	body, status, headers := doRequest(t, srv, "POST", "/api/v1/org/holding-hq", "")
+	if status != http.StatusOK {
+		t.Fatalf("POST holding-hq = %d, want 200; body=%s", status, body)
+	}
+	assertJSON(t, headers)
+	var first struct {
+		ProjectID string `json:"projectId"`
+	}
+	mustJSON(t, body, &first)
+	if first.ProjectID == "" {
+		t.Fatal("POST holding-hq returned an empty projectId")
+	}
+
+	body, status, _ = doRequest(t, srv, "POST", "/api/v1/org/holding-hq", "")
+	if status != http.StatusOK {
+		t.Fatalf("POST holding-hq (second call) = %d, want 200; body=%s", status, body)
+	}
+	var second struct {
+		ProjectID string `json:"projectId"`
+	}
+	mustJSON(t, body, &second)
+	if second.ProjectID != first.ProjectID {
+		t.Fatalf("second call projectId = %q, want the same id %q", second.ProjectID, first.ProjectID)
+	}
+
+	body, status, _ = doRequest(t, srv, "GET", "/api/v1/org/overview", "")
+	if status != http.StatusOK {
+		t.Fatalf("GET overview = %d, want 200; body=%s", status, body)
+	}
+	var ov struct {
+		Overview orgsvc.Overview `json:"overview"`
+	}
+	mustJSON(t, body, &ov)
+	if ov.Overview.HoldingHQ == nil || ov.Overview.HoldingHQ.ProjectID != first.ProjectID {
+		t.Fatalf("overview holding hq = %#v, want project %q", ov.Overview.HoldingHQ, first.ProjectID)
+	}
+}
+
+// TestOrgAPI_EnsureCompanyHQProvisionsAndAssignsCompany covers the same
+// auto-provisioning contract for a company PM HQ.
+func TestOrgAPI_EnsureCompanyHQProvisionsAndAssignsCompany(t *testing.T) {
+	srv := newOrgTestServerWithProvisioning(t)
+
+	body, status, _ := doRequest(t, srv, "POST", "/api/v1/companies", `{"name":"Acme"}`)
+	if status != http.StatusCreated {
+		t.Fatalf("seed company = %d, want 201; body=%s", status, body)
+	}
+
+	body, status, _ = doRequest(t, srv, "POST", "/api/v1/org/companies/acme/hq", "")
+	if status != http.StatusOK {
+		t.Fatalf("POST companies/acme/hq = %d, want 200; body=%s", status, body)
+	}
+	var first struct {
+		ProjectID string `json:"projectId"`
+	}
+	mustJSON(t, body, &first)
+
+	body, status, _ = doRequest(t, srv, "GET", "/api/v1/org/overview", "")
+	if status != http.StatusOK {
+		t.Fatalf("GET overview = %d, want 200; body=%s", status, body)
+	}
+	var ov struct {
+		Overview orgsvc.Overview `json:"overview"`
+	}
+	mustJSON(t, body, &ov)
+	if len(ov.Overview.Companies) != 1 || ov.Overview.Companies[0].HQ == nil || ov.Overview.Companies[0].HQ.ProjectID != first.ProjectID {
+		t.Fatalf("overview companies = %#v, want acme hq %q", ov.Overview.Companies, first.ProjectID)
+	}
 }

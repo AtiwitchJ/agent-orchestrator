@@ -170,10 +170,15 @@ func Run() error {
 		heartbeatDone = closed
 	}
 
+	// Hoisted so Org (below) can share it: EnsureHoldingHQ/EnsureCompanyHQ
+	// register an auto-provisioned HQ repo through the same project service
+	// the /api/v1/projects surface uses.
+	projectSvc := projectsvc.NewWithDeps(projectsvc.Deps{Store: store, Sessions: sessionSvc, DefaultHarness: domain.AgentHarness(cfg.Agent), Telemetry: telemetrySink})
+
 	srv, err := httpd.NewWithDeps(cfg, log, termMgr, httpd.APIDeps{
-		Projects:           projectsvc.NewWithDeps(projectsvc.Deps{Store: store, Sessions: sessionSvc, DefaultHarness: domain.AgentHarness(cfg.Agent), Telemetry: telemetrySink}),
+		Projects:           projectSvc,
 		Companies:          companysvc.New(store),
-		Org:                orgsvc.New(store),
+		Org:                orgsvc.NewWithDeps(orgsvc.Deps{Store: store, Projects: projectSvc, DataDir: cfg.DataDir}),
 		Messages:           messagesvc.New(messagesvc.Deps{Store: store}),
 		Agents:             agentsvc.New(),
 		Sessions:           sessionSvc,

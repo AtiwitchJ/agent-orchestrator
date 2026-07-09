@@ -595,6 +595,19 @@ type SetProjectHQRoleResponse struct {
 	Role      string `json:"role,omitempty"`
 }
 
+// EnsureHQResponse is the body of POST /api/v1/org/holding-hq and
+// POST /api/v1/org/companies/{companyId}/hq (200). ProjectID is the
+// auto-provisioned (or already-existing) HQ project's id.
+type EnsureHQResponse struct {
+	ProjectID string `json:"projectId"`
+}
+
+// OrgCompanyIDParam is the {companyId} path parameter for
+// POST /api/v1/org/companies/{companyId}/hq.
+type OrgCompanyIDParam struct {
+	CompanyID string `path:"companyId" description:"Company identifier."`
+}
+
 // ListProjectMessagesQuery is the query string accepted by
 // GET /api/v1/projects/{id}/messages.
 type ListProjectMessagesQuery struct {

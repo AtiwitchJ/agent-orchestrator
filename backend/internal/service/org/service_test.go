@@ -41,6 +41,21 @@ func managers(t *testing.T) (org.Manager, companysvc.Manager, projectsvc.Manager
 	return org.New(store), companysvc.New(store), projectsvc.New(store), store
 }
 
+// managersWithProvisioning is like managers but wires org.Deps.Projects and
+// org.Deps.DataDir, so EnsureHoldingHQ/EnsureCompanyHQ can actually
+// auto-provision a repo (a fresh directory under a throwaway data dir).
+func managersWithProvisioning(t *testing.T) (org.Manager, companysvc.Manager, projectsvc.Manager, *sqlite.Store) {
+	t.Helper()
+	store, err := sqlite.Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	pm := projectsvc.New(store)
+	om := org.NewWithDeps(org.Deps{Store: store, Projects: pm, DataDir: t.TempDir()})
+	return om, companysvc.New(store), pm, store
+}
+
 func wantCode(t *testing.T, err error, code string) {
 	t.Helper()
 	var e *apierr.Error
@@ -283,5 +298,134 @@ func TestOverview_HoldingCompaniesAndProjects(t *testing.T) {
 	}
 	if ps.TotalSessions != 2 || ps.ActiveSessions != 1 {
 		t.Fatalf("delivery project session counts = %#v, want total=2 active=1", ps)
+	}
+}
+
+// TestEnsureHoldingHQ_ProvisionsAndIsIdempotent covers the whole point of
+// auto-provisioning: no caller ever passes a path — the holding CEO HQ is a
+// singleton that "just exists" the first time anything asks for it, and every
+// later call returns the exact same project id without creating a second one.
+func TestEnsureHoldingHQ_ProvisionsAndIsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	om, _, pm, _ := managersWithProvisioning(t)
+
+	id, err := om.EnsureHoldingHQ(ctx)
+	if err != nil {
+		t.Fatalf("EnsureHoldingHQ: %v", err)
+	}
+	if id == "" {
+		t.Fatal("EnsureHoldingHQ returned empty project id")
+	}
+	proj, err := pm.Get(ctx, domain.ProjectID(id))
+	if err != nil || proj.Project == nil {
+		t.Fatalf("Get provisioned project: %v, %#v", err, proj)
+	}
+
+	again, err := om.EnsureHoldingHQ(ctx)
+	if err != nil {
+		t.Fatalf("EnsureHoldingHQ (second call): %v", err)
+	}
+	if again != id {
+		t.Fatalf("EnsureHoldingHQ second call = %q, want the same id %q", again, id)
+	}
+
+	all, err := pm.List(ctx)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	holdingHQCount := 0
+	for _, p := range all {
+		if p.HQRole == "holding" {
+			holdingHQCount++
+		}
+	}
+	if holdingHQCount != 1 {
+		t.Fatalf("holding HQ project count = %d, want exactly 1 (idempotent provisioning)", holdingHQCount)
+	}
+}
+
+// TestEnsureCompanyHQ_ProvisionsAssignsCompanyAndIsIdempotent covers the same
+// idempotent-provisioning contract for a company PM HQ, plus that the
+// auto-provisioned project ends up assigned to the right company.
+func TestEnsureCompanyHQ_ProvisionsAssignsCompanyAndIsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	om, cm, pm, _ := managersWithProvisioning(t)
+
+	c, err := cm.Create(ctx, companysvc.CreateInput{Name: "Acme"})
+	if err != nil {
+		t.Fatalf("create company: %v", err)
+	}
+
+	id, err := om.EnsureCompanyHQ(ctx, c.ID)
+	if err != nil {
+		t.Fatalf("EnsureCompanyHQ: %v", err)
+	}
+	list, err := pm.List(ctx)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	var found *projectsvc.Summary
+	for i := range list {
+		if string(list[i].ID) == id {
+			found = &list[i]
+		}
+	}
+	if found == nil {
+		t.Fatalf("provisioned project %q not found in List(): %#v", id, list)
+	}
+	if found.CompanyID != c.ID || found.HQRole != "company" {
+		t.Fatalf("provisioned project = %#v, want companyId=%q hqRole=company", found, c.ID)
+	}
+
+	again, err := om.EnsureCompanyHQ(ctx, c.ID)
+	if err != nil {
+		t.Fatalf("EnsureCompanyHQ (second call): %v", err)
+	}
+	if again != id {
+		t.Fatalf("EnsureCompanyHQ second call = %q, want the same id %q", again, id)
+	}
+}
+
+func TestEnsureCompanyHQ_RejectsEmptyCompanyID(t *testing.T) {
+	ctx := context.Background()
+	om, _, _, _ := managersWithProvisioning(t)
+
+	_, err := om.EnsureCompanyHQ(ctx, "  ")
+	if err == nil {
+		t.Fatal("EnsureCompanyHQ with blank companyId = nil error, want COMPANY_ID_REQUIRED")
+	}
+	wantCode(t, err, "COMPANY_ID_REQUIRED")
+}
+
+// TestEnsureHoldingHQ_UnavailableWithoutProvisioningDeps covers the degrade
+// path: a Service built via org.New (no Projects/DataDir, e.g. most other
+// tests in this file) reports a clear error instead of panicking when asked
+// to provision — but still resolves an already-existing holding HQ without
+// needing those deps at all.
+func TestEnsureHoldingHQ_UnavailableWithoutProvisioningDeps(t *testing.T) {
+	ctx := context.Background()
+	om, _, pm, _ := managers(t)
+
+	_, err := om.EnsureHoldingHQ(ctx)
+	if err == nil {
+		t.Fatal("EnsureHoldingHQ without provisioning deps = nil error, want HQ_PROVISION_UNAVAILABLE")
+	}
+	wantCode(t, err, "HQ_PROVISION_UNAVAILABLE")
+
+	// An already-registered holding HQ resolves fine even without provisioning
+	// deps configured — only the create path needs them.
+	proj, err := pm.Add(ctx, projectsvc.AddInput{Path: gitRepo(t), ProjectID: ptr("existing-hq")})
+	if err != nil {
+		t.Fatalf("add project: %v", err)
+	}
+	if err := om.SetHQRole(ctx, proj.ID, org.SetHQRoleInput{Role: "holding"}); err != nil {
+		t.Fatalf("set hq role: %v", err)
+	}
+	id, err := om.EnsureHoldingHQ(ctx)
+	if err != nil {
+		t.Fatalf("EnsureHoldingHQ with existing holding hq: %v", err)
+	}
+	if id != "existing-hq" {
+		t.Fatalf("EnsureHoldingHQ = %q, want existing-hq", id)
 	}
 }

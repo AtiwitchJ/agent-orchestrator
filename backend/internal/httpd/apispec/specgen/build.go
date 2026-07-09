@@ -228,15 +228,17 @@ var schemaNames = map[string]string{
 	"ControllersCompanyIDParam":               "CompanyIDParam",
 	"ControllersDeleteCompanyResponse":        "DeleteCompanyResponse",
 	// service/org entities + DTOs
-	"OrgOverview":                       "OrgOverview",
-	"OrgCompanyOverview":                "OrgCompanyOverview",
-	"OrgHQInfo":                         "OrgHQInfo",
-	"OrgProjectStatus":                  "OrgProjectStatus",
-	"OrgSetHQRoleInput":                 "SetProjectHQRoleInput",
-	"OrgSetHeartbeatPauseInput":         "SetOrgHeartbeatPauseInput",
-	"ControllersOrgOverviewResponse":    "OrgOverviewResponse",
-	"ControllersOrgHeartbeatResponse":   "OrgHeartbeatResponse",
+	"OrgOverview":                         "OrgOverview",
+	"OrgCompanyOverview":                  "OrgCompanyOverview",
+	"OrgHQInfo":                           "OrgHQInfo",
+	"OrgProjectStatus":                    "OrgProjectStatus",
+	"OrgSetHQRoleInput":                   "SetProjectHQRoleInput",
+	"OrgSetHeartbeatPauseInput":           "SetOrgHeartbeatPauseInput",
+	"ControllersOrgOverviewResponse":      "OrgOverviewResponse",
+	"ControllersOrgHeartbeatResponse":     "OrgHeartbeatResponse",
 	"ControllersSetProjectHQRoleResponse": "SetProjectHQRoleResponse",
+	"ControllersEnsureHQResponse":         "EnsureHQResponse",
+	"ControllersOrgCompanyIDParam":        "OrgCompanyIDParam",
 }
 
 // markRequestBodyRequired sets requestBody.required: true on the operation's
@@ -598,10 +600,11 @@ func companyOperations() []operation {
 	}
 }
 
-// orgOperations declares the 4 org-hierarchy operations: the org overview,
-// the heartbeat kill switch (get/set), and the project-hq-role assignment
-// route. The set must stay 1:1 with the routes OrgController.Register mounts —
-// TestRouteSpecParity fails the build otherwise.
+// orgOperations declares the 6 org-hierarchy operations: the org overview,
+// the heartbeat kill switch (get/set), the project-hq-role assignment route,
+// and the two HQ auto-provisioning routes. The set must stay 1:1 with the
+// routes OrgController.Register mounts — TestRouteSpecParity fails the build
+// otherwise.
 func orgOperations() []operation {
 	return []operation{
 		{
@@ -643,6 +646,26 @@ func orgOperations() []operation {
 				{http.StatusBadRequest, envelope.APIError{}},
 				{http.StatusNotFound, envelope.APIError{}},
 				{http.StatusConflict, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodPost, path: "/api/v1/org/holding-hq", id: "ensureHoldingHQ", tag: "org",
+			summary: "Auto-provision (or return the existing) holding CEO HQ project — no folder picker involved",
+			resps: []respUnit{
+				{http.StatusOK, controllers.EnsureHQResponse{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodPost, path: "/api/v1/org/companies/{companyId}/hq", id: "ensureCompanyHQ", tag: "org",
+			summary:    "Auto-provision (or return the existing) a company's PM HQ project — no folder picker involved",
+			pathParams: []any{controllers.OrgCompanyIDParam{}},
+			resps: []respUnit{
+				{http.StatusOK, controllers.EnsureHQResponse{}},
+				{http.StatusBadRequest, envelope.APIError{}},
 				{http.StatusInternalServerError, envelope.APIError{}},
 				{http.StatusNotImplemented, envelope.APIError{}},
 			},

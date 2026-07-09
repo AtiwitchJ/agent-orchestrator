@@ -28,18 +28,50 @@ type Manager interface {
 	HeartbeatPaused(ctx context.Context) (bool, error)
 	// SetHeartbeatPaused sets the global heartbeat kill switch.
 	SetHeartbeatPaused(ctx context.Context, paused bool) error
+
+	// EnsureHoldingHQ returns the holding's auto-provisioned HQ project id,
+	// creating it (no folder picker involved) on first call.
+	EnsureHoldingHQ(ctx context.Context) (string, error)
+	// EnsureCompanyHQ returns companyID's auto-provisioned PM HQ project id,
+	// creating it (no folder picker involved) on first call.
+	EnsureCompanyHQ(ctx context.Context, companyID string) (string, error)
 }
 
 // Service implements the org use-cases for controllers.
 type Service struct {
 	store Store
+	// projects registers an auto-provisioned HQ repo as a project. nil in
+	// deployments that construct Service via New (e.g. most tests): HQ
+	// auto-provisioning is simply unavailable, everything else still works.
+	projects ProjectCreator
+	// dataDir is the daemon's data directory, the root under which
+	// EnsureHoldingHQ/EnsureCompanyHQ provision HQ repos. Empty disables
+	// auto-provisioning the same way a nil projects does.
+	dataDir string
 }
 
 var _ Manager = (*Service)(nil)
 
-// New returns an org service backed by the given durable store.
+// Deps captures optional collaborators for org use-cases.
+type Deps struct {
+	Store Store
+	// Projects and DataDir together enable EnsureHoldingHQ/EnsureCompanyHQ.
+	// Leave both zero to disable HQ auto-provisioning (e.g. in tests that
+	// don't exercise it).
+	Projects ProjectCreator
+	DataDir  string
+}
+
+// New returns an org service backed by the given durable store. HQ
+// auto-provisioning (EnsureHoldingHQ/EnsureCompanyHQ) is unavailable; use
+// NewWithDeps to enable it.
 func New(store Store) *Service {
-	return &Service{store: store}
+	return NewWithDeps(Deps{Store: store})
+}
+
+// NewWithDeps returns an org service with optional collaborators.
+func NewWithDeps(d Deps) *Service {
+	return &Service{store: d.Store, projects: d.Projects, dataDir: d.DataDir}
 }
 
 // SetHQRole validates and persists a project's HQ role. A "company" role

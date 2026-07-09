@@ -7,10 +7,8 @@ import { useWorkspaceQuery, workspaceQueryKey } from "../hooks/useWorkspaceQuery
 import { apiClient, apiErrorMessage } from "../lib/api-client";
 import { restartProjectOrchestrator } from "../lib/restart-orchestrator";
 import { spawnOrchestrator } from "../lib/spawn-orchestrator";
-import { useShell } from "../lib/shell-context";
 import { useUiStore } from "../stores/ui-store";
 import { newestActiveOrchestrator, type WorkspaceSummary } from "../types/workspace";
-import { CreateProjectFlow } from "./Sidebar";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -53,8 +51,39 @@ export function HQSection({ scope }: { scope: HQScope }) {
 }
 
 function CreateHQCard({ scope }: { scope: HQScope }) {
-	const { createProject } = useShell();
+	const queryClient = useQueryClient();
+	const navigate = useNavigate();
+	const [isProvisioning, setIsProvisioning] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 	const role = roleLabel(scope);
+
+	// No folder picker: the CEO and each company's PM are structural parts of
+	// the org, not ordinary delivery projects a human sets up by hand — the
+	// daemon provisions the HQ repo itself under its own data dir.
+	const handleCreate = async () => {
+		setIsProvisioning(true);
+		setError(null);
+		try {
+			const { data, error: apiError } =
+				scope.kind === "holding"
+					? await apiClient.POST("/api/v1/org/holding-hq")
+					: await apiClient.POST("/api/v1/org/companies/{companyId}/hq", {
+							params: { path: { companyId: scope.companyId } },
+						});
+			if (apiError || !data?.projectId) throw new Error(apiErrorMessage(apiError, `Could not create ${role} HQ`));
+			await queryClient.invalidateQueries({ queryKey: workspaceQueryKey });
+			const sessionId = await spawnOrchestrator(data.projectId);
+			await queryClient.invalidateQueries({ queryKey: workspaceQueryKey });
+			void navigate({
+				to: "/projects/$projectId/sessions/$sessionId",
+				params: { projectId: data.projectId, sessionId },
+			});
+		} catch (err) {
+			setError(err instanceof Error ? err.message : `Could not create ${role} HQ`);
+		} finally {
+			setIsProvisioning(false);
+		}
+	};
 
 	return (
 		<Card className="border-dashed border-slate-800 bg-slate-900/50">
@@ -70,24 +99,14 @@ function CreateHQCard({ scope }: { scope: HQScope }) {
 			</CardHeader>
 			<CardContent>
 				<p className="mb-4 text-sm text-slate-400">
-					No {role} headquarters project yet. Create one — a docs repo works well — to run an autonomous {role}{" "}
-					orchestrator that coordinates {scope.kind === "holding" ? "every company" : "this company's projects"}.
+					No {role} headquarters yet. AO sets one up automatically — a small local repo it manages — to run an
+					autonomous {role} orchestrator that coordinates{" "}
+					{scope.kind === "holding" ? "every company" : "this company's projects"}.
 				</p>
-				<CreateProjectFlow
-					onCreateProject={(args) =>
-						createProject({
-							...args,
-							companyId: scope.kind === "company" ? scope.companyId : undefined,
-							hqRole: scope.kind,
-						})
-					}
-				>
-					{({ disabled, choosePath, label }) => (
-						<Button onClick={choosePath} disabled={disabled} className="gap-2">
-							{label === "New project" ? `Create ${role} HQ` : label}
-						</Button>
-					)}
-				</CreateProjectFlow>
+				<Button onClick={() => void handleCreate()} disabled={isProvisioning} className="gap-2">
+					{isProvisioning ? "Setting up…" : `Create ${role} HQ`}
+				</Button>
+				{error && <p className="mt-2 text-sm text-red-400">{error}</p>}
 			</CardContent>
 		</Card>
 	);

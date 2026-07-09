@@ -3,12 +3,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getMock, putMock, postMock, navigateMock, createProjectMock } = vi.hoisted(() => ({
+const { getMock, putMock, postMock, navigateMock } = vi.hoisted(() => ({
 	getMock: vi.fn(),
 	putMock: vi.fn(),
 	postMock: vi.fn(),
 	navigateMock: vi.fn(),
-	createProjectMock: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
@@ -25,10 +24,6 @@ vi.mock("../lib/api-client", () => ({
 		}
 		return "Request failed";
 	},
-}));
-
-vi.mock("../lib/shell-context", () => ({
-	useShell: () => ({ daemonStatus: { state: "ready", port: 3001 }, createProject: createProjectMock }),
 }));
 
 import { HQSection } from "./HQSection";
@@ -53,11 +48,15 @@ beforeEach(() => {
 	putMock.mockReset();
 	postMock.mockReset();
 	navigateMock.mockReset();
-	createProjectMock.mockClear();
+	// HQSection mounts useWorkspaceQuery, an active observer — any
+	// queryClient.invalidateQueries() call in the component triggers a real
+	// background refetch through this same mocked GET. Give it a safe default
+	// so that refetch doesn't crash (destructuring `undefined`) and retry.
+	getMock.mockResolvedValue({ data: { projects: [], sessions: [] }, error: undefined });
 });
 
 describe("HQSection — no HQ project yet", () => {
-	it("shows a Create CEO HQ button for the holding scope", () => {
+	it("shows a Create CEO HQ button for the holding scope, with no folder picker involved", () => {
 		renderHQ({ kind: "holding" }, []);
 		expect(screen.getByRole("button", { name: "Create CEO HQ" })).toBeInTheDocument();
 	});
@@ -78,6 +77,74 @@ describe("HQSection — no HQ project yet", () => {
 		};
 		renderHQ({ kind: "company", companyId: "acme" }, [otherCompanyHQ]);
 		expect(screen.getByRole("button", { name: "Create PM HQ" })).toBeInTheDocument();
+	});
+
+	it("auto-provisions the holding HQ (no path in the request) and starts the CEO orchestrator", async () => {
+		postMock.mockImplementation(async (path: string) => {
+			if (path === "/api/v1/org/holding-hq") {
+				return { data: { projectId: "holding-hq" }, error: undefined };
+			}
+			if (path === "/api/v1/orchestrators") {
+				return { data: { orchestrator: { id: "holding-hq-1" } }, error: undefined, response: { status: 201 } };
+			}
+			return { data: undefined, error: undefined };
+		});
+		renderHQ({ kind: "holding" }, []);
+
+		await userEvent.click(screen.getByRole("button", { name: "Create CEO HQ" }));
+
+		await waitFor(() => expect(postMock).toHaveBeenCalledWith("/api/v1/org/holding-hq"));
+		await waitFor(() => expect(postMock).toHaveBeenCalledWith("/api/v1/orchestrators", { body: { projectId: "holding-hq", clean: false } }));
+		await waitFor(
+			() =>
+				expect(navigateMock).toHaveBeenCalledWith({
+					to: "/projects/$projectId/sessions/$sessionId",
+					params: { projectId: "holding-hq", sessionId: "holding-hq-1" },
+				}),
+			{ timeout: 10000 },
+		);
+	});
+
+	it("auto-provisions a company's PM HQ scoped to that company id", async () => {
+		postMock.mockImplementation(async (path: string) => {
+			if (path === "/api/v1/org/companies/{companyId}/hq") {
+				return { data: { projectId: "acme-hq" }, error: undefined };
+			}
+			if (path === "/api/v1/orchestrators") {
+				return { data: { orchestrator: { id: "acme-hq-1" } }, error: undefined, response: { status: 201 } };
+			}
+			return { data: undefined, error: undefined };
+		});
+		renderHQ({ kind: "company", companyId: "acme" }, []);
+
+		await userEvent.click(screen.getByRole("button", { name: "Create PM HQ" }));
+
+		await waitFor(
+			() =>
+				expect(navigateMock).toHaveBeenCalledWith({
+					to: "/projects/$projectId/sessions/$sessionId",
+					params: { projectId: "acme-hq", sessionId: "acme-hq-1" },
+				}),
+			{ timeout: 10000 },
+		);
+		expect(postMock).toHaveBeenCalledWith("/api/v1/org/companies/{companyId}/hq", {
+			params: { path: { companyId: "acme" } },
+		});
+	});
+
+	it("shows an error when auto-provisioning fails", async () => {
+		postMock.mockImplementation(async (path: string) => {
+			if (path === "/api/v1/org/holding-hq") {
+				return { data: undefined, error: { message: "disk full" } };
+			}
+			return { data: undefined, error: undefined };
+		});
+		renderHQ({ kind: "holding" }, []);
+
+		await userEvent.click(screen.getByRole("button", { name: "Create CEO HQ" }));
+
+		expect(await screen.findByText("disk full")).toBeInTheDocument();
+		expect(navigateMock).not.toHaveBeenCalled();
 	});
 });
 

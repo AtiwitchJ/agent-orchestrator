@@ -23,6 +23,8 @@ func (c *OrgController) Register(r chi.Router) {
 	r.Get("/org/heartbeat", c.getHeartbeat)
 	r.Put("/org/heartbeat", c.setHeartbeat)
 	r.Put("/projects/{id}/hq", c.setHQRole)
+	r.Post("/org/holding-hq", c.ensureHoldingHQ)
+	r.Post("/org/companies/{companyId}/hq", c.ensureCompanyHQ)
 }
 
 func (c *OrgController) overview(w http.ResponseWriter, r *http.Request) {
@@ -84,4 +86,31 @@ func (c *OrgController) setHQRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	envelope.WriteJSON(w, http.StatusOK, SetProjectHQRoleResponse{ProjectID: string(id), Role: in.Role})
+}
+
+func (c *OrgController) ensureHoldingHQ(w http.ResponseWriter, r *http.Request) {
+	if c.Mgr == nil {
+		apispec.NotImplemented(w, r, "POST", "/api/v1/org/holding-hq")
+		return
+	}
+	id, err := c.Mgr.EnsureHoldingHQ(r.Context())
+	if err != nil {
+		envelope.WriteError(w, r, err)
+		return
+	}
+	envelope.WriteJSON(w, http.StatusOK, EnsureHQResponse{ProjectID: id})
+}
+
+func (c *OrgController) ensureCompanyHQ(w http.ResponseWriter, r *http.Request) {
+	if c.Mgr == nil {
+		apispec.NotImplemented(w, r, "POST", "/api/v1/org/companies/{companyId}/hq")
+		return
+	}
+	companyID := chi.URLParam(r, "companyId")
+	id, err := c.Mgr.EnsureCompanyHQ(r.Context(), companyID)
+	if err != nil {
+		envelope.WriteError(w, r, err)
+		return
+	}
+	envelope.WriteJSON(w, http.StatusOK, EnsureHQResponse{ProjectID: id})
 }
