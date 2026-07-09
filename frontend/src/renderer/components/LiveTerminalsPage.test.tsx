@@ -194,6 +194,27 @@ describe("LiveTerminalsPage org-hierarchy tree", () => {
 				},
 			],
 		},
+		{
+			id: "mind-hq",
+			name: "mind-hq",
+			path: "/hq/mind",
+			hqRole: "company",
+			companyId: "mind",
+			sessions: [
+				{
+					id: "mind-hq-1",
+					workspaceId: "mind-hq",
+					workspaceName: "mind-hq",
+					title: "mind-hq-1",
+					provider: "claude-code",
+					kind: "orchestrator",
+					branch: "main",
+					status: "working",
+					updatedAt: "2026-07-09T00:00:00Z",
+					prs: [],
+				},
+			],
+		},
 	];
 
 	function renderHierarchyPage() {
@@ -256,5 +277,15 @@ describe("LiveTerminalsPage org-hierarchy tree", () => {
 
 		await screen.findByText("limbic-agentstation-1");
 		expect(screen.getByText("Worker")).toBeInTheDocument();
+	});
+
+	it("renders multiple companies' PM tiles side by side under one CEO", async () => {
+		searchMock.mockReturnValue({ sessions: "holding-hq-1,qb-hq-1,mind-hq-1" });
+		renderHierarchyPage();
+
+		await screen.findByText("holding-hq-1");
+		expect(screen.getAllByText("PM")).toHaveLength(2);
+		expect(screen.getByText("qb-hq-1")).toBeInTheDocument();
+		expect(screen.getByText("mind-hq-1")).toBeInTheDocument();
 	});
 });

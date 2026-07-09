@@ -1,5 +1,5 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import type { CSSProperties } from "react";
+import type { ReactNode } from "react";
 import { useShell } from "../lib/shell-context";
 import { useUiStore } from "../stores/ui-store";
 import { useWorkspaceQuery } from "../hooks/useWorkspaceQuery";
@@ -89,32 +89,49 @@ export function LiveTerminalsPage() {
 		return undefined;
 	};
 
-	const renderTile = (ref: TileRef, roleLabel?: string) => (
-		<TerminalTile
-			key={ref.id}
-			sessionId={ref.id}
-			session={ref.entry?.session}
-			projectName={ref.entry?.projectName}
-			roleLabel={roleLabel}
-			theme={theme}
-			daemonReady={daemonStatus.state === "ready"}
-			fontSize={TERMINAL_FONT_SIZE}
-			onRemove={() => removeId(ref.id)}
-		/>
-	);
+	const renderTile = (ref: TileRef, roleLabel?: string) => {
+		// The CEO tile is a singleton with no ambiguity to disambiguate — show
+		// "CEO" as its name directly instead of the raw "holding-hq" project
+		// slug, and skip the badge so the name isn't shown twice. PM/Worker tiles
+		// keep their real project name (there can be several) plus the badge.
+		const isCeo = roleLabel === "CEO";
+		return (
+			<TerminalTile
+				key={ref.id}
+				sessionId={ref.id}
+				session={ref.entry?.session}
+				projectName={isCeo ? "CEO" : ref.entry?.projectName}
+				roleLabel={isCeo ? undefined : roleLabel}
+				theme={theme}
+				daemonReady={daemonStatus.state === "ready"}
+				fontSize={TERMINAL_FONT_SIZE}
+				onRemove={() => removeId(ref.id)}
+			/>
+		);
+	};
 
-	// One company/project row: its lead (PM, or a plain project's own
-	// orchestrator) on the left, its children in a real 2-column grid to the
-	// right — not a loose wrapping row — so the lead's square naturally
-	// stretches (flex's default cross-axis stretch) to match however tall that
-	// grid of workers ends up.
-	const renderGroupRow = (group: Group, style?: CSSProperties) => (
-		<div key={group.key} className="flex min-h-[220px] gap-4" style={style}>
-			{group.lead && renderTile(group.lead, roleLabelFor(group.lead, true))}
-			{group.children.length > 0 && (
-				<div className="grid flex-1 grid-cols-2 gap-4">
-					{group.children.map((child) => renderTile(child, roleLabelFor(child, false)))}
-				</div>
+	// The one shape used at every level of the tree: a "lead" tile on the left
+	// at a fixed width, a 2-column grid of its children to the right. Applied
+	// twice — CEO leading a grid of company cells, and (inside each cell) a
+	// PM/project-lead leading a grid of its own workers — so CEO and PM both
+	// naturally stretch (flex's default cross-axis stretch) to match however
+	// tall their respective grid of children ends up, with no special-casing
+	// for "how many levels are actually selected".
+	const renderLeadRow = (lead: ReactNode | undefined, items: ReactNode[]): ReactNode => {
+		if (!lead && items.length === 0) return null;
+		return (
+			<div className="flex gap-4">
+				{lead && <div className="w-[300px] shrink-0">{lead}</div>}
+				{items.length > 0 && <div className="grid flex-1 grid-cols-2 gap-4">{items}</div>}
+			</div>
+		);
+	};
+
+	const renderGroupCell = (group: Group) => (
+		<div key={group.key} className="min-h-[220px]">
+			{renderLeadRow(
+				group.lead ? renderTile(group.lead, roleLabelFor(group.lead, true)) : undefined,
+				group.children.map((child) => renderTile(child, roleLabelFor(child, false))),
 			)}
 		</div>
 	);
@@ -146,15 +163,11 @@ export function LiveTerminalsPage() {
 					<div className="flex h-full items-center justify-center text-passive">
 						No sessions selected — use "Add a session" above.
 					</div>
-				) : ceo && groups.length > 0 ? (
-					<div className="grid gap-4" style={{ gridTemplateColumns: "minmax(260px, 320px) 1fr" }}>
-						<div style={{ gridColumn: 1, gridRow: `1 / span ${groups.length}` }}>{renderTile(ceo, "CEO")}</div>
-						{groups.map((group, i) => renderGroupRow(group, { gridColumn: 2, gridRow: i + 1 }))}
-					</div>
-				) : ceo && groups.length === 0 ? (
-					<div className="h-full min-h-[220px]">{renderTile(ceo, "CEO")}</div>
 				) : (
-					<div className="flex flex-col gap-4">{groups.map((group) => renderGroupRow(group))}</div>
+					renderLeadRow(
+						ceo ? renderTile(ceo, "CEO") : undefined,
+						groups.map((group) => renderGroupCell(group)),
+					)
 				)}
 			</div>
 		</div>
