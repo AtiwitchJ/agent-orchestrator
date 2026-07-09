@@ -39,7 +39,7 @@ function renderDashboard() {
 								id: "qb",
 								name: "qb",
 								hq: { projectId: "qb-hq", orchestratorSessionId: "qb-hq-1" },
-								projects: [{ id: "limbic-agentstation", name: "limbic-agentstation", kind: "workspace", orchestratorSessionId: "limbic-agentstation-1", activeSessions: 0, totalSessions: 1 }],
+								projects: [{ id: "limbic-agentstation", name: "limbic-agentstation", kind: "workspace", orchestratorSessionId: "limbic-agentstation-1", activeSessions: 1, totalSessions: 1 }],
 							},
 						],
 						paused: false,

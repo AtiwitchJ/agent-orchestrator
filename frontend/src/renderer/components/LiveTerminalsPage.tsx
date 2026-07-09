@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 const TERMINAL_FONT_SIZE = 12;
 
 function parseIds(sessions: string): string[] {
-	return sessions ? sessions.split(",").filter(Boolean) : [];
+	return sessions ? [...new Set(sessions.split(",").filter(Boolean))] : [];
 }
 
 export function LiveTerminalsPage() {

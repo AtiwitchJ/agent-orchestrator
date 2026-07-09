@@ -93,6 +93,14 @@ describe("LiveTerminalsPage", () => {
 		expect(screen.getByText("qb-hq-1")).toBeInTheDocument();
 	});
 
+	it("dedupes repeated ids in the sessions search param", async () => {
+		searchMock.mockReturnValue({ sessions: "holding-hq-1,holding-hq-1" });
+		renderPage();
+
+		await screen.findByText("holding-hq-1");
+		expect(screen.getAllByText("holding-hq-1")).toHaveLength(1);
+	});
+
 	it("removing a tile updates the sessions search param", async () => {
 		searchMock.mockReturnValue({ sessions: "holding-hq-1,qb-hq-1" });
 		const user = userEvent.setup();

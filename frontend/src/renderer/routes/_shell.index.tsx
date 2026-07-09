@@ -38,10 +38,11 @@ export function CEODashboard() {
 		}
 		const overview = data?.overview;
 		const company = overview?.companies.find((c) => c.id === companyId);
+		const activeProject = company?.projects.find((p) => p.activeSessions > 0);
 		const ids = [
 			overview?.holdingHq?.orchestratorSessionId,
 			company?.hq?.orchestratorSessionId,
-			...(company?.projects.map((p) => p.orchestratorSessionId) ?? []),
+			activeProject?.orchestratorSessionId,
 		].filter((id): id is string => Boolean(id));
 		navigate({ to: "/terminals", search: { sessions: ids.join(",") } });
 	};
