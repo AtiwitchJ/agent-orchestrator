@@ -249,4 +249,12 @@ describe("LiveTerminalsPage org-hierarchy tree", () => {
 		expect(screen.getByText("limbic-agentstation-1")).toBeInTheDocument();
 		expect(screen.queryByText("CEO")).not.toBeInTheDocument();
 	});
+
+	it("labels a worker-kind session as Worker", async () => {
+		searchMock.mockReturnValue({ sessions: "qb-hq-1,limbic-agentstation-1" });
+		renderHierarchyPage();
+
+		await screen.findByText("limbic-agentstation-1");
+		expect(screen.getByText("Worker")).toBeInTheDocument();
+	});
 });

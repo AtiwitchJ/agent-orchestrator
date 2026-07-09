@@ -1,4 +1,5 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import type { CSSProperties } from "react";
 import { useShell } from "../lib/shell-context";
 import { useUiStore } from "../stores/ui-store";
 import { useWorkspaceQuery } from "../hooks/useWorkspaceQuery";
@@ -80,6 +81,14 @@ export function LiveTerminalsPage() {
 
 	const { ceo, groups } = buildTree(selectedIds, findSession);
 
+	const roleLabelFor = (ref: TileRef, isLead: boolean): string | undefined => {
+		if (ref.entry?.hqRole === "holding") return "CEO";
+		if (ref.entry?.hqRole === "company") return "PM";
+		if (isLead) return undefined;
+		if (ref.entry?.session.kind === "worker") return "Worker";
+		return undefined;
+	};
+
 	const renderTile = (ref: TileRef, roleLabel?: string) => (
 		<TerminalTile
 			key={ref.id}
@@ -92,6 +101,22 @@ export function LiveTerminalsPage() {
 			fontSize={TERMINAL_FONT_SIZE}
 			onRemove={() => removeId(ref.id)}
 		/>
+	);
+
+	// One company/project row: its lead (PM, or a plain project's own
+	// orchestrator) on the left, its children in a real 2-column grid to the
+	// right — not a loose wrapping row — so the lead's square naturally
+	// stretches (flex's default cross-axis stretch) to match however tall that
+	// grid of workers ends up.
+	const renderGroupRow = (group: Group, style?: CSSProperties) => (
+		<div key={group.key} className="flex min-h-[220px] gap-4" style={style}>
+			{group.lead && renderTile(group.lead, roleLabelFor(group.lead, true))}
+			{group.children.length > 0 && (
+				<div className="grid flex-1 grid-cols-2 gap-4">
+					{group.children.map((child) => renderTile(child, roleLabelFor(child, false)))}
+				</div>
+			)}
+		</div>
 	);
 
 	return (
@@ -124,28 +149,12 @@ export function LiveTerminalsPage() {
 				) : ceo && groups.length > 0 ? (
 					<div className="grid gap-4" style={{ gridTemplateColumns: "minmax(260px, 320px) 1fr" }}>
 						<div style={{ gridColumn: 1, gridRow: `1 / span ${groups.length}` }}>{renderTile(ceo, "CEO")}</div>
-						{groups.map((group, i) => (
-							<div key={group.key} className="flex min-h-[220px] gap-4" style={{ gridColumn: 2, gridRow: i + 1 }}>
-								{group.lead && renderTile(group.lead, group.lead.entry?.hqRole === "company" ? "PM" : undefined)}
-								{group.children.length > 0 && (
-									<div className="flex flex-1 flex-wrap gap-4">{group.children.map((child) => renderTile(child))}</div>
-								)}
-							</div>
-						))}
+						{groups.map((group, i) => renderGroupRow(group, { gridColumn: 2, gridRow: i + 1 }))}
 					</div>
 				) : ceo && groups.length === 0 ? (
 					<div className="h-full min-h-[220px]">{renderTile(ceo, "CEO")}</div>
 				) : (
-					<div className="flex flex-col gap-4">
-						{groups.map((group) => (
-							<div key={group.key} className="flex min-h-[220px] gap-4">
-								{group.lead && renderTile(group.lead, group.lead.entry?.hqRole === "company" ? "PM" : undefined)}
-								{group.children.length > 0 && (
-									<div className="flex flex-1 flex-wrap gap-4">{group.children.map((child) => renderTile(child))}</div>
-								)}
-							</div>
-						))}
-					</div>
+					<div className="flex flex-col gap-4">{groups.map((group) => renderGroupRow(group))}</div>
 				)}
 			</div>
 		</div>
