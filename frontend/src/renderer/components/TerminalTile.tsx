@@ -12,6 +12,8 @@ export type TerminalTileProps = {
 	sessionId: string;
 	session?: WorkspaceSession;
 	projectName?: string;
+	/** Org-hierarchy role badge (e.g. "CEO", "PM") — omitted for plain project/worker tiles. */
+	roleLabel?: string;
 	theme: Theme;
 	daemonReady: boolean;
 	fontSize: number;
@@ -23,7 +25,21 @@ export type TerminalTileProps = {
 // bar that queues a message via the daemon's existing send endpoint — the same
 // primitive the org heartbeat uses to nudge orchestrators, exposed in the UI
 // for the first time.
-export function TerminalTile({ sessionId, session, projectName, theme, daemonReady, fontSize, onRemove }: TerminalTileProps) {
+//
+// Height is intentionally flexible (h-full + flex-1 on the terminal area, not a
+// fixed px value): the tree layout in LiveTerminalsPage stretches a CEO/PM tile
+// across the combined height of the rows nested under it, so this component
+// must fill whatever height its container hands it rather than assuming one.
+export function TerminalTile({
+	sessionId,
+	session,
+	projectName,
+	roleLabel,
+	theme,
+	daemonReady,
+	fontSize,
+	onRemove,
+}: TerminalTileProps) {
 	const [draft, setDraft] = useState("");
 	const sendMutation = useMutation({
 		mutationFn: async (message: string) => {
@@ -38,8 +54,13 @@ export function TerminalTile({ sessionId, session, projectName, theme, daemonRea
 	});
 
 	return (
-		<div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-surface">
+		<div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-surface">
 			<div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
+				{roleLabel && (
+					<span className="shrink-0 rounded bg-accent/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase leading-none tracking-[0.04em] text-accent">
+						{roleLabel}
+					</span>
+				)}
 				<span className="min-w-0 truncate text-[12px] font-semibold text-foreground">
 					{projectName ?? sessionId}
 				</span>
@@ -55,7 +76,7 @@ export function TerminalTile({ sessionId, session, projectName, theme, daemonRea
 			</div>
 			{session ? (
 				<>
-					<div className="h-[280px] min-h-0">
+					<div className="min-h-[220px] flex-1">
 						<TerminalPane session={session} theme={theme} daemonReady={daemonReady} fontSize={fontSize} />
 					</div>
 					<form

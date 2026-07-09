@@ -130,3 +130,123 @@ describe("LiveTerminalsPage", () => {
 		});
 	});
 });
+
+describe("LiveTerminalsPage org-hierarchy tree", () => {
+	const hierarchyWorkspaces: WorkspaceSummary[] = [
+		{
+			id: "holding-hq",
+			name: "holding-hq",
+			path: "/hq/holding",
+			hqRole: "holding",
+			sessions: [
+				{
+					id: "holding-hq-1",
+					workspaceId: "holding-hq",
+					workspaceName: "holding-hq",
+					title: "holding-hq-1",
+					provider: "claude-code",
+					kind: "orchestrator",
+					branch: "main",
+					status: "working",
+					updatedAt: "2026-07-09T00:00:00Z",
+					prs: [],
+				},
+			],
+		},
+		{
+			id: "qb-hq",
+			name: "qb-hq",
+			path: "/hq/qb",
+			hqRole: "company",
+			companyId: "qb",
+			sessions: [
+				{
+					id: "qb-hq-1",
+					workspaceId: "qb-hq",
+					workspaceName: "qb-hq",
+					title: "qb-hq-1",
+					provider: "claude-code",
+					kind: "orchestrator",
+					branch: "main",
+					status: "working",
+					updatedAt: "2026-07-09T00:00:00Z",
+					prs: [],
+				},
+			],
+		},
+		{
+			id: "limbic-agentstation",
+			name: "limbic-agentstation",
+			path: "/repo/limbic",
+			companyId: "qb",
+			sessions: [
+				{
+					id: "limbic-agentstation-1",
+					workspaceId: "limbic-agentstation",
+					workspaceName: "limbic-agentstation",
+					title: "limbic-agentstation-1",
+					provider: "claude-code",
+					kind: "worker",
+					branch: "main",
+					status: "working",
+					updatedAt: "2026-07-09T00:00:00Z",
+					prs: [],
+				},
+			],
+		},
+	];
+
+	function renderHierarchyPage() {
+		getMock.mockImplementation(async (path: string) => {
+			if (path === "/api/v1/projects")
+				return {
+					data: {
+						projects: hierarchyWorkspaces.map((w) => ({
+							id: w.id,
+							name: w.name,
+							path: w.path,
+							hqRole: w.hqRole,
+							companyId: w.companyId,
+						})),
+					},
+					error: undefined,
+				};
+			if (path === "/api/v1/sessions")
+				return {
+					data: {
+						sessions: hierarchyWorkspaces.flatMap((w) =>
+							w.sessions.map((s) => ({ ...s, projectId: w.id, harness: s.provider, isTerminated: false })),
+						),
+					},
+					error: undefined,
+				};
+			return { data: {}, error: undefined };
+		});
+		const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+		render(
+			<QueryClientProvider client={queryClient}>
+				<LiveTerminalsPage />
+			</QueryClientProvider>,
+		);
+	}
+
+	it("labels the holding HQ tile CEO and the company HQ tile PM", async () => {
+		searchMock.mockReturnValue({ sessions: "holding-hq-1,qb-hq-1,limbic-agentstation-1" });
+		renderHierarchyPage();
+
+		await screen.findByText("holding-hq-1");
+		expect(screen.getByText("CEO")).toBeInTheDocument();
+		expect(screen.getByText("PM")).toBeInTheDocument();
+		expect(screen.getByText("limbic-agentstation-1")).toBeInTheDocument();
+	});
+
+	it("still renders every selected tile when the CEO is excluded (PM + worker only)", async () => {
+		searchMock.mockReturnValue({ sessions: "qb-hq-1,limbic-agentstation-1" });
+		renderHierarchyPage();
+
+		await screen.findByText("qb-hq-1");
+		expect(screen.getByText("PM")).toBeInTheDocument();
+		expect(screen.getByText("limbic-agentstation-1")).toBeInTheDocument();
+		expect(screen.queryByText("CEO")).not.toBeInTheDocument();
+	});
+});
