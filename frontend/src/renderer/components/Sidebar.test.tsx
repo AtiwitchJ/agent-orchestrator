@@ -402,6 +402,19 @@ describe("Sidebar", () => {
 		expect(screen.getByText("Project Two")).toBeInTheDocument();
 	});
 
+	it("navigates to Live Terminals from the settings menu", async () => {
+		const user = userEvent.setup();
+		renderSidebar();
+
+		// Both the expanded and icon-rail Settings triggers exist in the DOM
+		// simultaneously (the icon-rail one is only Tailwind-`hidden`, which jsdom
+		// doesn't compute) — the expanded variant renders first, so index [0] is it.
+		await user.click(screen.getAllByLabelText("Settings")[0]);
+		await user.click(await screen.findByRole("menuitem", { name: "Live Terminals" }));
+
+		expect(navigateMock).toHaveBeenCalledWith({ to: "/terminals", search: { sessions: "" } });
+	});
+
 	it("does not render company headers in the icon rail", () => {
 		renderSidebar({
 			companies: [{ id: "co-1", name: "OPEN-UPPU", createdAt: "2026-01-01T00:00:00Z" }],

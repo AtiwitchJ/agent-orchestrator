@@ -10,6 +10,7 @@ import {
 	Search,
 	Settings,
 	Sun,
+	Terminal,
 	Trash2,
 } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
@@ -110,6 +111,8 @@ function useSelection() {
 		goCompany: (companyId: string) => void navigate({ to: "/companies/$companyId", params: { companyId } }),
 		goSession: (projectId: string, sessionId: string) =>
 			void navigate({ to: "/projects/$projectId/sessions/$sessionId", params: { projectId, sessionId } }),
+		goTerminals: (sessionIds?: string[]) =>
+			void navigate({ to: "/terminals", search: { sessions: (sessionIds ?? []).join(",") } }),
 	};
 }
 
@@ -318,6 +321,10 @@ export function Sidebar({
 								<GitPullRequest aria-hidden="true" />
 								Pull requests
 							</DropdownMenuItem>
+							<DropdownMenuItem onSelect={() => selection.goTerminals()}>
+								<Terminal aria-hidden="true" />
+								Live Terminals
+							</DropdownMenuItem>
 							<DropdownMenuItem disabled>
 								<Search aria-hidden="true" />
 								Search
@@ -377,6 +384,10 @@ export function Sidebar({
 							<DropdownMenuItem onSelect={selection.goPrs}>
 								<GitPullRequest aria-hidden="true" />
 								Pull requests
+							</DropdownMenuItem>
+							<DropdownMenuItem onSelect={() => selection.goTerminals()}>
+								<Terminal aria-hidden="true" />
+								Live Terminals
 							</DropdownMenuItem>
 							<DropdownMenuItem disabled>
 								<Search aria-hidden="true" />
