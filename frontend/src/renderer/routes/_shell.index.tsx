@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Building2, Plus, ArrowRight, Briefcase } from "lucide-react";
+import { Building2, Plus, ArrowRight, Briefcase, Terminal } from "lucide-react";
 import { useCompaniesQuery, companiesQueryKey } from "../hooks/useCompaniesQuery";
 import { useWorkspaceQuery } from "../hooks/useWorkspaceQuery";
 import { apiClient, apiErrorMessage } from "../lib/api-client";
@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_shell/")({
 	component: CEODashboard,
 });
 
-function CEODashboard() {
+export function CEODashboard() {
 	const companiesQuery = useCompaniesQuery();
 	const workspacesQuery = useWorkspaceQuery();
 	const queryClient = useQueryClient();
@@ -27,6 +27,24 @@ function CEODashboard() {
 	const [newCompanyName, setNewCompanyName] = useState("");
 	const [isCreating, setIsCreating] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [watchLiveError, setWatchLiveError] = useState<string | null>(null);
+
+	const watchLive = async (companyId: string) => {
+		setWatchLiveError(null);
+		const { data, error } = await apiClient.GET("/api/v1/org/overview");
+		if (error) {
+			setWatchLiveError(apiErrorMessage(error, "Could not load org overview"));
+			return;
+		}
+		const overview = data?.overview;
+		const company = overview?.companies.find((c) => c.id === companyId);
+		const ids = [
+			overview?.holdingHq?.orchestratorSessionId,
+			company?.hq?.orchestratorSessionId,
+			...(company?.projects.map((p) => p.orchestratorSessionId) ?? []),
+		].filter((id): id is string => Boolean(id));
+		navigate({ to: "/terminals", search: { sessions: ids.join(",") } });
+	};
 
 	const createCompanyMutation = useMutation({
 		mutationFn: async (name: string) => {
@@ -99,6 +117,11 @@ function CEODashboard() {
 						{error}
 					</div>
 				)}
+				{watchLiveError && (
+					<div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-destructive">
+						{watchLiveError}
+					</div>
+				)}
 
 				<HQSection scope={{ kind: "holding" }} />
 
@@ -145,6 +168,21 @@ function CEODashboard() {
 												<div className="text-xs text-passive uppercase tracking-wider font-semibold">Active Agents</div>
 											</div>
 										</div>
+										{!isUnassigned && (
+											<Button
+												aria-label={`Watch ${group.name} live`}
+												className="mt-4 w-full gap-2"
+												onClick={(e) => {
+													e.stopPropagation();
+													void watchLive(group.id);
+												}}
+												size="sm"
+												variant="outline"
+											>
+												<Terminal size={14} />
+												Watch Live
+											</Button>
+										)}
 									</CardContent>
 								</Card>
 							);
