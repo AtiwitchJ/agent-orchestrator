@@ -9,6 +9,25 @@ import { TerminalTile } from "./TerminalTile";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 const TERMINAL_FONT_SIZE = 12;
+// A single tile's height in pixels, and the gap between tiles (matches the
+// `gap-4` = 1rem Tailwind class used throughout this layout). Every tile gets
+// an explicit height computed from these two constants — never a flex-
+// stretched "however tall the sibling is" height — because xterm.js needs a
+// concrete, stable pixel height when it measures/fits; an indefinite height
+// during an intermediate layout pass can crash its resize handling.
+const TILE_HEIGHT = 280;
+const TILE_GAP = 16;
+
+function rowsFor(childCount: number): number {
+	return childCount === 0 ? 1 : Math.ceil(childCount / 2);
+}
+
+// The height a lead tile (CEO or PM) must be to visually span its children:
+// however many rows those children occupy in the 2-column grid beside it.
+function heightForChildren(childCount: number): number {
+	const rows = rowsFor(childCount);
+	return rows * TILE_HEIGHT + (rows - 1) * TILE_GAP;
+}
 
 type SessionEntry = {
 	session: WorkspaceSession;
@@ -89,7 +108,7 @@ export function LiveTerminalsPage() {
 		return undefined;
 	};
 
-	const renderTile = (ref: TileRef, roleLabel?: string) => {
+	const renderTile = (ref: TileRef, height: number, roleLabel?: string) => {
 		// The CEO tile is a singleton with no ambiguity to disambiguate — show
 		// "CEO" as its name directly instead of the raw "holding-hq" project
 		// slug, and skip the badge so the name isn't shown twice. PM/Worker tiles
@@ -105,6 +124,7 @@ export function LiveTerminalsPage() {
 				theme={theme}
 				daemonReady={daemonStatus.state === "ready"}
 				fontSize={TERMINAL_FONT_SIZE}
+				height={height}
 				onRemove={() => removeId(ref.id)}
 			/>
 		);
@@ -113,28 +133,31 @@ export function LiveTerminalsPage() {
 	// The one shape used at every level of the tree: a "lead" tile on the left
 	// at a fixed width, a 2-column grid of its children to the right. Applied
 	// twice — CEO leading a grid of company cells, and (inside each cell) a
-	// PM/project-lead leading a grid of its own workers — so CEO and PM both
-	// naturally stretch (flex's default cross-axis stretch) to match however
-	// tall their respective grid of children ends up, with no special-casing
-	// for "how many levels are actually selected".
+	// PM/project-lead leading a grid of its own workers. The lead's explicit
+	// height (computed by the caller via heightForChildren) is what makes it
+	// visually span its children — not flex stretch — so no special-casing is
+	// needed for "how many levels are actually selected".
 	const renderLeadRow = (lead: ReactNode | undefined, items: ReactNode[]): ReactNode => {
 		if (!lead && items.length === 0) return null;
 		return (
 			<div className="flex gap-4">
 				{lead && <div className="w-[300px] shrink-0">{lead}</div>}
-				{items.length > 0 && <div className="grid flex-1 grid-cols-2 gap-4">{items}</div>}
+				{items.length > 0 && <div className="grid flex-1 grid-cols-2 content-start gap-4">{items}</div>}
 			</div>
 		);
 	};
 
 	const renderGroupCell = (group: Group) => (
-		<div key={group.key} className="min-h-[220px]">
+		<div key={group.key}>
 			{renderLeadRow(
-				group.lead ? renderTile(group.lead, roleLabelFor(group.lead, true)) : undefined,
-				group.children.map((child) => renderTile(child, roleLabelFor(child, false))),
+				group.lead ? renderTile(group.lead, heightForChildren(group.children.length), roleLabelFor(group.lead, true)) : undefined,
+				group.children.map((child) => renderTile(child, TILE_HEIGHT, roleLabelFor(child, false))),
 			)}
 		</div>
 	);
+
+	const treeHeight =
+		groups.length === 0 ? TILE_HEIGHT : groups.reduce((sum, g) => sum + heightForChildren(g.children.length), 0) + (groups.length - 1) * TILE_GAP;
 
 	return (
 		<div className="flex h-full min-h-0 flex-col bg-background text-foreground">
@@ -165,7 +188,7 @@ export function LiveTerminalsPage() {
 					</div>
 				) : (
 					renderLeadRow(
-						ceo ? renderTile(ceo, "CEO") : undefined,
+						ceo ? renderTile(ceo, treeHeight, "CEO") : undefined,
 						groups.map((group) => renderGroupCell(group)),
 					)
 				)}

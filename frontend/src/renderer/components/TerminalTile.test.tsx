@@ -45,6 +45,7 @@ function renderTile(overrides: Partial<Parameters<typeof TerminalTile>[0]> = {})
 				theme="dark"
 				daemonReady
 				fontSize={12}
+				height={280}
 				onRemove={onRemove}
 				{...overrides}
 			/>

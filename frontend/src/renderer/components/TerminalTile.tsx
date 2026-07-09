@@ -18,6 +18,17 @@ export type TerminalTileProps = {
 	daemonReady: boolean;
 	fontSize: number;
 	onRemove: () => void;
+	/**
+	 * Explicit pixel height for the whole tile. xterm.js needs its container to
+	 * have a concrete, stable height when it measures/fits — a flex-stretched
+	 * ("however tall the sibling ends up") height can resolve to 0/indefinite
+	 * during an intermediate layout pass and crash xterm's resize handling
+	 * ("Cannot read properties of undefined (reading 'dimensions')"). The tree
+	 * layout in LiveTerminalsPage computes this so a CEO/PM tile's height
+	 * matches the combined height of the rows nested under it, without ever
+	 * handing the terminal itself an indefinite height.
+	 */
+	height: number;
 };
 
 // One pane in the Live Terminals grid: a real, interactive TerminalPane (typing
@@ -25,11 +36,6 @@ export type TerminalTileProps = {
 // bar that queues a message via the daemon's existing send endpoint — the same
 // primitive the org heartbeat uses to nudge orchestrators, exposed in the UI
 // for the first time.
-//
-// Height is intentionally flexible (h-full + flex-1 on the terminal area, not a
-// fixed px value): the tree layout in LiveTerminalsPage stretches a CEO/PM tile
-// across the combined height of the rows nested under it, so this component
-// must fill whatever height its container hands it rather than assuming one.
 export function TerminalTile({
 	sessionId,
 	session,
@@ -39,6 +45,7 @@ export function TerminalTile({
 	daemonReady,
 	fontSize,
 	onRemove,
+	height,
 }: TerminalTileProps) {
 	const [draft, setDraft] = useState("");
 	const sendMutation = useMutation({
@@ -54,7 +61,7 @@ export function TerminalTile({
 	});
 
 	return (
-		<div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-surface">
+		<div className="flex flex-col overflow-hidden rounded-lg border border-border bg-surface" style={{ height }}>
 			<div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
 				{roleLabel && (
 					<span className="shrink-0 rounded bg-accent/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase leading-none tracking-[0.04em] text-accent">
@@ -76,7 +83,7 @@ export function TerminalTile({
 			</div>
 			{session ? (
 				<>
-					<div className="min-h-[220px] flex-1">
+					<div className="min-h-0 flex-1">
 						<TerminalPane session={session} theme={theme} daemonReady={daemonReady} fontSize={fontSize} />
 					</div>
 					<form
