@@ -93,12 +93,18 @@ export function apiErrorMessage(error: unknown, fallback = "Request failed"): st
 	if (error instanceof Error) return error.message;
 	if (typeof error === "string" && error !== "") return error;
 	if (typeof error === "object" && error !== null) {
-		const body = error as { code?: unknown; message?: unknown; error?: unknown };
+		const body = error as { code?: unknown; message?: unknown; error?: unknown; details?: unknown };
 		const code = typeof body.code === "string" && body.code !== "" ? body.code : "";
+		const details =
+			typeof body.details === "object" && body.details !== null ? (body.details as Record<string, unknown>) : undefined;
+		const suggestedFix =
+			typeof details?.suggestedFix === "string" && details.suggestedFix !== "" ? details.suggestedFix : "";
+		const suffix = suggestedFix ? ` — ${suggestedFix}` : "";
 		if (typeof body.message === "string" && body.message !== "") {
-			return code && !body.message.includes(code) ? `${body.message} (${code})` : body.message;
+			const base = code && !body.message.includes(code) ? `${body.message} (${code})` : body.message;
+			return `${base}${suffix}`;
 		}
-		if (typeof body.error === "string" && body.error !== "") return body.error;
+		if (typeof body.error === "string" && body.error !== "") return `${body.error}${suffix}`;
 	}
 	return fallback;
 }

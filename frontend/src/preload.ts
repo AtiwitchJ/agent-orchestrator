@@ -16,10 +16,14 @@ export type BrowserNavigateInput = {
 	url: string;
 };
 
+export type WorkspaceDetectionResult = { looksLikeWorkspace: boolean; detectedChildNames: string[] };
+
 const api = {
 	app: {
 		getVersion: () => ipcRenderer.invoke("app:getVersion") as Promise<string>,
 		chooseDirectory: () => ipcRenderer.invoke("app:chooseDirectory") as Promise<string | null>,
+		detectWorkspace: (path: string) =>
+			ipcRenderer.invoke("app:detectWorkspace", path) as Promise<WorkspaceDetectionResult>,
 	},
 	clipboard: {
 		writeText: (text: string) => ipcRenderer.invoke("clipboard:writeText", text) as Promise<void>,

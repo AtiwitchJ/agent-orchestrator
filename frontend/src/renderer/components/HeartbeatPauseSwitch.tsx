@@ -28,7 +28,7 @@ export function HeartbeatPauseSwitch() {
 	const paused = mutation.isPending ? mutation.variables : (query.data ?? false);
 
 	return (
-		<label className="flex items-center gap-2 text-sm text-slate-400">
+		<label className="flex items-center gap-2 text-[13px] text-muted-foreground">
 			<input
 				type="checkbox"
 				className="h-4 w-4 accent-accent"
@@ -38,7 +38,7 @@ export function HeartbeatPauseSwitch() {
 			/>
 			Heartbeats {paused ? "paused" : "running"}
 			{mutation.isError && (
-				<span className="text-red-400">{mutation.error instanceof Error ? mutation.error.message : "Failed"}</span>
+				<span className="text-destructive">{mutation.error instanceof Error ? mutation.error.message : "Failed"}</span>
 			)}
 		</label>
 	);

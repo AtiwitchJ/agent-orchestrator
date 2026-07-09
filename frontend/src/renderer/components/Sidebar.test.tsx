@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Sidebar } from "./Sidebar";
+import { CreateProjectFlow, Sidebar } from "./Sidebar";
 import type { WorkspaceSession, WorkspaceSummary } from "../types/workspace";
 import { agentsQueryKey } from "../hooks/useAgentsQuery";
 import { companiesQueryKey, type Company } from "../hooks/useCompaniesQuery";
@@ -414,5 +414,94 @@ describe("Sidebar", () => {
 		// flat stack of ProjectItems, same as the no-companies case.
 		expect(screen.queryByText("OPEN-UPPU")).not.toBeInTheDocument();
 		expect(screen.getByText("P")).toBeInTheDocument();
+	});
+});
+
+// CreateProjectFlow is only ever mounted directly (e.g.
+// _shell.companies.$companyId.tsx), not from inside Sidebar itself — Sidebar
+// accepts an onCreateProject prop but never renders a trigger for it. These
+// tests mount it the way the app actually does.
+describe("CreateProjectFlow", () => {
+	function renderCreateProjectFlow(onCreateProject: CreateProjectHandler) {
+		const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+		queryClient.setQueryData(agentsQueryKey, {
+			supported: [
+				{ id: "claude-code", label: "Claude Code" },
+				{ id: "codex", label: "Codex" },
+			],
+			installed: [
+				{ id: "claude-code", label: "Claude Code" },
+				{ id: "codex", label: "Codex" },
+			],
+			authorized: [
+				{ id: "claude-code", label: "Claude Code", authStatus: "authorized" },
+				{ id: "codex", label: "Codex", authStatus: "authorized" },
+			],
+		});
+		render(
+			<QueryClientProvider client={queryClient}>
+				<CreateProjectFlow onCreateProject={onCreateProject}>
+					{({ disabled, choosePath, label }) => (
+						<button onClick={choosePath} disabled={disabled} type="button">
+							{label}
+						</button>
+					)}
+				</CreateProjectFlow>
+			</QueryClientProvider>,
+		);
+	}
+
+	it("detects a workspace folder, pre-checks the checkbox, and submits asWorkspace: true", async () => {
+		const user = userEvent.setup();
+		const onCreateProject = vi.fn().mockResolvedValue(undefined) as CreateProjectHandler;
+		window.ao!.app.chooseDirectory = vi.fn().mockResolvedValue("/repo/new-workspace");
+		window.ao!.app.detectWorkspace = vi
+			.fn()
+			.mockResolvedValue({ looksLikeWorkspace: true, detectedChildNames: ["svc-a", "svc-b"] });
+		renderCreateProjectFlow(onCreateProject);
+
+		await user.click(screen.getByRole("button", { name: "New project" }));
+
+		expect(await screen.findByText("/repo/new-workspace")).toBeInTheDocument();
+		expect(screen.getByLabelText("Multi-repo workspace")).toBeChecked();
+		expect(screen.getByText("Detected repos: svc-a, svc-b")).toBeInTheDocument();
+		await chooseOption(screen.getByRole("combobox", { name: "Worker agent" }), "Codex");
+		await chooseOption(screen.getByRole("combobox", { name: "Orchestrator agent" }), "Claude Code");
+		await user.click(screen.getByRole("button", { name: "Create and start" }));
+
+		await waitFor(() =>
+			expect(onCreateProject).toHaveBeenCalledWith(
+				expect.objectContaining({ path: "/repo/new-workspace", asWorkspace: true }),
+			),
+		);
+	});
+
+	it("leaves the workspace checkbox unchecked for a plain single-repo folder", async () => {
+		const user = userEvent.setup();
+		const onCreateProject = vi.fn().mockResolvedValue(undefined) as CreateProjectHandler;
+		window.ao!.app.chooseDirectory = vi.fn().mockResolvedValue("/repo/new-project");
+		window.ao!.app.detectWorkspace = vi
+			.fn()
+			.mockResolvedValue({ looksLikeWorkspace: false, detectedChildNames: [] });
+		renderCreateProjectFlow(onCreateProject);
+
+		await user.click(screen.getByRole("button", { name: "New project" }));
+
+		expect(await screen.findByText("/repo/new-project")).toBeInTheDocument();
+		expect(screen.getByLabelText("Multi-repo workspace")).not.toBeChecked();
+		await chooseOption(screen.getByRole("combobox", { name: "Worker agent" }), "Codex");
+		await chooseOption(screen.getByRole("combobox", { name: "Orchestrator agent" }), "Claude Code");
+		await user.click(screen.getByRole("button", { name: "Create and start" }));
+
+		await waitFor(() =>
+			expect(onCreateProject).toHaveBeenCalledWith({
+				path: "/repo/new-project",
+				workerAgent: "codex",
+				orchestratorAgent: "claude-code",
+				trackerIntake: undefined,
+				companyId: undefined,
+				asWorkspace: undefined,
+			}),
+		);
 	});
 });

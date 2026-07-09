@@ -6,6 +6,7 @@ export const aoBridge: AoBridge =
 		app: {
 			getVersion: async () => "0.0.0-preview",
 			chooseDirectory: async () => null,
+			detectWorkspace: async () => ({ looksLikeWorkspace: false, detectedChildNames: [] }),
 		},
 		clipboard: {
 			writeText: async (text: string) => {

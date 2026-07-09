@@ -177,4 +177,26 @@ describe("apiErrorMessage", () => {
 			}),
 		).toBe("tmux required (RUNTIME_PREREQUISITE_MISSING)");
 	});
+
+	it("appends details.suggestedFix when present", () => {
+		expect(
+			apiErrorMessage({
+				code: "WORKSPACE_REPOS_REQUIRED",
+				message: "Workspace project must contain at least one direct child git repository",
+				details: { suggestedFix: "Create or move child repositories directly under the workspace folder, then retry." },
+			}),
+		).toBe(
+			"Workspace project must contain at least one direct child git repository (WORKSPACE_REPOS_REQUIRED) — Create or move child repositories directly under the workspace folder, then retry.",
+		);
+	});
+
+	it("ignores details without a suggestedFix string", () => {
+		expect(
+			apiErrorMessage({
+				code: "AGENT_BINARY_NOT_FOUND",
+				message: "agent binary not found on PATH",
+				details: { path: "/x" },
+			}),
+		).toBe("agent binary not found on PATH (AGENT_BINARY_NOT_FOUND)");
+	});
 });

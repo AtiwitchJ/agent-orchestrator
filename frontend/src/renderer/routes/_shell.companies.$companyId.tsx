@@ -5,6 +5,7 @@ import { useCompaniesQuery, companiesQueryKey } from "../hooks/useCompaniesQuery
 import { useWorkspaceQuery } from "../hooks/useWorkspaceQuery";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { DashboardSubhead } from "../components/DashboardSubhead";
 import { CreateProjectFlow } from "../components/Sidebar";
 import { HQSection } from "../components/HQSection";
 import { useShell } from "../lib/shell-context";
@@ -62,86 +63,93 @@ function CompanyDashboard() {
 
 	if (!company && !isUnassigned && !companiesQuery.isLoading) {
 		return (
-			<div className="flex h-full flex-col items-center justify-center bg-slate-950 text-slate-100">
+			<div className="flex h-full flex-col items-center justify-center gap-4 bg-background text-foreground">
 				<div className="text-xl font-bold">Company not found</div>
-				<Button className="mt-4" onClick={() => navigate({ to: "/" })}>Back to CEO Dashboard</Button>
+				<Button className="gap-2" onClick={() => navigate({ to: "/" })}>
+					<ArrowLeft size={16} />
+					Back to Holdings Dashboard
+				</Button>
 			</div>
 		);
 	}
 
-	return (
-		<div className="flex h-full flex-col overflow-y-auto bg-slate-950 p-8 text-slate-100">
-			<div className="mx-auto w-full max-w-5xl space-y-8">
-				<div className="flex items-center gap-4">
-					<Button variant="ghost" size="icon" onClick={() => navigate({ to: "/" })}>
-						<ArrowLeft className="h-5 w-5" />
+	const headerActions = (
+		<>
+			{!isUnassigned && company && (
+				<Button
+					variant="outline"
+					className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+					onClick={handleDeleteCompany}
+					disabled={deleteCompanyMutation.isPending}
+				>
+					<Trash2 size={16} />
+					Delete Company
+				</Button>
+			)}
+			<CreateProjectFlow onCreateProject={(args) => createProject({ ...args, companyId: isUnassigned ? undefined : companyId })}>
+				{({ disabled, choosePath, label }) => (
+					<Button onClick={choosePath} disabled={disabled} className="gap-2">
+						<Plus size={16} />
+						{label === "New project" ? "Add Project" : label}
 					</Button>
-					<div>
-						<h1 className="text-3xl font-bold tracking-tight">
-							{isUnassigned ? "Unassigned Projects" : company?.name}
-						</h1>
-						<p className="text-slate-400 mt-2">
-							{isUnassigned ? "Projects not linked to any company" : `Company ID: ${company?.id}`}
-						</p>
-					</div>
-					
-					<div className="ml-auto flex items-center gap-4">
-						{!isUnassigned && company && (
-							<Button 
-								variant="outline" 
-								className="gap-2 text-red-500 hover:text-red-400 hover:bg-red-950/50 border-red-900/30"
-								onClick={handleDeleteCompany}
-								disabled={deleteCompanyMutation.isPending}
-							>
-								<Trash2 size={16} />
-								Delete Company
-							</Button>
-						)}
-						<CreateProjectFlow onCreateProject={(args) => createProject({ ...args, companyId: isUnassigned ? undefined : companyId })}>
-							{({ disabled, choosePath, label }) => (
-								<Button onClick={choosePath} disabled={disabled} className="gap-2">
-									<Plus size={16} />
-									{label === "New project" ? "Add Project" : label}
-								</Button>
-							)}
-						</CreateProjectFlow>
-					</div>
-				</div>
+				)}
+			</CreateProjectFlow>
+		</>
+	);
 
+	return (
+		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-background text-foreground">
+			<div className="flex items-center gap-1 px-[18px] pt-[22px]">
+				<Button variant="ghost" className="gap-1.5 text-passive hover:text-foreground" onClick={() => navigate({ to: "/" })}>
+					<ArrowLeft size={15} />
+					Holdings Dashboard
+				</Button>
+			</div>
+			<DashboardSubhead
+				title={isUnassigned ? "Unassigned Projects" : (company?.name ?? "")}
+				subtitle={isUnassigned ? "Projects not linked to any company" : `Company ID: ${company?.id}`}
+				actions={headerActions}
+			/>
+
+			<div className="mx-auto w-full max-w-5xl space-y-8 px-[18px] pb-8 pt-6">
 				{!isUnassigned && <HQSection scope={{ kind: "company", companyId }} />}
 
 				{workspacesQuery.isLoading ? (
-					<div className="text-slate-500">Loading projects...</div>
+					<div className="text-passive">Loading projects...</div>
 				) : (
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 						{companyProjects.map((project) => {
 							const activeSessions = project.sessions.filter(s => sessionIsActive(s)).length;
 							return (
-								<Card key={project.id} className="bg-slate-900/50 border-slate-800 hover:border-blue-500/50 transition-colors cursor-pointer" onClick={() => {
-									navigate({ to: "/projects/$projectId", params: { projectId: project.id } });
-								}}>
+								<Card
+									key={project.id}
+									className="cursor-pointer transition-colors hover:border-accent/50"
+									onClick={() => {
+										navigate({ to: "/projects/$projectId", params: { projectId: project.id } });
+									}}
+								>
 									<CardHeader className="pb-2">
 										<div className="flex items-center justify-between">
-											<div className="p-2 bg-purple-500/10 rounded-lg">
-												<FolderGit2 className="text-purple-400" size={24} />
+											<div className="p-2 bg-accent/10 rounded-lg">
+												<FolderGit2 className="text-accent" size={24} />
 											</div>
 										</div>
-										<CardTitle className="text-xl mt-4 text-slate-200 truncate" title={project.name || project.id}>
+										<CardTitle className="text-xl mt-4 text-foreground truncate" title={project.name || project.id}>
 											{project.name || project.id}
 										</CardTitle>
-										<CardDescription className="text-slate-400 truncate">
+										<CardDescription className="truncate">
 											{project.path}
 										</CardDescription>
 									</CardHeader>
 									<CardContent>
 										<div className="flex gap-4 mt-4">
 											<div>
-												<div className="text-2xl font-semibold text-slate-200">{project.sessions.length}</div>
-												<div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total Agents</div>
+												<div className="text-2xl font-semibold text-foreground">{project.sessions.length}</div>
+												<div className="text-xs text-passive uppercase tracking-wider font-semibold">Total Agents</div>
 											</div>
 											<div>
-												<div className="text-2xl font-semibold text-slate-200">{activeSessions}</div>
-												<div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Active</div>
+												<div className="text-2xl font-semibold text-foreground">{activeSessions}</div>
+												<div className="text-xs text-passive uppercase tracking-wider font-semibold">Active</div>
 											</div>
 										</div>
 									</CardContent>
@@ -149,7 +157,7 @@ function CompanyDashboard() {
 							);
 						})}
 						{companyProjects.length === 0 && (
-							<div className="col-span-full py-12 text-center text-slate-500 bg-slate-900/20 border border-slate-800/50 rounded-lg border-dashed">
+							<div className="col-span-full py-12 text-center text-passive bg-surface/50 border border-border rounded-lg border-dashed">
 								No projects found for this company.
 							</div>
 						)}

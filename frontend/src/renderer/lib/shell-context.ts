@@ -6,7 +6,14 @@ import type { useDaemonStatus } from "../hooks/useDaemonStatus";
 // it lives in the shell and is handed down here rather than re-run per route.
 export type ShellContextValue = {
 	daemonStatus: ReturnType<typeof useDaemonStatus>;
-	createProject: (input: { path: string; workerAgent: string; orchestratorAgent: string; trackerIntake?: any; companyId?: string }) => Promise<void>;
+	createProject: (input: {
+		path: string;
+		workerAgent: string;
+		orchestratorAgent: string;
+		trackerIntake?: any;
+		companyId?: string;
+		asWorkspace?: boolean;
+	}) => Promise<void>;
 };
 
 const ShellContext = createContext<ShellContextValue | null>(null);

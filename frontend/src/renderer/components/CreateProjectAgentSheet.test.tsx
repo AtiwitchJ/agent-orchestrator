@@ -5,7 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 import { agentsQueryKey } from "../hooks/useAgentsQuery";
 import { CreateProjectAgentSheet } from "./CreateProjectAgentSheet";
 
-function renderSheet(onSubmit = vi.fn().mockResolvedValue(undefined)) {
+function renderSheet(
+	onSubmit = vi.fn().mockResolvedValue(undefined),
+	workspaceDetection?: { looksLikeWorkspace: boolean; detectedChildNames: string[] } | null,
+) {
 	const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 	queryClient.setQueryData(agentsQueryKey, {
 		supported: [
@@ -29,6 +32,7 @@ function renderSheet(onSubmit = vi.fn().mockResolvedValue(undefined)) {
 				onSubmit={onSubmit}
 				open={true}
 				path="/repo/new-project"
+				workspaceDetection={workspaceDetection}
 			/>
 		</QueryClientProvider>,
 	);
@@ -86,5 +90,45 @@ describe("CreateProjectAgentSheet", () => {
 		await userEvent.click(screen.getByLabelText("Enable issue intake"));
 		expect(screen.queryByText("Repository")).not.toBeInTheDocument();
 		expect(screen.queryByText(/Reads credentials from/)).not.toBeInTheDocument();
+	});
+
+	it("submits asWorkspace: true when the checkbox is checked", async () => {
+		const onSubmit = renderSheet(vi.fn().mockResolvedValue(undefined), {
+			looksLikeWorkspace: false,
+			detectedChildNames: [],
+		});
+		await chooseOption(screen.getByLabelText("Worker agent"), "claude-code");
+		await chooseOption(screen.getByLabelText("Orchestrator agent"), "codex");
+
+		await userEvent.click(screen.getByLabelText("Multi-repo workspace"));
+		await userEvent.click(screen.getByRole("button", { name: "Create and start" }));
+
+		await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+		expect(onSubmit).toHaveBeenCalledWith({
+			workerAgent: "claude-code",
+			orchestratorAgent: "codex",
+			trackerIntake: undefined,
+			asWorkspace: true,
+		});
+	});
+
+	it("pre-checks and shows detected repos when workspaceDetection.looksLikeWorkspace is true", async () => {
+		renderSheet(vi.fn().mockResolvedValue(undefined), {
+			looksLikeWorkspace: true,
+			detectedChildNames: ["api", "web"],
+		});
+
+		expect(screen.getByLabelText("Multi-repo workspace")).toBeChecked();
+		expect(screen.getByText("Detected repos: api, web")).toBeInTheDocument();
+	});
+
+	it("does not show the detected-repos line when unchecked", async () => {
+		renderSheet(vi.fn().mockResolvedValue(undefined), {
+			looksLikeWorkspace: false,
+			detectedChildNames: ["api", "web"],
+		});
+
+		expect(screen.getByLabelText("Multi-repo workspace")).not.toBeChecked();
+		expect(screen.queryByText(/Detected repos:/)).not.toBeInTheDocument();
 	});
 });

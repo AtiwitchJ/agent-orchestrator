@@ -59,7 +59,11 @@ import { OrchestratorIcon } from "./icons";
 import aoLogo from "../assets/ao-logo.png";
 import { cn } from "../lib/utils";
 import { useUiStore } from "../stores/ui-store";
-import { CreateProjectAgentSheet, type CreateProjectAgentSelection } from "./CreateProjectAgentSheet";
+import {
+	CreateProjectAgentSheet,
+	type CreateProjectAgentSelection,
+	type WorkspaceDetectionResult,
+} from "./CreateProjectAgentSheet";
 
 // The macOS hiddenInset traffic lights and the fixed TitlebarNav overlay live
 // in the full-width topbar's left inset (_shell renders the bar above the
@@ -91,17 +95,19 @@ type SidebarProps = {
 // route params, and clicks navigate rather than mutate a store.
 function useSelection() {
 	const navigate = useNavigate();
-	const params = useParams({ strict: false }) as { projectId?: string; sessionId?: string };
+	const params = useParams({ strict: false }) as { projectId?: string; sessionId?: string; companyId?: string };
 	const pathname = useRouterState({ select: (state) => state.location.pathname });
 	return {
 		isHome: pathname === "/",
 		activeProjectId: params.projectId,
 		activeSessionId: params.sessionId,
+		activeCompanyId: params.companyId,
 		goHome: () => void navigate({ to: "/" }),
 		goPrs: () => void navigate({ to: "/prs" }),
 		goGlobalSettings: () => void navigate({ to: "/settings" }),
 		goSettings: (projectId: string) => void navigate({ to: "/projects/$projectId/settings", params: { projectId } }),
 		goProject: (projectId: string) => void navigate({ to: "/projects/$projectId", params: { projectId } }),
+		goCompany: (companyId: string) => void navigate({ to: "/companies/$companyId", params: { companyId } }),
 		goSession: (projectId: string, sessionId: string) =>
 			void navigate({ to: "/projects/$projectId/sessions/$sessionId", params: { projectId, sessionId } }),
 	};
@@ -190,42 +196,50 @@ export function Sidebar({
 			<SidebarHeader className="gap-0 p-0 pl-2.5 pr-[7px] pt-3.5 group-data-[collapsible=icon]:px-1.5">
 				{/* Brand (project-sidebar__brand); in the icon rail it becomes the old
             36px board button wrapping the 22px accent mark. */}
-				<div className="flex shrink-0 items-center gap-2.5 px-2 pb-[18px] group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:pb-2">
+				<div className="flex shrink-0 items-center gap-1 px-2 pb-[18px] group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:pb-2">
+					{/* Icon + label together form one nav row back to the Holdings CEO
+					    Dashboard ("/") — previously only the 22px icon was clickable and
+					    its tooltip said "Orchestrator board", which didn't tell users this
+					    was their way back to the dashboard. */}
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<button
-								aria-label="Orchestrator board"
+								aria-current={selection.isHome ? "page" : undefined}
+								aria-label="Holdings Dashboard"
 								className={cn(
-									"grid h-[22px] w-[22px] shrink-0 place-items-center",
-									"group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:rounded-lg",
-									selection.isHome
-										? "group-data-[collapsible=icon]:bg-interactive-active"
-										: "group-data-[collapsible=icon]:hover:bg-interactive-hover",
+									"flex h-9 min-w-0 flex-1 items-center gap-2.5 rounded-[5px] px-1.5 transition-colors",
+									"group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:px-0",
+									selection.isHome ? "bg-interactive-active" : "hover:bg-interactive-hover",
 								)}
 								onClick={selection.goHome}
 								type="button"
 							>
-								<img src={aoLogo} alt="" aria-hidden="true" className="h-[22px] w-[22px] rounded-[6px] object-cover" />
+								<img
+									src={aoLogo}
+									alt=""
+									aria-hidden="true"
+									className="h-[22px] w-[22px] shrink-0 rounded-[6px] object-cover"
+								/>
+								<span className="min-w-0 flex-1 truncate text-left text-[14px] font-bold tracking-[-0.015em] text-foreground group-data-[collapsible=icon]:hidden">
+									Modern Agent
+								</span>
+								{isNightly && (
+									<span
+										className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none group-data-[collapsible=icon]:hidden"
+										style={{
+											color: "var(--purple)",
+											background: "color-mix(in srgb, var(--purple) 12%, transparent)",
+										}}
+									>
+										nightly
+									</span>
+								)}
 							</button>
 						</TooltipTrigger>
 						<TooltipContent side="right" hidden={state !== "collapsed"}>
-							Orchestrator board
+							Holdings Dashboard
 						</TooltipContent>
 					</Tooltip>
-					<span className="min-w-0 flex-1 truncate text-[14px] font-bold tracking-[-0.015em] text-foreground group-data-[collapsible=icon]:hidden">
-						Modern Agent
-					</span>
-					{isNightly && (
-						<span
-							className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none group-data-[collapsible=icon]:hidden"
-							style={{
-								color: "var(--purple)",
-								background: "color-mix(in srgb, var(--purple) 12%, transparent)",
-							}}
-						>
-							nightly
-						</span>
-					)}
 					{/* On macOS the toggle lives in the titlebar cluster instead. */}
 					{!isMac && (
 						<Tooltip>
@@ -444,24 +458,63 @@ function CompanyGroup({
 		return <>{projectItems}</>;
 	}
 
+	// "Unassigned" has no dashboard page of its own (mirrors the CEO Dashboard's
+	// company cards, which likewise don't navigate for the unassigned group) —
+	// its header only toggles. Real companies navigate to their dashboard on
+	// click and expand/collapse via the separate chevron button, so users can
+	// jump straight to a company's page from the sidebar instead of having to
+	// go back through the Holdings Dashboard's card grid.
+	const isUnassigned = group.id === "unassigned";
+	const isActive = !isUnassigned && selection.activeCompanyId === group.id;
+
 	return (
 		<SidebarMenuItem className="mb-px">
-			<button
-				aria-expanded={expanded}
-				className="flex h-7 w-full items-center gap-1.5 rounded-[5px] px-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-passive transition-colors hover:bg-interactive-hover hover:text-muted-foreground"
-				onClick={() => onToggleCollapsed(disclosureId)}
-				type="button"
+			<div
+				className={cn(
+					"flex h-7 w-full items-center gap-1 rounded-[5px] pr-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors",
+					isActive
+						? "bg-interactive-active text-foreground"
+						: isUnassigned
+							? "text-passive hover:bg-interactive-hover hover:text-muted-foreground"
+							: "hover:bg-interactive-hover",
+				)}
+				// Give real companies their own tint (same --purple token the "nightly"
+				// badge already uses) so the tree reads as two tiers at a glance —
+				// purple for "company, click to open", plain foreground for "you're
+				// here" — rather than relying on case/size alone. "Unassigned" stays
+				// neutral gray since it isn't a real company.
+				style={!isActive && !isUnassigned ? { color: "var(--purple)" } : undefined}
 			>
-				<ChevronRight
-					className={cn("h-[9px]! w-[9px]! shrink-0 transition-transform", expanded && "rotate-90")}
-					strokeWidth={2.5}
-					aria-hidden="true"
-				/>
-				<span className="min-w-0 flex-1 truncate text-left">{group.name}</span>
+				<button
+					aria-expanded={expanded}
+					aria-label={`${expanded ? "Collapse" : "Expand"} ${group.name}`}
+					className="grid h-7 w-6 shrink-0 place-items-center"
+					onClick={() => onToggleCollapsed(disclosureId)}
+					type="button"
+				>
+					<ChevronRight
+						className={cn("h-[9px]! w-[9px]! shrink-0 transition-transform", expanded && "rotate-90")}
+						strokeWidth={2.5}
+						aria-hidden="true"
+					/>
+				</button>
+				<button
+					aria-current={isActive ? "page" : undefined}
+					// Chromium's default <button> stylesheet resets text-transform, so
+					// the parent div's `uppercase` doesn't reach this label — reapply
+					// directly, or the company header silently renders in plain case and
+					// becomes indistinguishable from a project row.
+					className="min-w-0 flex-1 truncate text-left uppercase tracking-[0.06em] disabled:cursor-default"
+					disabled={isUnassigned}
+					onClick={() => (isUnassigned ? onToggleCollapsed(disclosureId) : selection.goCompany(group.id))}
+					type="button"
+				>
+					{group.name}
+				</button>
 				<span className="h-4 min-w-4 shrink-0 place-items-center rounded bg-interactive-hover px-1 font-mono text-[10px] normal-case leading-none text-passive">
 					{group.workspaces.length}
 				</span>
-			</button>
+			</div>
 			{expanded && <SidebarMenu className="gap-0">{projectItems}</SidebarMenu>}
 		</SidebarMenuItem>
 	);
@@ -785,13 +838,20 @@ export function CreateProjectFlow({
 	const [selectedPath, setSelectedPath] = useState<string | null>(null);
 	const [isChoosingPath, setIsChoosingPath] = useState(false);
 	const [isCreating, setIsCreating] = useState(false);
+	const [workspaceDetection, setWorkspaceDetection] = useState<WorkspaceDetectionResult | null>(null);
 
 	const choosePath = async () => {
 		setError(null);
 		setIsChoosingPath(true);
 		try {
 			const path = await aoBridge.app.chooseDirectory();
-			if (path) setSelectedPath(path);
+			if (path) {
+				const detection = await aoBridge.app
+					.detectWorkspace(path)
+					.catch(() => ({ looksLikeWorkspace: false, detectedChildNames: [] }));
+				setWorkspaceDetection(detection);
+				setSelectedPath(path);
+			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Could not add project");
 		} finally {
@@ -806,6 +866,7 @@ export function CreateProjectFlow({
 		try {
 			await onCreateProject({ path: selectedPath, ...selection });
 			setSelectedPath(null);
+			setWorkspaceDetection(null);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Could not add project");
 		} finally {
@@ -824,12 +885,14 @@ export function CreateProjectFlow({
 				onOpenChange={(open) => {
 					if (!open) {
 						setSelectedPath(null);
+						setWorkspaceDetection(null);
 						setError(null);
 					}
 				}}
 				onSubmit={createProject}
 				open={selectedPath !== null}
 				path={selectedPath}
+				workspaceDetection={workspaceDetection}
 			/>
 			{error && (
 				<span className="sr-only" role="status">

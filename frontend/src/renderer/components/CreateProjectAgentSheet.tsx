@@ -19,7 +19,10 @@ export type CreateProjectAgentSelection = {
 	orchestratorAgent: string;
 	trackerIntake?: TrackerIntakeConfig;
 	companyId?: string;
+	asWorkspace?: boolean;
 };
+
+export type WorkspaceDetectionResult = { looksLikeWorkspace: boolean; detectedChildNames: string[] };
 
 const EMPTY_INTAKE: IntakeForm = { enabled: false, repo: "", assignee: "" };
 
@@ -31,6 +34,7 @@ type CreateProjectAgentSheetProps = {
 	open: boolean;
 	path: string | null;
 	targetCompanyId?: string;
+	workspaceDetection?: WorkspaceDetectionResult | null;
 };
 
 export function CreateProjectAgentSheet({
@@ -41,6 +45,7 @@ export function CreateProjectAgentSheet({
 	open,
 	path,
 	targetCompanyId,
+	workspaceDetection,
 }: CreateProjectAgentSheetProps) {
 	const queryClient = useQueryClient();
 	const agentsQuery = useQuery({
@@ -64,17 +69,21 @@ export function CreateProjectAgentSheet({
 	const [workerAgent, setWorkerAgent] = useState("");
 	const [orchestratorAgent, setOrchestratorAgent] = useState("");
 	const [intake, setIntake] = useState<IntakeForm>(EMPTY_INTAKE);
+	const [asWorkspace, setAsWorkspace] = useState(false);
 	const intakeIncomplete = intakeNeedsRule(intake);
 	const canSubmit =
 		workerAgent !== "" && orchestratorAgent !== "" && !intakeIncomplete && !isCreating && !isLoadingAgents;
 
 	useEffect(() => {
-		if (!open) {
+		if (open) {
+			setAsWorkspace(workspaceDetection?.looksLikeWorkspace ?? false);
+		} else {
 			setWorkerAgent("");
 			setOrchestratorAgent("");
 			setIntake(EMPTY_INTAKE);
+			setAsWorkspace(false);
 		}
-	}, [open, path]);
+	}, [open, path, workspaceDetection]);
 
 	return (
 		<Dialog.Root open={open} onOpenChange={(next) => !isCreating && onOpenChange(next)}>
@@ -104,7 +113,13 @@ export function CreateProjectAgentSheet({
 						onSubmit={(event) => {
 							event.preventDefault();
 							if (!canSubmit) return;
-							void onSubmit({ workerAgent, orchestratorAgent, trackerIntake: buildIntake(intake), companyId: targetCompanyId });
+							void onSubmit({
+								workerAgent,
+								orchestratorAgent,
+								trackerIntake: buildIntake(intake),
+								companyId: targetCompanyId,
+								asWorkspace: asWorkspace || undefined,
+							});
 						}}
 					>
 						<div className="grid gap-3 sm:grid-cols-2">
@@ -166,6 +181,23 @@ export function CreateProjectAgentSheet({
 									: "Could not refresh agent catalog."}
 							</div>
 						)}
+
+						<div className="border-t border-border pt-4">
+							<label className="flex items-center gap-2.5 text-[13px] text-foreground">
+								<input
+									type="checkbox"
+									className="h-4 w-4 accent-accent"
+									checked={asWorkspace}
+									onChange={(e) => setAsWorkspace(e.target.checked)}
+								/>
+								Multi-repo workspace
+							</label>
+							{asWorkspace && (workspaceDetection?.detectedChildNames.length ?? 0) > 0 && (
+								<p className="mt-1.5 text-[12px] leading-5 text-muted-foreground">
+									Detected repos: {workspaceDetection!.detectedChildNames.join(", ")}
+								</p>
+							)}
+						</div>
 
 						<div className="border-t border-border pt-4">
 							<IntakeFields form={intake} onChange={(patch) => setIntake((f) => ({ ...f, ...patch }))} compact />

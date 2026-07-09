@@ -8,10 +8,12 @@ import { apiClient, apiErrorMessage } from "../lib/api-client";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { DashboardSubhead } from "../components/DashboardSubhead";
 import { groupWorkspacesByCompany, sessionIsActive } from "../types/workspace";
 import { MigrationPopup } from "../components/MigrationPopup";
 import { HQSection } from "../components/HQSection";
 import { HeartbeatPauseSwitch } from "../components/HeartbeatPauseSwitch";
+import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/_shell/")({
 	component: CEODashboard,
@@ -55,47 +57,45 @@ function CEODashboard() {
 	const workspaces = workspacesQuery.data ?? [];
 	const companyGroups = groupWorkspacesByCompany(workspaces, companies);
 
-	return (
-		<div className="flex h-full flex-col overflow-y-auto bg-slate-950 p-8 text-slate-100">
-			<MigrationPopup />
-			
-			<div className="mx-auto w-full max-w-6xl space-y-8">
-				<div className="flex items-center justify-between">
-					<div>
-						<h1 className="text-3xl font-bold tracking-tight">UPPU Holdings CEO Dashboard</h1>
-						<p className="text-slate-400 mt-2">Overview of all companies and operations</p>
-					</div>
-					
-					{isCreating ? (
-						<form onSubmit={handleCreateCompany} className="flex items-center gap-2">
-							<Input
-								autoFocus
-								placeholder="Company Name..."
-								value={newCompanyName}
-								onChange={(e) => setNewCompanyName(e.target.value)}
-								className="w-48 bg-slate-900 border-slate-700"
-								disabled={createCompanyMutation.isPending}
-							/>
-							<Button type="submit" disabled={createCompanyMutation.isPending || !newCompanyName.trim()}>
-								Save
-							</Button>
-							<Button type="button" variant="ghost" onClick={() => setIsCreating(false)}>
-								Cancel
-							</Button>
-						</form>
-					) : (
-						<div className="flex items-center gap-4">
-							<HeartbeatPauseSwitch />
-							<Button onClick={() => setIsCreating(true)} className="gap-2">
-								<Plus size={16} />
-								Add Company
-							</Button>
-						</div>
-					)}
-				</div>
+	const headerActions = isCreating ? (
+		<form onSubmit={handleCreateCompany} className="flex items-center gap-2">
+			<Input
+				autoFocus
+				placeholder="Company name..."
+				value={newCompanyName}
+				onChange={(e) => setNewCompanyName(e.target.value)}
+				className="w-48"
+				disabled={createCompanyMutation.isPending}
+			/>
+			<Button type="submit" disabled={createCompanyMutation.isPending || !newCompanyName.trim()}>
+				Save
+			</Button>
+			<Button type="button" variant="ghost" onClick={() => setIsCreating(false)}>
+				Cancel
+			</Button>
+		</form>
+	) : (
+		<>
+			<HeartbeatPauseSwitch />
+			<Button onClick={() => setIsCreating(true)} className="gap-2">
+				<Plus size={16} />
+				Add Company
+			</Button>
+		</>
+	);
 
+	return (
+		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-background text-foreground">
+			<MigrationPopup />
+			<DashboardSubhead
+				title="UPPU Holdings CEO Dashboard"
+				subtitle="Overview of all companies and operations"
+				actions={headerActions}
+			/>
+
+			<div className="mx-auto w-full max-w-6xl space-y-8 px-[18px] pb-8 pt-6">
 				{error && (
-					<div className="p-4 bg-red-950/50 border border-red-900/50 text-red-200 rounded-md">
+					<div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-destructive">
 						{error}
 					</div>
 				)}
@@ -103,7 +103,7 @@ function CEODashboard() {
 				<HQSection scope={{ kind: "holding" }} />
 
 				{companiesQuery.isLoading || workspacesQuery.isLoading ? (
-					<div className="text-slate-500">Loading holdings data...</div>
+					<div className="text-passive">Loading holdings data...</div>
 				) : (
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 						{companyGroups.map((group) => {
@@ -113,32 +113,36 @@ function CEODashboard() {
 							const activeSessions = group.workspaces.reduce((acc, ws) => acc + ws.sessions.filter(s => sessionIsActive(s)).length, 0);
 
 							return (
-								<Card key={group.id} className="bg-slate-900/50 border-slate-800 hover:border-blue-500/50 transition-colors cursor-pointer" onClick={() => {
-									if (!isUnassigned) {
-										navigate({ to: "/companies/$companyId", params: { companyId: group.id } });
-									}
-								}}>
+								<Card
+									key={group.id}
+									className={cn("transition-colors", !isUnassigned && "cursor-pointer hover:border-accent/50")}
+									onClick={() => {
+										if (!isUnassigned) {
+											navigate({ to: "/companies/$companyId", params: { companyId: group.id } });
+										}
+									}}
+								>
 									<CardHeader className="pb-2">
 										<div className="flex items-center justify-between">
-											<div className="p-2 bg-blue-500/10 rounded-lg">
-												{isUnassigned ? <Briefcase className="text-blue-400" size={24} /> : <Building2 className="text-blue-400" size={24} />}
+											<div className="p-2 bg-accent/10 rounded-lg">
+												{isUnassigned ? <Briefcase className="text-accent" size={24} /> : <Building2 className="text-accent" size={24} />}
 											</div>
-											{!isUnassigned && <ArrowRight className="text-slate-600" size={20} />}
+											{!isUnassigned && <ArrowRight className="text-passive" size={20} />}
 										</div>
-										<CardTitle className="text-xl mt-4 text-slate-200">{title}</CardTitle>
-										<CardDescription className="text-slate-400">
+										<CardTitle className="text-xl mt-4 text-foreground">{title}</CardTitle>
+										<CardDescription>
 											{isUnassigned ? "Projects without a company" : `Company ID: ${group.id}`}
 										</CardDescription>
 									</CardHeader>
 									<CardContent>
 										<div className="flex gap-4 mt-4">
 											<div>
-												<div className="text-2xl font-semibold text-slate-200">{projectCount}</div>
-												<div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Products</div>
+												<div className="text-2xl font-semibold text-foreground">{projectCount}</div>
+												<div className="text-xs text-passive uppercase tracking-wider font-semibold">Products</div>
 											</div>
 											<div>
-												<div className="text-2xl font-semibold text-slate-200">{activeSessions}</div>
-												<div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Active Agents</div>
+												<div className="text-2xl font-semibold text-foreground">{activeSessions}</div>
+												<div className="text-xs text-passive uppercase tracking-wider font-semibold">Active Agents</div>
 											</div>
 										</div>
 									</CardContent>

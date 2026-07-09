@@ -28,7 +28,7 @@ import {
 } from "./main/update-settings";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync } from "node:fs";
-import { readFile, rm } from "node:fs/promises";
+import { readdir, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -810,6 +810,27 @@ ipcMain.handle("app:chooseDirectory", async () => {
 
 	if (result.canceled) return null;
 	return result.filePaths[0] ?? null;
+});
+// Advisory-only pre-check for the "Add Project" dialog's workspace checkbox:
+// immediate subdirectories only, `.git` existence rather than a git invocation.
+// The backend (workspace_registration.go) remains authoritative and re-validates
+// everything at actual registration time, so this never needs to be exact.
+ipcMain.handle("app:detectWorkspace", async (_event, targetPath: string) => {
+	try {
+		const entries = await readdir(targetPath, { withFileTypes: true });
+		const detectedChildNames = entries
+			.filter((entry) => entry.isDirectory() && entry.name !== ".git")
+			.filter((entry) => existsSync(path.join(targetPath, entry.name, ".git")))
+			.map((entry) => entry.name)
+			.sort();
+		const rootIsGitRepo = existsSync(path.join(targetPath, ".git"));
+		return {
+			looksLikeWorkspace: !rootIsGitRepo && detectedChildNames.length > 0,
+			detectedChildNames,
+		};
+	} catch {
+		return { looksLikeWorkspace: false, detectedChildNames: [] };
+	}
 });
 ipcMain.handle("clipboard:writeText", (_event, text: string) => {
 	clipboard.writeText(text, "clipboard");
