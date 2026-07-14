@@ -660,12 +660,508 @@ gets built first.
 
 ---
 
-## 13. Cross-references
+## 14. Worker invocation: 3 modes (subprocess + SDK + tmux)
+
+Workers in the pool can be invoked three different ways. Each mode has
+clear trade-offs; Phase 1 ships **subprocess + tmux** (universal, no vendor
+lock-in). Phase 2 adds **SDK** as an optimization for Claude Code.
+
+### 14.1 Subprocess (universal, default)
+
+```python
+# Hermes spawns CLI as separate process
+import asyncio
+
+async def invoke_subprocess(worker: WorkerConfig, prompt: str, workdir: str) -> WorkerResult:
+    proc = await asyncio.create_subprocess_exec(
+        *worker.cmd,                    # e.g. ["claude", "-p"]
+        cwd=workdir,
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await proc.communicate(input=prompt.encode())
+    return worker.output_parser.parse(stdout)
+```
+
+**Data flow:** `Hermes → spawn process → wait → parse output → return`
+
+| ✅ | ❌ |
+|---|---|
+| Universal (any CLI) | Blocks until process exits |
+| Zero integration | No streaming (output ตอนจบอย่างเดียว) |
+| Auth handled by CLI | Parse text/JSON manually |
+| CLI features (`--resume`, `--workdir`) | No tool use (agent can't call back) |
+| Process crash isolated | Process overhead per call |
+
+**Compatible tools (Phase 1):** Codex, Agy, OpenCode, Kilo, ComfyUI,
+himalaya, imsg, custom shell commands.
+
+### 14.2 SDK (Phase 2 — Claude Code only)
+
+```python
+# Hermes calls vendor SDK directly
+import claude_code
+
+client = claude_code.Client(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+async def invoke_sdk(worker: WorkerConfig, prompt: str, conversation_id: str | None) -> WorkerResult:
+    async with client.messages.stream(
+        model=worker.model,              # e.g. "claude-sonnet-4-6"
+        messages=[{"role": "user", "content": prompt}],
+        tools=worker.tools,              # Hermes-defined tools
+        conversation_id=conversation_id  # for resume
+    ) as stream:
+        result = None
+        async for chunk in stream:
+            if chunk.is_tool_use:
+                await handle_tool_call(chunk)
+            result = chunk
+        return result
+```
+
+**Data flow:** `Hermes ↔ stream ↔ Claude API` (bidirectional, real-time)
+
+| ✅ | ❌ |
+|---|---|
+| Streaming (real-time chunks) | Vendor lock-in (Claude only) |
+| Structured output (JSON) | Auth separate from CLI |
+| Tool use (agent calls Hermes) | Lose CLI features |
+| Interrupt cleanly (break loop) | Need SDK per vendor |
+| Cost tracking (tokens in response) | |
+
+**Phase 2 trigger:** Add SDK path only when subprocess shows measurable
+bottleneck (e.g. > 30s cold start, or unparseable outputs).
+
+### 14.3 TMUX (Modern Agent style — interactive/long-running)
+
+```python
+# Hermes spawns agent in tmux session, streams via WebSocket
+import libtmux
+
+async def invoke_tmux(worker: WorkerConfig, prompt: str, session_name: str) -> AsyncIterator[str]:
+    server = libtmux.Server()
+    session = server.sessions.new(
+        session_name=session_name or f"worker-{uuid4()}",
+        window_command=f"{' '.join(worker.cmd)} '{prompt}'"
+    )
+
+    # Stream output
+    pane = session.active_window.active_pane
+    last_lines = []
+    while not is_done(pane):
+        current = pane.capture_pane()
+        new = current[len(last_lines):]
+        for line in new:
+            yield line
+        last_lines = current
+        await asyncio.sleep(0.5)
+
+    # Cleanup
+    session.kill()
+```
+
+**Data flow:** `Hermes → tmux spawn → pane buffer → WebSocket → UI`
+
+| ✅ | ❌ |
+|---|---|
+| Real-time streaming (terminal-like) | No structured output |
+| User can interrupt (Ctrl+C via pane) | No tool use (without custom signaling) |
+| Persistent session (resume tmux) | Resource overhead (tmux + agent + WS) |
+| User sees live progress | Cleanup responsibility (kill session) |
+| Compatible with any CLI | Hard to test (needs tmux) |
+
+**Use when:** Long-running tasks (1+ hours), user wants visibility,
+agent may need mid-task course correction.
+
+### 14.4 Mode selection per worker
+
+```yaml
+# workers.yaml — registry
+workers:
+  - name: claude-pm
+    adapter: claude_code
+    modes: [subprocess, sdk, tmux]
+    default_mode: sdk                    # CEO↔PM uses SDK
+    tier: trusted
+    cost_per_call: 0.15
+
+  - name: codex-worker
+    adapter: codex_cli
+    modes: [subprocess, tmux]
+    default_mode: subprocess
+    cmd: ["codex", "exec", "--json"]
+    tier: trusted
+    cost_per_call: 0.12
+
+  - name: agy-worker
+    adapter: agy_cli
+    modes: [subprocess]
+    default_mode: subprocess
+    cmd: ["agy", "-p", "--print"]
+    tier: trusted
+    cost_per_call: 0.10
+
+  - name: image-gen-batch
+    adapter: comfyui_cli
+    modes: [subprocess]
+    default_mode: subprocess
+    cmd: ["comfyui", "generate", "--workflow", "sdxl.json"]
+    tier: experimental
+    cost_per_call: 0.50
+
+  - name: long-refactor
+    adapter: claude_code
+    modes: [tmux]
+    default_mode: tmux
+    tier: trusted
+```
+
+### 14.5 Worker abstraction interface
+
+```go
+// internal/worker/worker.go (Phase 1)
+type Worker interface {
+    Name() string
+    Tier() Tier
+    Available() bool
+
+    // Phase 1 modes
+    Invoke(ctx context.Context, req InvokeRequest) (InvokeResult, error)
+    InvokeTmux(ctx context.Context, req InvokeRequest, sessionName string) (<-chan string, error)
+
+    // Phase 2
+    InvokeSDK(ctx context.Context, req InvokeRequest) (<-chan StreamChunk, error)
+}
+
+type InvokeRequest struct {
+    Prompt    string
+    Workdir   string
+    Context   map[string]string
+    Timeout   time.Duration
+}
+
+type InvokeResult struct {
+    Output   string
+    Cost     float64
+    Duration time.Duration
+    Metadata map[string]string
+}
+```
+
+### 14.6 When to use which mode (decision tree)
+
+```
+Is the task interactive (user watches + may interrupt)?
+├── YES → TMUX
+│   Examples: long refactor, debugging session, live demo
+│
+└── NO → Is the tool Claude Code AND cost/speed critical?
+    ├── YES → SDK (Phase 2)
+    │   Examples: PM↔Worker conversation, cost-sensitive batch
+    │
+    └── NO → SUBPROCESS
+        Examples: batch jobs, one-shot tasks, non-Claude tools
+```
+
+---
+
+## 15. Custom workers: beyond coding
+
+The pool is **not limited to coding agents**. Phase 1 supports custom
+workers for any tool that can be invoked as a CLI or subprocess. Each
+worker has a `tier` (trusted/experimental/banned) and a `specialty`.
+
+### 15.1 Built-in specialty categories
+
+```go
+type Specialty string
+
+const (
+    SpecCoding    Specialty = "code"      // Claude Code, Codex, etc.
+    SpecImage     Specialty = "image"     // ComfyUI, DALL-E, Midjourney
+    SpecVideo     Specialty = "video"     // Runway, Pika, ComfyUI Wan
+    SpecAudio     Specialty = "audio"     // heartmula, audiocraft
+    SpecEmail     Specialty = "email"     // himalaya, gmail
+    SpecIM        Specialty = "im"        // imsg, slack
+    SpecProductivity Specialty = "productivity"  // notion, airtable
+    SpecResearch  Specialty = "research"  // arxiv, blogwatcher
+    SpecCustom    Specialty = "custom"    // anything user-defined
+)
+```
+
+### 15.2 Example custom workers
+
+```yaml
+# Image generation
+- name: comfyui-sdxl
+  specialty: image
+  cmd: ["comfyui", "generate", "--workflow", "sdxl_txt2img"]
+  input_schema:
+    prompt: string
+    negative_prompt: string
+    seed: int
+  output: png_file
+  tier: experimental
+  cost_per_call: 0.05
+
+# Video generation
+- name: comfyui-wan
+  specialty: video
+  cmd: ["comfyui", "generate", "--workflow", "wan_t2v"]
+  input_schema:
+    prompt: string
+    duration_seconds: int
+  output: mp4_file
+  tier: experimental
+  cost_per_call: 0.50
+
+# Email send
+- name: himalaya-send
+  specialty: email
+  cmd: ["himalaya", "send", "--template", "default"]
+  input_schema:
+    to: string
+    subject: string
+    body: string
+  output: message_id
+  tier: trusted
+  cost_per_call: 0.00
+
+# Research
+- name: arxiv-search
+  specialty: research
+  cmd: ["arxiv", "search", "--format", "json"]
+  input_schema:
+    query: string
+    max_results: int
+  output: paper_list
+  tier: trusted
+  cost_per_call: 0.00
+
+# Music generation (HeartMuLa)
+- name: heartmula
+  specialty: audio
+  cmd: ["heartmula", "generate", "--lyrics-file", "-"]
+  input_schema:
+    lyrics: string
+    style: string
+  output: mp3_file
+  tier: experimental
+  cost_per_call: 0.20
+
+# Productivity
+- name: notion-page-create
+  specialty: productivity
+  cmd: ["ntn", "page", "create"]
+  input_schema:
+    title: string
+    content: string
+    parent_id: string
+  output: page_url
+  tier: trusted
+  cost_per_call: 0.00
+
+# Social media
+- name: xurl-post
+  specialty: im
+  cmd: ["xurl", "post"]
+  input_schema:
+    text: string
+    media_paths: list[string]
+  output: post_url
+  tier: experimental
+  cost_per_call: 0.00
+```
+
+### 15.3 Custom worker creation
+
+PM can declare new custom workers at runtime:
+
+```yaml
+# PM registers new worker during issue planning
+- name: my-custom-tool
+  specialty: custom
+  cmd: ["./scripts/my-tool.sh"]
+  input_schema:
+    param1: string
+    param2: int
+  output: text
+  tier: experimental             # PM must approve first dispatch
+  pm_justification: "needed for migration script"
+```
+
+Pool spawns the worker on first use, tracks success rate, and surfaces
+to CEO for tier promotion (per §12.4 trust model).
+
+### 15.4 Worker types by use case
+
+| Use case | Workers | Mode |
+|---|---|---|
+| **Code review** | Claude Code, Codex, OpenCode | Subprocess (Phase 1) |
+| **Refactor** | Claude Code (long task) | TMUX (user watches) |
+| **Image gen** | ComfyUI local | Subprocess (batch) |
+| **Video gen** | ComfyUI Wan | Subprocess (long) or TMUX |
+| **Email** | himalaya, imsg | Subprocess (fire-forget) |
+| **Research** | arxiv, blogwatcher | Subprocess (parse JSON) |
+| **Music** | heartmula, audiocraft | Subprocess (long) or TMUX |
+| **PM conversation** | Claude Code, Codex | SDK (Phase 2) |
+| **Live demo** | Any | TMUX (user watches) |
+
+---
+
+## 16. Hermes CEO behavior: when user is away
+
+When the user is not present, **Hermes (CEO) = Modern Agent's internal
+orchestrator sessions** (Holding/Company/Project HQ) takes over decision-
+making. The behavior depends on **stakes** and **policy**.
+
+### 16.1 Decision matrix
+
+```
+Stakes     │ User present      │ User away (default)    │ User away (urgent)
+───────────┼───────────────────┼────────────────────────┼────────────────────
+Low        │ Ask user          │ Hermes decides         │ Hermes decides
+Medium     │ Ask user          │ Hermes + notify user   │ Hermes + notify
+High       │ Require approve   │ Require approve        │ Escalate (wait)
+Critical   │ Require approve   │ Block until return     │ Block until return
+```
+
+**Stakes definitions:**
+- **Low:** cosmetic, reversible, low cost (e.g. reword commit message)
+- **Medium:** functional change, moderate cost, reversible (e.g. add file)
+- **High:** API change, schema change, dependency update
+- **Critical:** auth, security, payment, data migration, production deploy
+
+### 16.2 Notification routing
+
+When Hermes acts while user is away:
+
+| Stakes | Notification channel | Why |
+|---|---|---|
+| Low | Silent (logged only) | Don't spam user |
+| Medium | In-app notification + email digest | User sees on return |
+| High | Push notification (OS) + email | User should know soon |
+| Critical | Push + email + SMS + wait | Don't act until user responds |
+
+**Implementation:** Uses Modern Agent's existing notification system
+(`needs_input`, `ready_to_merge` from STATUS.md) + extends with
+`hermes_auto_decided` event for audit.
+
+### 16.3 Policy configuration
+
+```yaml
+# .agent-orchestrator/policy.yaml
+hermes_ceo:
+  enabled: true
+
+  # Per-stakes default action
+  when_user_away:
+    low: auto_decide
+    medium: auto_decide_and_notify
+    high: require_approval
+    critical: block
+
+  # Per-specialty overrides
+  specialty_overrides:
+    security:                      # Sec workers always escalate
+    - require_approval
+    payment:
+    - block
+    docs:                          # Docs workers always auto
+    - auto_decide
+
+  # Cost ceiling
+  max_daily_cost_usd: 50.00
+  cost_ceiling_action: downgrade_to_human_only
+
+  # Notification channels
+  notifications:
+    push: true
+    email: true
+    email_digest: hourly
+    sms: false                     # opt-in
+```
+
+### 16.4 Audit trail
+
+Every Hermes auto-decision is logged:
+
+```sql
+CREATE TABLE hermes_decisions (
+    id              TEXT PRIMARY KEY,
+    project_id      TEXT NOT NULL,
+    stakes          TEXT NOT NULL,        -- low|medium|high|critical
+    action          TEXT NOT NULL,        -- what Hermes did
+    reasoning       TEXT NOT NULL,        -- why
+    cost_usd        REAL,
+    user_away       INTEGER NOT NULL,     -- 1 if user was away
+    created_at      INTEGER NOT NULL
+);
+```
+
+User can review on return:
+- "While you were away, I made 12 decisions. Click to review."
+
+### 16.5 Escalation paths
+
+When Hermes cannot decide (low confidence, conflicting signals):
+
+```
+Hermes cannot decide
+   ↓
+1. Auto-decide with audit log (if low stakes)
+   ↓
+2. Wait for user (if high stakes, with timeout)
+   ↓
+3. Defer to CEO policy (if user-defined)
+   ↓
+4. Spawn "review agent" to get second opinion
+   ↓
+5. Block until user returns
+```
+
+**Default:** Option 1 for low/medium, Option 2 for high, Option 5 for critical.
+
+### 16.6 Hermes ↔ Modern Agent integration
+
+Hermes is the **outer CEO** — user-facing decision maker.
+Modern Agent's internal orchestrators (Holding/Company/Project HQ) are
+**inner PMs** — tactical executors.
+
+```
+User → Hermes (outer CEO)
+         │  "Should I refactor billing?"
+         │
+         ├── User present → ask user
+         │
+         └── User away → policy check
+                ↓
+         Modern Agent daemon (loopback)
+                ↓
+         Holding HQ orchestrator (inner CEO)
+                ↓
+         Company HQ / Project HQ (inner PM)
+                ↓
+         Worker pool (23 adapters + custom)
+                ↓
+         4-gate hybrid approval → merge
+```
+
+**Conflict resolution:** Hermes decides strategic ("should we?").
+Inner PMs decide tactical ("how?"). Gate vetoes (agent + human) protect
+execution quality. Hermes never bypasses gates.
+
+---
+
+## 17. Cross-references
 
 - Implementation plan: `../plans/2026-07-14-hybrid-approval-gates.md`
 - Backend mental model: `../../architecture.md`
 - Backend package layout: `../../backend-code-structure.md`
 - Live Terminals design (CEO/PM/Worker precedent): `../../superpowers/specs/2026-07-09-live-terminals-design.md`
+- Design system: `../../../DESIGN.md`
+- Tailwind theme: `../../../tailwind.theme.json`
 - Tracker lane issue: modernagent/modern-agent#112
 - Raw PR events: modernagent/modern-agent#110, #111
 - CLI parity: docs/STATUS.md "In flight — CLI parity for PR/review actions"
