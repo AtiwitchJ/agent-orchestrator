@@ -248,7 +248,9 @@ func TestProjectConfigRoundTrips(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 
 	// A config with mixed field kinds (scalar, map, list, nested) survives the
-	// JSON round trip.
+	// JSON round trip. ProjectConfig.UnmarshalJSON applies conservative
+	// defaults to nested policy fields, so the expected value here must
+	// match that behavior or the round-trip will always diverge.
 	cfg := domain.ProjectConfig{
 		DefaultBranch: "develop",
 		Env:           map[string]string{"FOO": "bar"},
@@ -257,6 +259,7 @@ func TestProjectConfigRoundTrips(t *testing.T) {
 		AgentConfig:   domain.AgentConfig{Model: "claude-opus-4-5", Permissions: domain.PermissionModeAcceptEdits},
 		Worker:        domain.RoleOverride{Harness: domain.HarnessCodex},
 	}
+	cfg = cfg.WithDefaults()
 	if err := s.UpsertProject(ctx, domain.ProjectRecord{
 		ID: "cfg", Path: "/tmp/cfg", RegisteredAt: now, Config: cfg,
 	}); err != nil {
@@ -270,7 +273,8 @@ func TestProjectConfigRoundTrips(t *testing.T) {
 		t.Fatalf("config = %#v, want %#v", got.Config, cfg)
 	}
 
-	// An unset config round-trips back to a zero value rather than an empty object.
+	// An unset config round-trips back to defaults (because UnmarshalJSON
+	// applies them) rather than to a zero value.
 	seedProject(t, s, "nocfg")
 	got, _, _ = s.GetProject(ctx, "nocfg")
 	if !got.Config.IsZero() {

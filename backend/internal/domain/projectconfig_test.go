@@ -1,6 +1,12 @@
 package domain
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+
+	internalconfig "github.com/modernagent/modern-agent/backend/internal/config"
+)
 
 func TestProjectConfigValidate(t *testing.T) {
 	tests := []struct {
@@ -35,6 +41,9 @@ func TestProjectConfigValidate(t *testing.T) {
 		{"tracker intake unknown provider", ProjectConfig{TrackerIntake: TrackerIntakeConfig{Enabled: true, Provider: "linear", Assignee: "alice"}}, true},
 		{"tracker intake repo with whitespace", ProjectConfig{TrackerIntake: TrackerIntakeConfig{Enabled: true, Repo: " acme/demo", Assignee: "alice"}}, true},
 		{"tracker intake assignee with whitespace", ProjectConfig{TrackerIntake: TrackerIntakeConfig{Enabled: true, Assignee: " alice"}}, true},
+		{"policy disabled ignores invalid values", ProjectConfig{Policy: internalconfig.PolicyConfig{MaxAutoFixRounds: -1}}, false},
+		{"policy enabled valid", ProjectConfig{Policy: enabledPolicyConfig()}, false},
+		{"policy enabled invalid", ProjectConfig{Policy: internalconfig.PolicyConfig{Enabled: true, ReviewStrategy: "unknown"}}, true},
 		{"heartbeat disabled ok", ProjectConfig{Heartbeat: HeartbeatConfig{}}, false},
 		{"heartbeat enabled default interval", ProjectConfig{Heartbeat: HeartbeatConfig{Enabled: true}}, false},
 		{"heartbeat enabled explicit interval", ProjectConfig{Heartbeat: HeartbeatConfig{Enabled: true, Interval: "15m"}}, false},
@@ -58,10 +67,14 @@ func TestDefaultProjectConfig(t *testing.T) {
 	if def.DefaultBranch != "main" {
 		t.Fatalf("default DefaultBranch = %q, want main", def.DefaultBranch)
 	}
+	if def.Policy != internalconfig.DefaultPolicyConfig() {
+		t.Fatalf("default Policy = %#v, want %#v", def.Policy, internalconfig.DefaultPolicyConfig())
+	}
 
 	// Every other field defaults to its zero value: clearing the documented
-	// default must leave the config completely empty.
+	// defaults must leave the config completely empty.
 	def.DefaultBranch = ""
+	def.Policy = internalconfig.PolicyConfig{}
 	if !def.IsZero() {
 		t.Fatalf("default config has unexpected non-zero fields: %#v", def)
 	}
@@ -72,6 +85,9 @@ func TestProjectConfigWithDefaults(t *testing.T) {
 	got := (ProjectConfig{}).WithDefaults()
 	if got.DefaultBranch != DefaultBranchName {
 		t.Fatalf("WithDefaults = %#v, want branch=main", got)
+	}
+	if got.Policy != internalconfig.DefaultPolicyConfig() {
+		t.Fatalf("WithDefaults Policy = %#v, want %#v", got.Policy, internalconfig.DefaultPolicyConfig())
 	}
 
 	// Set fields are preserved, not overwritten.
@@ -95,6 +111,46 @@ func TestProjectConfigWithDefaults(t *testing.T) {
 	if got.TrackerIntake.Provider != "" {
 		t.Fatalf("disabled TrackerIntake.Provider = %q, want empty", got.TrackerIntake.Provider)
 	}
+}
+
+func TestProjectConfigPolicyJSONRoundTrip(t *testing.T) {
+	withoutPolicy, err := json.Marshal(ProjectConfig{DefaultBranch: "develop"})
+	if err != nil {
+		t.Fatalf("Marshal without policy: %v", err)
+	}
+	if strings.Contains(string(withoutPolicy), `"policy"`) {
+		t.Fatalf("zero policy should be omitted, got %s", withoutPolicy)
+	}
+
+	input := []byte(`{"defaultBranch":"develop","policy":{"enabled":true,"require_human_approval":false}}`)
+	var got ProjectConfig
+	if err := json.Unmarshal(input, &got); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if got.DefaultBranch != "develop" || !got.Policy.Enabled || got.Policy.RequireHumanApproval {
+		t.Fatalf("Unmarshal = %#v", got)
+	}
+	if got.Policy.MaxAutoFixRounds != 3 || got.Policy.ReviewStrategy != internalconfig.PolicyReviewSameAgent {
+		t.Fatalf("Unmarshal did not apply policy defaults: %#v", got.Policy)
+	}
+
+	data, err := json.Marshal(got)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	var roundTrip ProjectConfig
+	if err := json.Unmarshal(data, &roundTrip); err != nil {
+		t.Fatalf("round-trip Unmarshal: %v", err)
+	}
+	if roundTrip.DefaultBranch != got.DefaultBranch || roundTrip.Policy != got.Policy {
+		t.Fatalf("round trip = %#v, want %#v", roundTrip, got)
+	}
+}
+
+func enabledPolicyConfig() internalconfig.PolicyConfig {
+	cfg := internalconfig.DefaultPolicyConfig()
+	cfg.Enabled = true
+	return cfg
 }
 
 func TestResolveReviewerHarness(t *testing.T) {

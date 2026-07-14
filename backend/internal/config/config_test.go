@@ -1,11 +1,108 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestDefaultPolicyConfig(t *testing.T) {
+	got := DefaultPolicyConfig()
+
+	if got.Enabled {
+		t.Error("Enabled = true, want false (policy must be opt-in)")
+	}
+	if got.TrackerLabel != "agent-ready" {
+		t.Errorf("TrackerLabel = %q, want agent-ready", got.TrackerLabel)
+	}
+	if !got.AutoFixOnCIFailure || got.MaxAutoFixRounds != 3 {
+		t.Errorf("CI defaults = auto-fix %t, rounds %d; want true, 3", got.AutoFixOnCIFailure, got.MaxAutoFixRounds)
+	}
+	if !got.RequireAgentReview || got.ReviewStrategy != "same_agent" || got.ReviewAgent != "" || got.MaxReviseRounds != 3 {
+		t.Errorf("review defaults = %#v", got)
+	}
+	if !got.RequireHumanApproval || got.HumanTimeoutHours != 0 {
+		t.Errorf("human defaults = required %t, timeout %d; want true, 0", got.RequireHumanApproval, got.HumanTimeoutHours)
+	}
+	if !got.AgentFinalPass || got.VetoSecondAgent != got.ReviewAgent {
+		t.Errorf("final-pass defaults = enabled %t, veto agent %q; want true, ReviewAgent", got.AgentFinalPass, got.VetoSecondAgent)
+	}
+	if got.MergeStrategy != "squash" || got.MinPRAgeMinutes != 5 || !got.BlockOnDraft {
+		t.Errorf("merge defaults = strategy %q, age %d, block draft %t; want squash, 5, true", got.MergeStrategy, got.MinPRAgeMinutes, got.BlockOnDraft)
+	}
+}
+
+func TestPolicyConfigValidate(t *testing.T) {
+	validCrossAgent := DefaultPolicyConfig()
+	validCrossAgent.Enabled = true
+	validCrossAgent.ReviewStrategy = "cross_agent"
+	validCrossAgent.ReviewAgent = "codex"
+	validCrossAgent.VetoSecondAgent = "claude-code"
+
+	tests := []struct {
+		name    string
+		mutate  func(*PolicyConfig)
+		wantErr bool
+	}{
+		{name: "disabled ignores incomplete values", mutate: func(c *PolicyConfig) { c.MaxAutoFixRounds = -1 }},
+		{name: "conservative defaults", mutate: func(c *PolicyConfig) { c.Enabled = true }},
+		{name: "cross agent", mutate: func(c *PolicyConfig) { *c = validCrossAgent }},
+		{name: "missing tracker label", mutate: func(c *PolicyConfig) { c.Enabled = true; c.TrackerLabel = " " }, wantErr: true},
+		{name: "negative auto fix rounds", mutate: func(c *PolicyConfig) { c.Enabled = true; c.MaxAutoFixRounds = -1 }, wantErr: true},
+		{name: "too many auto fix rounds", mutate: func(c *PolicyConfig) { c.Enabled = true; c.MaxAutoFixRounds = 6 }, wantErr: true},
+		{name: "unknown review strategy", mutate: func(c *PolicyConfig) { c.Enabled = true; c.ReviewStrategy = "committee" }, wantErr: true},
+		{name: "cross agent requires reviewer", mutate: func(c *PolicyConfig) { c.Enabled = true; c.ReviewStrategy = "cross_agent"; c.ReviewAgent = "" }, wantErr: true},
+		{name: "negative revise rounds", mutate: func(c *PolicyConfig) { c.Enabled = true; c.MaxReviseRounds = -1 }, wantErr: true},
+		{name: "too many revise rounds", mutate: func(c *PolicyConfig) { c.Enabled = true; c.MaxReviseRounds = 6 }, wantErr: true},
+		{name: "negative human timeout", mutate: func(c *PolicyConfig) { c.Enabled = true; c.HumanTimeoutHours = -1 }, wantErr: true},
+		{name: "unknown merge strategy", mutate: func(c *PolicyConfig) { c.Enabled = true; c.MergeStrategy = "fast-forward" }, wantErr: true},
+		{name: "negative minimum PR age", mutate: func(c *PolicyConfig) { c.Enabled = true; c.MinPRAgeMinutes = -1 }, wantErr: true},
+		{name: "review agent whitespace", mutate: func(c *PolicyConfig) { c.Enabled = true; c.ReviewAgent = " codex" }, wantErr: true},
+		{name: "veto agent whitespace", mutate: func(c *PolicyConfig) { c.Enabled = true; c.VetoSecondAgent = "claude-code " }, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := DefaultPolicyConfig()
+			tt.mutate(&cfg)
+			if err := cfg.Validate(); (err != nil) != tt.wantErr {
+				t.Fatalf("Validate() error = %v, wantErr %t", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestPolicyConfigJSONDefaultsAndExplicitFalse(t *testing.T) {
+	var got PolicyConfig
+	if err := json.Unmarshal([]byte(`{"enabled":true,"require_human_approval":false}`), &got); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if !got.Enabled {
+		t.Error("Enabled = false, want true")
+	}
+	if got.RequireHumanApproval {
+		t.Error("RequireHumanApproval = true, want explicit false preserved")
+	}
+	if !got.RequireAgentReview || !got.AgentFinalPass || !got.BlockOnDraft {
+		t.Fatalf("omitted conservative booleans were not defaulted: %#v", got)
+	}
+	if got.ReviewStrategy != PolicyReviewSameAgent || got.MergeStrategy != PolicyMergeSquash {
+		t.Fatalf("omitted strategy defaults = review %q, merge %q", got.ReviewStrategy, got.MergeStrategy)
+	}
+
+	data, err := json.Marshal(got)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	for _, key := range []string{`"tracker_label"`, `"auto_fix_on_ci_failure"`, `"require_human_approval"`, `"min_pr_age_minutes"`} {
+		if !strings.Contains(string(data), key) {
+			t.Errorf("Marshal output %s does not contain %s", data, key)
+		}
+	}
+}
 
 func TestLoadDefaults(t *testing.T) {
 	// Clear every recognised var so we observe pure defaults regardless of the

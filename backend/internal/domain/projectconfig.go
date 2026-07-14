@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 	"time"
+
+	internalconfig "github.com/modernagent/modern-agent/backend/internal/config"
 )
 
 // ProjectConfig is the typed per-project configuration — the SQLite twin of the
@@ -47,6 +49,8 @@ type ProjectConfig struct {
 	// read-only toward the tracker in v1: matching issues spawn sessions, but the
 	// tracker is not commented on or transitioned.
 	TrackerIntake TrackerIntakeConfig `json:"trackerIntake,omitempty"`
+	// Policy controls the opt-in approval gates for tracker-driven work.
+	Policy internalconfig.PolicyConfig `json:"policy,omitempty"`
 
 	// Deliverable describes the artifact a docs-repo session produces. It is
 	// consumed by the deliverable watcher: the session is marked StatusReportReady
@@ -210,6 +214,7 @@ const DefaultBranchName = "main"
 func DefaultProjectConfig() ProjectConfig {
 	return ProjectConfig{
 		DefaultBranch: DefaultBranchName,
+		Policy:        internalconfig.DefaultPolicyConfig(),
 	}
 }
 
@@ -221,6 +226,7 @@ func (c ProjectConfig) WithDefaults() ProjectConfig {
 		c.DefaultBranch = def.DefaultBranch
 	}
 	c.TrackerIntake = c.TrackerIntake.WithDefaults()
+	c.Policy = c.Policy.WithDefaults()
 	c.Heartbeat = c.Heartbeat.WithDefaults()
 	return c
 }
@@ -260,6 +266,11 @@ func (c ProjectConfig) Validate() error {
 	}
 	if err := c.TrackerIntake.Validate(); err != nil {
 		return err
+	}
+	if c.Policy.Enabled {
+		if err := c.Policy.Validate(); err != nil {
+			return err
+		}
 	}
 	if err := c.Deliverable.Validate(); err != nil {
 		return fmt.Errorf("deliverable: %w", err)

@@ -27,6 +27,19 @@ type Company struct {
 	CreatedAt time.Time
 }
 
+type GateResult struct {
+	ID            string
+	RunID         string
+	GateID        string
+	Attempt       int64
+	Outcome       string
+	Reason        sql.NullString
+	SecondVote    sql.NullString
+	Justification sql.NullString
+	DurationMs    sql.NullInt64
+	CreatedAt     int64
+}
+
 type Notification struct {
 	ID        string
 	SessionID domain.SessionID
@@ -133,6 +146,18 @@ type PRReviewThread struct {
 	UpdatedAt    time.Time
 }
 
+type PolicyRun struct {
+	ID             string
+	ProjectID      string
+	SessionID      string
+	PRID           string
+	ConfigSnapshot string
+	CurrentGate    string
+	FinalState     sql.NullString
+	StartedAt      int64
+	UpdatedAt      int64
+}
+
 type Project struct {
 	ID            domain.ProjectID
 	Path          string
@@ -225,6 +250,14 @@ type TelemetryEvent struct {
 	SessionID   sql.NullString
 	RequestID   string
 	PayloadJson string
+}
+
+type TrackerLink struct {
+	IssueID   string
+	ProjectID string
+	SessionID string
+	PRID      sql.NullString
+	CreatedAt int64
 }
 
 type WorkspaceRepo struct {
