@@ -95,5 +95,30 @@ surface (`npm run sqlc`, `npm run api`).
 - **CLI parity for PR/review actions**: merge, resolve-comments, and review are
   HTTP-only (frontend-driven); there are no `ao pr` / `ao review` commands.
 
+## Planned (design + implementation plan ready, not started)
+
+- **Hybrid approval gates for tracker-driven workflows** — closes the loop
+  from `issue labeled agent-ready` through four sequential gates (CI → Agent
+  review → Human approve → Agent final-pass) with a hybrid veto path that
+  requires both a second-opinion agent and an explicit human confirmation to
+  override a Gate-4 failure. Opt-in per project, every transition is a CDC
+  event, every human override is auditable.
+  - Design: [`docs/superpowers/specs/2026-07-14-hybrid-approval-gates-design.md`](superpowers/specs/2026-07-14-hybrid-approval-gates-design.md)
+  - Plan: [`docs/superpowers/plans/2026-07-14-hybrid-approval-gates.md`](superpowers/plans/2026-07-14-hybrid-approval-gates.md)
+  - Closes: #112 (tracker loop), #110/#111 (raw events), CLI parity gap
+  - Phase: Phase 1 of a 3-phase rollout (tracker + gates → trust ladder → org defaults)
+
+- **Worker pool (PM-orchestrated, subagent-specialized)** — extends the
+  Hybrid Gates design with a level-3 execution layer where workers are
+  subagents with specialties (BE/FE/DB/Test/Sec/Docs/Perf/Refactor) reused
+  across jobs. Per-project pools for isolation, CEO sees aggregate
+  capacity/cost. Mesh sync between workers reuses existing CDC events.
+  Pool auto-collects success-rate/cost/time telemetry; CEO sets per-specialty
+  trust tier (trusted/experimental/banned). Opt-in per project, pool size
+  config-driven, no auto-scaling in Phase 1.
+  - Included in: [`docs/superpowers/specs/2026-07-14-hybrid-approval-gates-design.md` §11-12](superpowers/specs/2026-07-14-hybrid-approval-gates-design.md) (top-down architecture + worker pool architecture)
+  - Implementation: [`docs/superpowers/plans/2026-07-14-hybrid-approval-gates.md` Tasks 18-21](superpowers/plans/2026-07-14-hybrid-approval-gates.md) (pool registry, telemetry, dispatcher, CLI)
+  - Phase: Phase 1 of Hybrid Gates rollout (5–6 months total)
+
 Tracking milestone:
 [`rewrite`](https://github.com/modernagent/modern-agent/milestone/1).
