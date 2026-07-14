@@ -8,7 +8,7 @@ import (
 	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
-func TesthermesProvidersAuthStatusAuthorizedWithAPIKey(t *testing.T) {
+func TestHermesProvidersAuthStatusAuthorizedWithAPIKey(t *testing.T) {
 	path := writehermesProviders(t, `[{"id":"anthropic","api_key":"sk-test"}]`)
 
 	status, ok, err := hermesProvidersAuthStatus(path)
@@ -20,7 +20,7 @@ func TesthermesProvidersAuthStatusAuthorizedWithAPIKey(t *testing.T) {
 	}
 }
 
-func TesthermesProvidersAuthStatusUnauthorizedWithEmptyAPIKeys(t *testing.T) {
+func TestHermesProvidersAuthStatusUnauthorizedWithEmptyAPIKeys(t *testing.T) {
 	path := writehermesProviders(t, `[{"id":"anthropic","api_key":""}]`)
 
 	status, ok, err := hermesProvidersAuthStatus(path)

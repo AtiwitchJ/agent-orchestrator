@@ -8,7 +8,7 @@ import (
 	"github.com/modernagent/modern-agent/backend/internal/ports"
 )
 
-func TestopenclawProvidersAuthStatusAuthorizedWithAPIKey(t *testing.T) {
+func TestOpenclawProvidersAuthStatusAuthorizedWithAPIKey(t *testing.T) {
 	path := writeopenclawProviders(t, `[{"id":"anthropic","api_key":"sk-test"}]`)
 
 	status, ok, err := openclawProvidersAuthStatus(path)
@@ -20,7 +20,7 @@ func TestopenclawProvidersAuthStatusAuthorizedWithAPIKey(t *testing.T) {
 	}
 }
 
-func TestopenclawProvidersAuthStatusUnauthorizedWithEmptyAPIKeys(t *testing.T) {
+func TestOpenclawProvidersAuthStatusUnauthorizedWithEmptyAPIKeys(t *testing.T) {
 	path := writeopenclawProviders(t, `[{"id":"anthropic","api_key":""}]`)
 
 	status, ok, err := openclawProvidersAuthStatus(path)

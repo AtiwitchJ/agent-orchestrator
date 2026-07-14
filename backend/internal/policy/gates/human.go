@@ -2,7 +2,6 @@ package gates
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -154,7 +153,7 @@ func (g *HumanGate) emitNeedsInput(ctx context.Context, rc policy.RunContext) er
 		),
 	}
 	if err := g.Notify(ctx, intent); err != nil {
-		return errors.New("notifier: " + err.Error())
+		return fmt.Errorf("notifier: %w", err)
 	}
 	return nil
 }
