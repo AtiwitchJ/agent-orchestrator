@@ -19,6 +19,7 @@ Start with [architecture.md](architecture.md) for the current backend model and
 | [stack.md](stack.md)                                   | Accepted library/runtime choices, pending stack decisions, and dependencies explicitly avoided for V1.                |
 | [superpowers/specs/](superpowers/specs/)               | Per-feature design specs (ground-truth tables, decisions locked, scope, risks).                                        |
 | [superpowers/plans/](superpowers/plans/)               | Per-feature implementation plans (task-by-task with checkbox tracking).                                               |
+| [superpowers/prototypes/](superpowers/prototypes/)     | Per-feature prototype scripts (validate assumptions before committing to a design).                                    |
 
 ## Mental model
 
