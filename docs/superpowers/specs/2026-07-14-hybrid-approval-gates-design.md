@@ -733,7 +733,46 @@ async def invoke_sdk(worker: WorkerConfig, prompt: str, conversation_id: str | N
 **Phase 2 trigger:** Add SDK path only when subprocess shows measurable
 bottleneck (e.g. > 30s cold start, or unparseable outputs).
 
-### 14.3 TMUX (Modern Agent style — interactive/long-running)
+### 14.3a PTY (built-in Python, default for streaming)
+
+**Discovered via prototype (2026-07-14):** tmux is not always installed
+(especially on macOS without Homebrew). Python's built-in `pty` module
+provides real-time streaming without external dependencies.
+
+```python
+# Hermes spawns worker with pseudo-terminal
+import os, pty, select, asyncio
+
+async def invoke_pty(worker: WorkerConfig, prompt: str) -> AsyncIterator[str]:
+    master, slave = pty.openpty()
+    pid = os.fork()
+    if pid == 0:
+        # Child: replace stdio with slave pty, exec worker
+        os.dup2(slave, 0); os.dup2(slave, 1); os.dup2(slave, 2)
+        os.execvp(worker.cmd[0], worker.cmd + [prompt])
+    # Parent: read from master pty
+    os.close(slave)
+    loop = asyncio.get_event_loop()
+    while True:
+        data = await loop.run_in_executor(None, _read_pty, master)
+        if not data: break
+        yield data.decode(errors="replace")
+    os.waitpid(pid, 0)
+```
+
+**Data flow:** `Hermes → fork+exec → pty → stream bytes → async iterator`
+
+| ✅ | ❌ |
+|---|---|
+| Built-in Python (zero install) | No persistent session across calls |
+| Real-time streaming | Cleanup on crash is harder |
+| Works on macOS, Linux | Not Windows native |
+| Lower overhead than tmux | No user attach (can't `tmux attach`) |
+
+**Phase 1 default for streaming tasks** — proven via prototype at
+`docs/superpowers/prototypes/2026-07-14-worker-invocation.py`.
+
+### 14.3 TMUX (Modern Agent style — interactive/long-running, opt-in)
 
 ```python
 # Hermes spawns agent in tmux session, streams via WebSocket
@@ -853,7 +892,7 @@ type InvokeResult struct {
 
 ```
 Is the task interactive (user watches + may interrupt)?
-├── YES → TMUX
+├── YES → PTY (default) or TMUX (opt-in, if user wants to attach)
 │   Examples: long refactor, debugging session, live demo
 │
 └── NO → Is the tool Claude Code AND cost/speed critical?
@@ -863,6 +902,13 @@ Is the task interactive (user watches + may interrupt)?
     └── NO → SUBPROCESS
         Examples: batch jobs, one-shot tasks, non-Claude tools
 ```
+
+**Phase 1 default stack:**
+- `subprocess` for fire-and-forget (batch, custom workers)
+- `pty` for real-time streaming (long tasks, real-time progress)
+- `tmux` only when user explicitly wants to attach to a session (rare)
+
+**Phase 2 add:** `sdk` for Claude Code when bottleneck is measured.
 
 ---
 
