@@ -280,6 +280,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/policy/runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Return a policy run's state and last gate outcome */
+        get: operations["getPolicyRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/runs/{runId}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a human decision (approve / request_changes / override) against a policy run */
+        post: operations["decidePolicyRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/policy/runs/{runId}/gates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Return the full gate history for a policy run */
+        get: operations["listPolicyRunGates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects": {
         parameters: {
             query?: never;
@@ -377,6 +428,24 @@ export interface paths {
         /** List durable agent-to-agent send messages targeting a project's sessions */
         get: operations["listProjectMessages"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Return a project's merged policy config (defaults + overrides) */
+        get: operations["getProjectPolicy"];
+        /** Update a project's policy config overrides */
+        put: operations["setProjectPolicy"];
         post?: never;
         delete?: never;
         options?: never;
@@ -748,6 +817,23 @@ export interface components {
         CompanyResponse: {
             company: components["schemas"]["Company"];
         };
+        ConfigPolicyConfig: {
+            agent_final_pass: boolean;
+            auto_fix_on_ci_failure: boolean;
+            block_on_draft: boolean;
+            enabled: boolean;
+            human_timeout_hours: number;
+            max_auto_fix_rounds: number;
+            max_revise_rounds: number;
+            merge_strategy: string;
+            min_pr_age_minutes: number;
+            require_agent_review: boolean;
+            require_human_approval: boolean;
+            review_agent: string;
+            review_strategy: string;
+            tracker_label: string;
+            veto_second_agent: string;
+        };
         ControllersSessionView: {
             activity: components["schemas"]["DomainActivity"];
             branch?: string;
@@ -821,6 +907,17 @@ export interface components {
         };
         EnsureHQResponse: {
             projectId: string;
+        };
+        GateResultDTO: {
+            attempt: number;
+            /** Format: int64 */
+            durationMs: number;
+            gateId: string;
+            justification?: string;
+            outcome: string;
+            reason?: string;
+            runId: string;
+            secondVote?: string;
         };
         ImportReport: {
             dryRun: boolean;
@@ -957,6 +1054,49 @@ export interface components {
             targetSha: string;
             title: string;
         };
+        PolicyConfigDTO: {
+            agentFinalPass?: boolean;
+            autoFixOnCiFailure?: boolean;
+            blockOnDraft?: boolean;
+            enabled?: boolean;
+            humanTimeoutHours?: number;
+            maxAutoFixRounds?: number;
+            maxReviseRounds?: number;
+            mergeStrategy?: string;
+            minPrAgeMinutes?: number;
+            requireAgentReview?: boolean;
+            requireHumanApproval?: boolean;
+            reviewAgent?: string;
+            reviewStrategy?: string;
+            trackerLabel?: string;
+            vetoSecondAgent?: string;
+        };
+        PolicyConfigResponse: {
+            config: components["schemas"]["PolicyConfigDTO"];
+            projectId: string;
+        };
+        PolicyDecideRequest: {
+            /** @enum {string} */
+            action: "approve" | "request_changes" | "override";
+            justification?: string;
+            message?: string;
+        };
+        PolicyRunDTO: {
+            config: components["schemas"]["PolicyConfigDTO"];
+            currentGate: string;
+            finalState: string;
+            history: components["schemas"]["GateResultDTO"][];
+            id: string;
+            prId: string;
+            projectId: string;
+            sessionId: string;
+            startedAt: string;
+            updatedAt: string;
+        };
+        PolicyRunGatesResponse: {
+            gates: components["schemas"]["GateResultDTO"][];
+            runId: string;
+        };
         Project: {
             agent?: string;
             config?: components["schemas"]["ProjectConfig"];
@@ -977,6 +1117,7 @@ export interface components {
             };
             heartbeat?: components["schemas"]["DomainHeartbeatConfig"];
             orchestrator?: components["schemas"]["RoleOverride"];
+            policy?: components["schemas"]["ConfigPolicyConfig"];
             postCreate?: string[];
             reviewers?: components["schemas"]["DomainReviewerConfig"][];
             sessionPrefix?: string;
@@ -1246,6 +1387,23 @@ export interface components {
         TriggerReviewResponse: {
             reviewerHandleId: string;
             reviews: components["schemas"]["PRReviewState"][];
+        };
+        UpdatePolicyConfigRequest: {
+            agentFinalPass?: null | boolean;
+            autoFixOnCiFailure?: null | boolean;
+            blockOnDraft?: null | boolean;
+            enabled?: null | boolean;
+            humanTimeoutHours?: null | number;
+            maxAutoFixRounds?: null | number;
+            maxReviseRounds?: null | number;
+            mergeStrategy?: null | string;
+            minPrAgeMinutes?: null | number;
+            requireAgentReview?: null | boolean;
+            requireHumanApproval?: null | boolean;
+            reviewAgent?: null | string;
+            reviewStrategy?: null | string;
+            trackerLabel?: null | string;
+            vetoSecondAgent?: null | string;
         };
         WorkspaceRepo: {
             name: string;
@@ -2159,6 +2317,187 @@ export interface operations {
             };
         };
     };
+    getPolicyRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Policy run identifier (uuid). */
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyRunDTO"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    decidePolicyRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Policy run identifier (uuid). */
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PolicyDecideRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyRunDTO"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    listPolicyRunGates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Policy run identifier (uuid). */
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyRunGatesResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
     listProjects: {
         parameters: {
             query?: never;
@@ -2545,6 +2884,137 @@ export interface operations {
             };
             /** @description Bad Request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    getProjectPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project identifier (registry key). */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyConfigResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    setProjectPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project identifier (registry key). */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePolicyConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyConfigResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

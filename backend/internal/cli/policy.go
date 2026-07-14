@@ -7,9 +7,10 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/modernagent/modern-agent/backend/internal/policy"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	"github.com/modernagent/modern-agent/backend/internal/policy"
 )
 
 // policyConfigDTO mirrors the daemon's persisted PolicyConfig payload so the
@@ -34,46 +35,22 @@ type policyConfigDTO struct {
 	BlockOnDraft         bool   `json:"blockOnDraft,omitempty"`
 }
 
-// toPolicyConfig converts the CLI's flat flag-driven shape into the typed
-// policy.PolicyConfig used by the engine. All fields are explicit; the
-// controller layer merges over defaults so an empty flag keeps the current
-// value rather than silently zeroing it.
-func (c policyConfigDTO) toPolicyConfig() policy.PolicyConfig {
-	return policy.PolicyConfig{
-		Enabled:              c.Enabled,
-		TrackerLabel:         c.TrackerLabel,
-		AutoFixOnCIFailure:   c.AutoFixOnCIFailure,
-		MaxAutoFixRounds:     c.MaxAutoFixRounds,
-		RequireAgentReview:   c.RequireAgentReview,
-		ReviewStrategy:       c.ReviewStrategy,
-		ReviewAgent:          c.ReviewAgent,
-		MaxReviseRounds:      c.MaxReviseRounds,
-		RequireHumanApproval: c.RequireHumanApproval,
-		HumanTimeoutHours:    c.HumanTimeoutHours,
-		AgentFinalPass:       c.AgentFinalPass,
-		VetoSecondAgent:      c.VetoSecondAgent,
-		MergeStrategy:        c.MergeStrategy,
-		MinPRAgeMinutes:      c.MinPRAgeMinutes,
-		BlockOnDraft:         c.BlockOnDraft,
-	}
-}
-
 // policyConfigResponse mirrors controllers.PolicyConfigResponse.
 type policyConfigResponse struct {
-	ProjectID string           `json:"projectId"`
+	ProjectID string          `json:"projectId"`
 	Config    policyConfigDTO `json:"config"`
 }
 
 // policyGateResultDTO mirrors controllers.GateResultDTO.
 type policyGateResultDTO struct {
-	RunID        string `json:"runId"`
-	GateID       string `json:"gateId"`
-	Attempt      int    `json:"attempt"`
-	Outcome      string `json:"outcome"`
-	Reason       string `json:"reason,omitempty"`
-	SecondVote   string `json:"secondVote,omitempty"`
+	RunID         string `json:"runId"`
+	GateID        string `json:"gateId"`
+	Attempt       int    `json:"attempt"`
+	Outcome       string `json:"outcome"`
+	Reason        string `json:"reason,omitempty"`
+	SecondVote    string `json:"secondVote,omitempty"`
 	Justification string `json:"justification,omitempty"`
-	DurationMS   int64  `json:"durationMs"`
+	DurationMS    int64  `json:"durationMs"`
 }
 
 // policyRunDTO mirrors controllers.PolicyRunDTO.
@@ -82,7 +59,7 @@ type policyRunDTO struct {
 	ProjectID   string                `json:"projectId"`
 	SessionID   string                `json:"sessionId"`
 	PRID        string                `json:"prId"`
-	Config      policyConfigDTO      `json:"config"`
+	Config      policyConfigDTO       `json:"config"`
 	CurrentGate string                `json:"currentGate"`
 	FinalState  string                `json:"finalState"`
 	StartedAt   string                `json:"startedAt"`
@@ -103,36 +80,31 @@ type policyDecideRequest struct {
 	Message       string `json:"message,omitempty"`
 }
 
-// policyShowOptions are the flags and arguments accepted by `ao policy show`.
-type policyShowOptions struct {
-	json bool
-}
-
 // policySetOptions captures every flag accepted by `ao policy set`. Flags not
 // set are not included in the payload, which lets the controller merge over
 // existing values rather than zero them out.
 type policySetOptions struct {
-	enabled              bool
-	trackerLabel         string
-	autoFix              bool
-	noAutoFix            bool
-	maxAutoFixRounds     int
-	requireAgentReview   bool
-	noRequireAgentReview bool
-	reviewStrategy       string
-	reviewAgent          string
-	maxReviseRounds      int
-	requireHumanApproval bool
+	enabled                bool
+	trackerLabel           string
+	autoFix                bool
+	noAutoFix              bool
+	maxAutoFixRounds       int
+	requireAgentReview     bool
+	noRequireAgentReview   bool
+	reviewStrategy         string
+	reviewAgent            string
+	maxReviseRounds        int
+	requireHumanApproval   bool
 	noRequireHumanApproval bool
-	humanTimeoutHours    int
-	agentFinalPass       bool
-	noAgentFinalPass     bool
-	vetoSecondAgent      string
-	mergeStrategy        string
-	minPRAgeMinutes      int
-	blockOnDraft         bool
-	noBlockOnDraft       bool
-	clear                bool
+	humanTimeoutHours      int
+	agentFinalPass         bool
+	noAgentFinalPass       bool
+	vetoSecondAgent        string
+	mergeStrategy          string
+	minPRAgeMinutes        int
+	blockOnDraft           bool
+	noBlockOnDraft         bool
+	clear                  bool
 }
 
 // policyDecideOptions captures the mutually exclusive decision flags for
@@ -161,7 +133,6 @@ func newPolicyCommand(ctx *commandContext) *cobra.Command {
 // policy config as JSON by default (the show verb is intentionally
 // machine-friendly since the same payload backs downstream tooling).
 func newPolicyShowCommand(ctx *commandContext) *cobra.Command {
-	var opts policyShowOptions
 	cmd := &cobra.Command{
 		Use:   "show <project>",
 		Short: "Show the merged policy configuration for a project",
@@ -172,15 +143,13 @@ func newPolicyShowCommand(ctx *commandContext) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return ctx.showPolicy(cmd, args[0], opts)
+			return ctx.showPolicy(cmd, args[0])
 		},
 	}
-	cmd.Flags().BoolVar(&opts.json, "json", true, "Output the policy config as JSON (default)")
-	cmd.Flags().Lookup("json").DefValue = "true"
 	return cmd
 }
 
-func (c *commandContext) showPolicy(cmd *cobra.Command, projectID string, opts policyShowOptions) error {
+func (c *commandContext) showPolicy(cmd *cobra.Command, projectID string) error {
 	projectID = strings.TrimSpace(projectID)
 	if projectID == "" {
 		return usageError{errors.New("usage: project id is required")}
@@ -293,15 +262,13 @@ func (o policySetOptions) buildDiff() (setPolicyDiff, error) {
 		return d, usageError{errors.New("usage: --block-on-draft and --no-block-on-draft are mutually exclusive")}
 	}
 
-	if o.clear {
-		// --clear is exclusive with any other flag: the user is asking to
-		// reset the overrides back to the default config wholesale, so we
-		// refuse to guess what they meant when flags are mixed in.
-		// (Flag presence checks happen in the wrap-up step below.)
-	}
+	// --clear is exclusive with any other flag: the user is asking to reset
+	// the overrides back to the default config wholesale, so we refuse to
+	// guess what they meant when flags are mixed in. (Flag presence checks
+	// happen in the wrap-up step below, in setPolicy.)
 
 	// Resolve the bool tri-state and emit only non-default entries as omitempty pointers.
-	b := func(v, neg bool, def bool) *bool {
+	b := func(v, neg bool) *bool {
 		if v {
 			t := true
 			return &t
@@ -310,15 +277,14 @@ func (o policySetOptions) buildDiff() (setPolicyDiff, error) {
 			f := false
 			return &f
 		}
-		_ = def
 		return nil
 	}
 	d.Enabled = ptrTrue(o.enabled)
-	d.AutoFixOnCIFailure = b(o.autoFix, o.noAutoFix, true)
-	d.RequireAgentReview = b(o.requireAgentReview, o.noRequireAgentReview, true)
-	d.RequireHumanApproval = b(o.requireHumanApproval, o.noRequireHumanApproval, true)
-	d.AgentFinalPass = b(o.agentFinalPass, o.noAgentFinalPass, true)
-	d.BlockOnDraft = b(o.blockOnDraft, o.noBlockOnDraft, true)
+	d.AutoFixOnCIFailure = b(o.autoFix, o.noAutoFix)
+	d.RequireAgentReview = b(o.requireAgentReview, o.noRequireAgentReview)
+	d.RequireHumanApproval = b(o.requireHumanApproval, o.noRequireHumanApproval)
+	d.AgentFinalPass = b(o.agentFinalPass, o.noAgentFinalPass)
+	d.BlockOnDraft = b(o.blockOnDraft, o.noBlockOnDraft)
 
 	if s := strings.TrimSpace(o.trackerLabel); s != "" {
 		v := s

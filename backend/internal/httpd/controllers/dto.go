@@ -5,8 +5,10 @@ import (
 	"errors"
 	"time"
 
+	internalconfig "github.com/modernagent/modern-agent/backend/internal/config"
 	"github.com/modernagent/modern-agent/backend/internal/domain"
 	"github.com/modernagent/modern-agent/backend/internal/legacyimport"
+	"github.com/modernagent/modern-agent/backend/internal/policy"
 	agentsvc "github.com/modernagent/modern-agent/backend/internal/service/agent"
 	companysvc "github.com/modernagent/modern-agent/backend/internal/service/company"
 	orgsvc "github.com/modernagent/modern-agent/backend/internal/service/org"
@@ -628,4 +630,250 @@ type SessionMessage struct {
 // ListProjectMessagesResponse is the body of GET /api/v1/projects/{id}/messages.
 type ListProjectMessagesResponse struct {
 	Messages []SessionMessage `json:"messages"`
+}
+
+// PolicyConfigDTO is the wire shape of the policy engine configuration for
+// GET/PUT /api/v1/projects/{id}/policy. Field names are camelCase to match the
+// rest of the JSON API surface — distinct from the snake_case tags on the
+// persisted internalconfig.PolicyConfig blob (domain.ProjectConfig.Policy).
+// The CLI's internal/cli/policy.go policyConfigDTO mirrors this shape exactly.
+type PolicyConfigDTO struct {
+	Enabled              bool   `json:"enabled,omitempty"`
+	TrackerLabel         string `json:"trackerLabel,omitempty"`
+	AutoFixOnCIFailure   bool   `json:"autoFixOnCiFailure,omitempty"`
+	MaxAutoFixRounds     int    `json:"maxAutoFixRounds,omitempty"`
+	RequireAgentReview   bool   `json:"requireAgentReview,omitempty"`
+	ReviewStrategy       string `json:"reviewStrategy,omitempty"`
+	ReviewAgent          string `json:"reviewAgent,omitempty"`
+	MaxReviseRounds      int    `json:"maxReviseRounds,omitempty"`
+	RequireHumanApproval bool   `json:"requireHumanApproval,omitempty"`
+	HumanTimeoutHours    int    `json:"humanTimeoutHours,omitempty"`
+	AgentFinalPass       bool   `json:"agentFinalPass,omitempty"`
+	VetoSecondAgent      string `json:"vetoSecondAgent,omitempty"`
+	MergeStrategy        string `json:"mergeStrategy,omitempty"`
+	MinPRAgeMinutes      int    `json:"minPrAgeMinutes,omitempty"`
+	BlockOnDraft         bool   `json:"blockOnDraft,omitempty"`
+}
+
+// newPolicyConfigDTO maps the persisted policy config onto its wire shape.
+func newPolicyConfigDTO(c internalconfig.PolicyConfig) PolicyConfigDTO {
+	return PolicyConfigDTO{
+		Enabled:              c.Enabled,
+		TrackerLabel:         c.TrackerLabel,
+		AutoFixOnCIFailure:   c.AutoFixOnCIFailure,
+		MaxAutoFixRounds:     c.MaxAutoFixRounds,
+		RequireAgentReview:   c.RequireAgentReview,
+		ReviewStrategy:       c.ReviewStrategy,
+		ReviewAgent:          c.ReviewAgent,
+		MaxReviseRounds:      c.MaxReviseRounds,
+		RequireHumanApproval: c.RequireHumanApproval,
+		HumanTimeoutHours:    c.HumanTimeoutHours,
+		AgentFinalPass:       c.AgentFinalPass,
+		VetoSecondAgent:      c.VetoSecondAgent,
+		MergeStrategy:        c.MergeStrategy,
+		MinPRAgeMinutes:      c.MinPRAgeMinutes,
+		BlockOnDraft:         c.BlockOnDraft,
+	}
+}
+
+// PolicyConfigResponse is the body of GET/PUT /api/v1/projects/{id}/policy.
+type PolicyConfigResponse struct {
+	ProjectID string          `json:"projectId"`
+	Config    PolicyConfigDTO `json:"config"`
+}
+
+// UpdatePolicyConfigRequest is the body of PUT /api/v1/projects/{id}/policy —
+// a sparse diff merged onto policy.DefaultPolicyConfig (an omitted field keeps
+// its default rather than zeroing). Sending an empty body resets the project's
+// policy overrides back to the defaults wholesale (the `ao policy set --clear`
+// path).
+type UpdatePolicyConfigRequest struct {
+	Enabled              *bool   `json:"enabled,omitempty"`
+	TrackerLabel         *string `json:"trackerLabel,omitempty"`
+	AutoFixOnCIFailure   *bool   `json:"autoFixOnCiFailure,omitempty"`
+	MaxAutoFixRounds     *int    `json:"maxAutoFixRounds,omitempty"`
+	RequireAgentReview   *bool   `json:"requireAgentReview,omitempty"`
+	ReviewStrategy       *string `json:"reviewStrategy,omitempty"`
+	ReviewAgent          *string `json:"reviewAgent,omitempty"`
+	MaxReviseRounds      *int    `json:"maxReviseRounds,omitempty"`
+	RequireHumanApproval *bool   `json:"requireHumanApproval,omitempty"`
+	HumanTimeoutHours    *int    `json:"humanTimeoutHours,omitempty"`
+	AgentFinalPass       *bool   `json:"agentFinalPass,omitempty"`
+	VetoSecondAgent      *string `json:"vetoSecondAgent,omitempty"`
+	MergeStrategy        *string `json:"mergeStrategy,omitempty"`
+	MinPRAgeMinutes      *int    `json:"minPrAgeMinutes,omitempty"`
+	BlockOnDraft         *bool   `json:"blockOnDraft,omitempty"`
+}
+
+// applyTo overlays the non-nil fields of the diff onto base and returns the
+// result. base is expected to already be defaulted (see
+// internalconfig.DefaultPolicyConfig / PolicyConfig.WithDefaults).
+func (d UpdatePolicyConfigRequest) applyTo(base internalconfig.PolicyConfig) internalconfig.PolicyConfig {
+	if d.Enabled != nil {
+		base.Enabled = *d.Enabled
+	}
+	if d.TrackerLabel != nil {
+		base.TrackerLabel = *d.TrackerLabel
+	}
+	if d.AutoFixOnCIFailure != nil {
+		base.AutoFixOnCIFailure = *d.AutoFixOnCIFailure
+	}
+	if d.MaxAutoFixRounds != nil {
+		base.MaxAutoFixRounds = *d.MaxAutoFixRounds
+	}
+	if d.RequireAgentReview != nil {
+		base.RequireAgentReview = *d.RequireAgentReview
+	}
+	if d.ReviewStrategy != nil {
+		base.ReviewStrategy = *d.ReviewStrategy
+	}
+	if d.ReviewAgent != nil {
+		base.ReviewAgent = *d.ReviewAgent
+	}
+	if d.MaxReviseRounds != nil {
+		base.MaxReviseRounds = *d.MaxReviseRounds
+	}
+	if d.RequireHumanApproval != nil {
+		base.RequireHumanApproval = *d.RequireHumanApproval
+	}
+	if d.HumanTimeoutHours != nil {
+		base.HumanTimeoutHours = *d.HumanTimeoutHours
+	}
+	if d.AgentFinalPass != nil {
+		base.AgentFinalPass = *d.AgentFinalPass
+	}
+	if d.VetoSecondAgent != nil {
+		base.VetoSecondAgent = *d.VetoSecondAgent
+	}
+	if d.MergeStrategy != nil {
+		base.MergeStrategy = *d.MergeStrategy
+	}
+	if d.MinPRAgeMinutes != nil {
+		base.MinPRAgeMinutes = *d.MinPRAgeMinutes
+	}
+	if d.BlockOnDraft != nil {
+		base.BlockOnDraft = *d.BlockOnDraft
+	}
+	return base
+}
+
+// PolicyRunIDParam is the {runId} path parameter shared by /policy/runs routes.
+type PolicyRunIDParam struct {
+	RunID string `path:"runId" description:"Policy run identifier (uuid)."`
+}
+
+// GateResultDTO is one gate attempt in a policy run's history.
+type GateResultDTO struct {
+	RunID         string `json:"runId"`
+	GateID        string `json:"gateId"`
+	Attempt       int    `json:"attempt"`
+	Outcome       string `json:"outcome"`
+	Reason        string `json:"reason,omitempty"`
+	SecondVote    string `json:"secondVote,omitempty"`
+	Justification string `json:"justification,omitempty"`
+	DurationMS    int64  `json:"durationMs"`
+}
+
+func newGateResultDTO(g policy.GateResult) GateResultDTO {
+	return GateResultDTO{
+		RunID:         g.RunID,
+		GateID:        string(g.GateID),
+		Attempt:       g.Attempt,
+		Outcome:       string(g.Outcome),
+		Reason:        g.Reason,
+		SecondVote:    g.SecondVote,
+		Justification: g.Justification,
+		DurationMS:    g.Duration.Milliseconds(),
+	}
+}
+
+func newGateResultDTOs(in []policy.GateResult) []GateResultDTO {
+	out := make([]GateResultDTO, 0, len(in))
+	for _, g := range in {
+		out = append(out, newGateResultDTO(g))
+	}
+	return out
+}
+
+// PolicyRunDTO is the wire shape of one policy run, returned by
+// GET /api/v1/policy/runs/{runId}.
+type PolicyRunDTO struct {
+	ID          string          `json:"id"`
+	ProjectID   string          `json:"projectId"`
+	SessionID   string          `json:"sessionId"`
+	PRID        string          `json:"prId"`
+	Config      PolicyConfigDTO `json:"config"`
+	CurrentGate string          `json:"currentGate"`
+	FinalState  string          `json:"finalState"`
+	StartedAt   string          `json:"startedAt"`
+	UpdatedAt   string          `json:"updatedAt"`
+	History     []GateResultDTO `json:"history"`
+}
+
+// newPolicyRunDTO maps an engine Run onto its wire shape. The engine's Config
+// snapshot is policy.Config, not internalconfig.PolicyConfig — the two mirror
+// each other field-for-field (see internal/policy/config.go) but live in
+// different packages by design, so the DTO conversion is explicit here.
+func newPolicyRunDTO(run policy.Run) PolicyRunDTO {
+	return PolicyRunDTO{
+		ID:          run.ID,
+		ProjectID:   run.ProjectID,
+		SessionID:   run.SessionID,
+		PRID:        run.PRID,
+		Config:      newPolicyConfigDTO(policyEngineConfigToPersisted(run.Config)),
+		CurrentGate: string(run.CurrentGate),
+		FinalState:  run.FinalState,
+		StartedAt:   run.StartedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:   run.UpdatedAt.UTC().Format(time.RFC3339),
+		History:     newGateResultDTOs(run.GateHistory),
+	}
+}
+
+// policyEngineConfigToPersisted converts the engine's dependency-free
+// policy.Config into the persisted internalconfig.PolicyConfig shape. The two
+// types are intentionally kept structurally identical field-for-field (see
+// doc comments on policy.Config and internalconfig.PolicyConfig) so the
+// engine package stays free of the config/domain import chain.
+func policyEngineConfigToPersisted(c policy.Config) internalconfig.PolicyConfig {
+	return internalconfig.PolicyConfig{
+		Enabled:              c.Enabled,
+		TrackerLabel:         c.TrackerLabel,
+		AutoFixOnCIFailure:   c.AutoFixOnCIFailure,
+		MaxAutoFixRounds:     c.MaxAutoFixRounds,
+		RequireAgentReview:   c.RequireAgentReview,
+		ReviewStrategy:       c.ReviewStrategy,
+		ReviewAgent:          c.ReviewAgent,
+		MaxReviseRounds:      c.MaxReviseRounds,
+		RequireHumanApproval: c.RequireHumanApproval,
+		HumanTimeoutHours:    c.HumanTimeoutHours,
+		AgentFinalPass:       c.AgentFinalPass,
+		VetoSecondAgent:      c.VetoSecondAgent,
+		MergeStrategy:        c.MergeStrategy,
+		MinPRAgeMinutes:      c.MinPRAgeMinutes,
+		BlockOnDraft:         c.BlockOnDraft,
+	}
+}
+
+// PolicyRunGatesResponse is the body of GET /api/v1/policy/runs/{runId}/gates.
+type PolicyRunGatesResponse struct {
+	RunID string          `json:"runId"`
+	Gates []GateResultDTO `json:"gates"`
+}
+
+// PolicyDecideRequest is the body of POST /api/v1/policy/runs/{runId}/decide.
+type PolicyDecideRequest struct {
+	Action        string `json:"action" enum:"approve,request_changes,override"`
+	Justification string `json:"justification,omitempty"`
+	Message       string `json:"message,omitempty"`
+}
+
+// toDecision converts the wire request into the engine's Decision type.
+// Message (used for request_changes) is not part of policy.Decision today;
+// Justification is the field both override and (future) audit trails read.
+func (r PolicyDecideRequest) toDecision() policy.Decision {
+	just := r.Justification
+	if just == "" {
+		just = r.Message
+	}
+	return policy.Decision{Action: r.Action, Justification: just}
 }

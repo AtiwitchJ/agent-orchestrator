@@ -166,3 +166,153 @@ func TestReviewSubmitMissingRunIsUsageError(t *testing.T) {
 		t.Fatalf("exit code = %d, want 2 (usage); err=%v", got, err)
 	}
 }
+
+// ---- review list ----
+
+func TestReviewListFlattensReviewsAcrossSessions(t *testing.T) {
+	cfg := setConfigEnv(t)
+	sessionsBody := `{"sessions":[{"id":"proj-1"},{"id":"proj-2"}]}`
+	reviewsProj1 := `{"reviewerHandleId":"h-1","reviews":[{"prUrl":"https://github.com/o/r/pull/1","prNumber":1,"title":"fix bug","status":"needs_review"}]}`
+	reviewsProj2 := `{"reviewerHandleId":"h-2","reviews":[{"prUrl":"https://github.com/o/r/pull/2","prNumber":2,"title":"add feature","status":"up_to_date","latestRun":{"verdict":"approved"}}]}`
+	srv, calls := prTestServer(t, map[string]string{
+		"GET /api/v1/sessions":                sessionsBody,
+		"GET /api/v1/sessions/proj-1/reviews": reviewsProj1,
+		"GET /api/v1/sessions/proj-2/reviews": reviewsProj2,
+	})
+	writeRunFileFor(t, cfg, srv)
+
+	out, errOut, err := executeCLI(t, aliveDeps(), "review", "list", "myproj", "--json")
+	if err != nil {
+		t.Fatalf("unexpected error: %v\nstderr=%s", err, errOut)
+	}
+	var resp struct {
+		Reviews []reviewListEntry `json:"reviews"`
+	}
+	if jsonErr := json.Unmarshal([]byte(out), &resp); jsonErr != nil {
+		t.Fatalf("decode: %v\nout=%s", jsonErr, out)
+	}
+	if len(resp.Reviews) != 2 {
+		t.Fatalf("Reviews = %+v, want 2 entries", resp.Reviews)
+	}
+	if resp.Reviews[1].LatestRun == nil || resp.Reviews[1].LatestRun.Verdict != "approved" {
+		t.Errorf("Reviews[1] = %+v, want latestRun.verdict=approved", resp.Reviews[1])
+	}
+	if !containsCall(*calls, "GET /api/v1/sessions?active=true&project=myproj") ||
+		!containsCall(*calls, "GET /api/v1/sessions/proj-1/reviews") ||
+		!containsCall(*calls, "GET /api/v1/sessions/proj-2/reviews") {
+		t.Errorf("calls = %v", *calls)
+	}
+}
+
+func TestReviewListNoResults(t *testing.T) {
+	cfg := setConfigEnv(t)
+	srv, _ := prTestServer(t, map[string]string{"GET /api/v1/sessions": `{"sessions":[]}`})
+	writeRunFileFor(t, cfg, srv)
+
+	out, errOut, err := executeCLI(t, aliveDeps(), "review", "list", "myproj")
+	if err != nil {
+		t.Fatalf("unexpected error: %v\nstderr=%s", err, errOut)
+	}
+	if out != "(no reviews for myproj)\n" {
+		t.Errorf("out = %q", out)
+	}
+}
+
+func TestReviewListMissingProjectIsUsageError(t *testing.T) {
+	setConfigEnv(t)
+	_, _, err := executeCLI(t, aliveDeps(), "review", "list", " ")
+	if got := ExitCode(err); got != 2 {
+		t.Fatalf("exit code = %d, want 2 (usage); err=%v", got, err)
+	}
+}
+
+// ---- review execute ----
+
+func TestReviewExecute(t *testing.T) {
+	cfg := setConfigEnv(t)
+	srv, calls := prTestServer(t, map[string]string{
+		"POST /api/v1/sessions/mer-1/reviews/trigger": `{"reviewerHandleId":"h-1","reviews":[{"prUrl":"https://github.com/o/r/pull/1","prNumber":1}]}`,
+	})
+	writeRunFileFor(t, cfg, srv)
+
+	out, errOut, err := executeCLI(t, aliveDeps(), "review", "execute", "mer-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v\nstderr=%s", err, errOut)
+	}
+	if out != "triggered review for mer-1 (1 PR(s))\n" {
+		t.Errorf("out = %q", out)
+	}
+	if !containsCall(*calls, "POST /api/v1/sessions/mer-1/reviews/trigger") {
+		t.Errorf("calls = %v", *calls)
+	}
+}
+
+func TestReviewExecuteMissingSessionIsUsageError(t *testing.T) {
+	setConfigEnv(t)
+	_, _, err := executeCLI(t, aliveDeps(), "review", "execute", " ")
+	if got := ExitCode(err); got != 2 {
+		t.Fatalf("exit code = %d, want 2 (usage); err=%v", got, err)
+	}
+}
+
+// ---- review send ----
+
+func TestReviewSend(t *testing.T) {
+	cfg := setConfigEnv(t)
+	srv, capture := reviewServer(t, http.StatusOK, `{"review":{"verdict":"approved"}}`)
+	writeRunFileFor(t, cfg, srv)
+
+	out, errOut, err := executeCLI(t, aliveDeps(), "review", "send", "mer-1", "run-1", "--verdict", "approved")
+	if err != nil {
+		t.Fatalf("unexpected error: %v\nstderr=%s", err, errOut)
+	}
+	if out != "sent approved review for mer-1\n" {
+		t.Errorf("out = %q", out)
+	}
+	if capture.method != http.MethodPost || capture.path != "/api/v1/sessions/mer-1/reviews/submit" {
+		t.Fatalf("request = %s %s", capture.method, capture.path)
+	}
+	var req submitReviewRequest
+	if err := json.Unmarshal([]byte(capture.body), &req); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if req.RunID != "run-1" || req.Verdict != "approved" {
+		t.Fatalf("request = %+v", req)
+	}
+}
+
+func TestReviewSendReadsBodyFromStdin(t *testing.T) {
+	cfg := setConfigEnv(t)
+	srv, capture := reviewServer(t, http.StatusOK, `{"review":{"verdict":"changes_requested"}}`)
+	writeRunFileFor(t, cfg, srv)
+
+	deps := aliveDeps()
+	deps.In = strings.NewReader("please fix from stdin")
+	_, errOut, err := executeCLI(t, deps, "review", "send", "mer-1", "run-1", "--verdict", "changes_requested", "--body", "-")
+	if err != nil {
+		t.Fatalf("unexpected error: %v\nstderr=%s", err, errOut)
+	}
+	var req submitReviewRequest
+	if err := json.Unmarshal([]byte(capture.body), &req); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if req.Body != "please fix from stdin" {
+		t.Fatalf("body = %q, want the stdin contents", req.Body)
+	}
+}
+
+func TestReviewSendMissingVerdictIsUsageError(t *testing.T) {
+	setConfigEnv(t)
+	_, _, err := executeCLI(t, aliveDeps(), "review", "send", "mer-1", "run-1")
+	if got := ExitCode(err); got != 2 {
+		t.Fatalf("exit code = %d, want 2 (usage); err=%v", got, err)
+	}
+}
+
+func TestReviewSendMissingArgsIsUsageError(t *testing.T) {
+	setConfigEnv(t)
+	_, _, err := executeCLI(t, aliveDeps(), "review", "send", "mer-1")
+	if got := ExitCode(err); got != 2 {
+		t.Fatalf("exit code = %d, want 2 (usage); err=%v", got, err)
+	}
+}

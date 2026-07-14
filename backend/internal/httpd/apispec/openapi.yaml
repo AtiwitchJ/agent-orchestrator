@@ -666,6 +666,148 @@ paths:
         projects'
       tags:
       - org
+  /api/v1/policy/runs/{runId}:
+    get:
+      operationId: getPolicyRun
+      parameters:
+      - description: Policy run identifier (uuid).
+        in: path
+        name: runId
+        required: true
+        schema:
+          description: Policy run identifier (uuid).
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRunDTO'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Return a policy run's state and last gate outcome
+      tags:
+      - policy
+  /api/v1/policy/runs/{runId}/decide:
+    post:
+      operationId: decidePolicyRun
+      parameters:
+      - description: Policy run identifier (uuid).
+        in: path
+        name: runId
+        required: true
+        schema:
+          description: Policy run identifier (uuid).
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyDecideRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRunDTO'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Conflict
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Unprocessable Entity
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Record a human decision (approve / request_changes / override) against
+        a policy run
+      tags:
+      - policy
+  /api/v1/policy/runs/{runId}/gates:
+    get:
+      operationId: listPolicyRunGates
+      parameters:
+      - description: Policy run identifier (uuid).
+        in: path
+        name: runId
+        required: true
+        schema:
+          description: Policy run identifier (uuid).
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyRunGatesResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Return the full gate history for a policy run
+      tags:
+      - policy
   /api/v1/projects:
     get:
       operationId: listProjects
@@ -992,6 +1134,107 @@ paths:
       summary: List durable agent-to-agent send messages targeting a project's sessions
       tags:
       - sessions
+  /api/v1/projects/{id}/policy:
+    get:
+      operationId: getProjectPolicy
+      parameters:
+      - description: Project identifier (registry key).
+        in: path
+        name: id
+        required: true
+        schema:
+          description: Project identifier (registry key).
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyConfigResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Return a project's merged policy config (defaults + overrides)
+      tags:
+      - policy
+    put:
+      operationId: setProjectPolicy
+      parameters:
+      - description: Project identifier (registry key).
+        in: path
+        name: id
+        required: true
+        schema:
+          description: Project identifier (registry key).
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePolicyConfigRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyConfigResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Conflict
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Update a project's policy config overrides
+      tags:
+      - policy
   /api/v1/prs/{id}/merge:
     post:
       operationId: mergePR
@@ -2300,6 +2543,32 @@ components:
       required:
       - projectId
       type: object
+    GateResultDTO:
+      properties:
+        attempt:
+          type: integer
+        durationMs:
+          format: int64
+          type: integer
+        gateId:
+          type: string
+        justification:
+          type: string
+        outcome:
+          type: string
+        reason:
+          type: string
+        runId:
+          type: string
+        secondVote:
+          type: string
+      required:
+      - runId
+      - gateId
+      - attempt
+      - outcome
+      - durationMs
+      type: object
     ImportReport:
       properties:
         dryRun:
@@ -2660,6 +2929,112 @@ components:
       - title
       - targetSha
       - status
+      type: object
+    PolicyConfigDTO:
+      properties:
+        agentFinalPass:
+          type: boolean
+        autoFixOnCiFailure:
+          type: boolean
+        blockOnDraft:
+          type: boolean
+        enabled:
+          type: boolean
+        humanTimeoutHours:
+          type: integer
+        maxAutoFixRounds:
+          type: integer
+        maxReviseRounds:
+          type: integer
+        mergeStrategy:
+          type: string
+        minPrAgeMinutes:
+          type: integer
+        requireAgentReview:
+          type: boolean
+        requireHumanApproval:
+          type: boolean
+        reviewAgent:
+          type: string
+        reviewStrategy:
+          type: string
+        trackerLabel:
+          type: string
+        vetoSecondAgent:
+          type: string
+      type: object
+    PolicyConfigResponse:
+      properties:
+        config:
+          $ref: '#/components/schemas/PolicyConfigDTO'
+        projectId:
+          type: string
+      required:
+      - projectId
+      - config
+      type: object
+    PolicyDecideRequest:
+      properties:
+        action:
+          enum:
+          - approve
+          - request_changes
+          - override
+          type: string
+        justification:
+          type: string
+        message:
+          type: string
+      required:
+      - action
+      type: object
+    PolicyRunDTO:
+      properties:
+        config:
+          $ref: '#/components/schemas/PolicyConfigDTO'
+        currentGate:
+          type: string
+        finalState:
+          type: string
+        history:
+          items:
+            $ref: '#/components/schemas/GateResultDTO'
+          type: array
+        id:
+          type: string
+        prId:
+          type: string
+        projectId:
+          type: string
+        sessionId:
+          type: string
+        startedAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+      - id
+      - projectId
+      - sessionId
+      - prId
+      - config
+      - currentGate
+      - finalState
+      - startedAt
+      - updatedAt
+      - history
+      type: object
+    PolicyRunGatesResponse:
+      properties:
+        gates:
+          items:
+            $ref: '#/components/schemas/GateResultDTO'
+          type: array
+        runId:
+          type: string
+      required:
+      - runId
+      - gates
       type: object
     Project:
       properties:
@@ -3409,6 +3784,69 @@ components:
       - reviewerHandleId
       - reviews
       type: object
+    UpdatePolicyConfigRequest:
+      properties:
+        agentFinalPass:
+          type:
+          - "null"
+          - boolean
+        autoFixOnCiFailure:
+          type:
+          - "null"
+          - boolean
+        blockOnDraft:
+          type:
+          - "null"
+          - boolean
+        enabled:
+          type:
+          - "null"
+          - boolean
+        humanTimeoutHours:
+          type:
+          - "null"
+          - integer
+        maxAutoFixRounds:
+          type:
+          - "null"
+          - integer
+        maxReviseRounds:
+          type:
+          - "null"
+          - integer
+        mergeStrategy:
+          type:
+          - "null"
+          - string
+        minPrAgeMinutes:
+          type:
+          - "null"
+          - integer
+        requireAgentReview:
+          type:
+          - "null"
+          - boolean
+        requireHumanApproval:
+          type:
+          - "null"
+          - boolean
+        reviewAgent:
+          type:
+          - "null"
+          - string
+        reviewStrategy:
+          type:
+          - "null"
+          - string
+        trackerLabel:
+          type:
+          - "null"
+          - string
+        vetoSecondAgent:
+          type:
+          - "null"
+          - string
+      type: object
     WorkspaceRepo:
       properties:
         name:
@@ -3438,6 +3876,8 @@ tags:
   name: prs
 - description: Code-review runs and findings
   name: reviews
+- description: 'Hybrid approval-gate policy: per-project config and gate-run state'
+  name: policy
 - description: Durable dashboard notifications
   name: notifications
 - description: Server-sent CDC event stream with durable replay

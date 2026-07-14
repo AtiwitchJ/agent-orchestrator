@@ -11,6 +11,7 @@ import (
 	"github.com/modernagent/modern-agent/backend/internal/httpd/apispec"
 	"github.com/modernagent/modern-agent/backend/internal/httpd/controllers"
 	"github.com/modernagent/modern-agent/backend/internal/httpd/envelope"
+	"github.com/modernagent/modern-agent/backend/internal/policy"
 	"github.com/modernagent/modern-agent/backend/internal/ports"
 	companysvc "github.com/modernagent/modern-agent/backend/internal/service/company"
 	orgsvc "github.com/modernagent/modern-agent/backend/internal/service/org"
@@ -30,6 +31,7 @@ type APIDeps struct {
 	Messages           controllers.MessageService
 	PRs                prsvc.ActionManager
 	Reviews            reviewsvc.Manager
+	Policy             policy.Engine
 	Notifications      controllers.NotificationService
 	NotificationStream controllers.NotificationStream
 	Import             controllers.ImportService
@@ -50,6 +52,7 @@ type API struct {
 	messages      *controllers.MessagesController
 	prs           *controllers.PRsController
 	reviews       *controllers.ReviewsController
+	policy        *controllers.PolicyController
 	notifications *controllers.NotificationsController
 	imports       *controllers.ImportController
 	events        *EventsController
@@ -80,6 +83,7 @@ func NewAPI(cfg config.Config, deps APIDeps) *API {
 		messages:      &controllers.MessagesController{Svc: deps.Messages},
 		prs:           &controllers.PRsController{Svc: deps.PRs},
 		reviews:       &controllers.ReviewsController{Svc: deps.Reviews},
+		policy:        &controllers.PolicyController{Projects: deps.Projects, Engine: deps.Policy},
 		notifications: &controllers.NotificationsController{Svc: deps.Notifications, Stream: deps.NotificationStream},
 		imports:       &controllers.ImportController{Svc: deps.Import},
 		events:        &EventsController{Source: deps.CDC, Live: deps.Events},
@@ -108,6 +112,7 @@ func (a *API) Register(root chi.Router) {
 			a.messages.Register(r)
 			a.prs.Register(r)
 			a.reviews.Register(r)
+			a.policy.Register(r)
 			a.notifications.Register(r)
 			a.imports.Register(r)
 			// Sibling REST controllers plug in here.

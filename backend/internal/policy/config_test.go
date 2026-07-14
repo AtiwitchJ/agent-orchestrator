@@ -68,18 +68,18 @@ func TestPolicyConfig_Validate_Defaults(t *testing.T) {
 func TestPolicyConfig_Validate_Cases(t *testing.T) {
 	cases := []struct {
 		name    string
-		mutate  func(*PolicyConfig)
+		mutate  func(*Config)
 		wantErr bool
 		wantSub string // expected substring of error message, when wantErr
 	}{
 		{
 			name:    "ok_minimal",
-			mutate:  func(c *PolicyConfig) { *c = PolicyConfig{} },
+			mutate:  func(c *Config) { *c = Config{} },
 			wantErr: false,
 		},
 		{
 			name: "ok_all_strategies",
-			mutate: func(c *PolicyConfig) {
+			mutate: func(c *Config) {
 				*c = DefaultPolicyConfig()
 				c.ReviewStrategy = ReviewStrategyCrossAgent
 				c.ReviewAgent = "codex"
@@ -89,7 +89,7 @@ func TestPolicyConfig_Validate_Cases(t *testing.T) {
 		},
 		{
 			name: "bad_review_strategy",
-			mutate: func(c *PolicyConfig) {
+			mutate: func(c *Config) {
 				c.ReviewStrategy = "peer_review"
 			},
 			wantErr: true,
@@ -97,7 +97,7 @@ func TestPolicyConfig_Validate_Cases(t *testing.T) {
 		},
 		{
 			name: "bad_merge_strategy",
-			mutate: func(c *PolicyConfig) {
+			mutate: func(c *Config) {
 				c.MergeStrategy = "fast_forward"
 			},
 			wantErr: true,
@@ -105,7 +105,7 @@ func TestPolicyConfig_Validate_Cases(t *testing.T) {
 		},
 		{
 			name: "cross_agent_requires_review_agent",
-			mutate: func(c *PolicyConfig) {
+			mutate: func(c *Config) {
 				c.ReviewStrategy = ReviewStrategyCrossAgent
 				c.ReviewAgent = ""
 			},
@@ -114,7 +114,7 @@ func TestPolicyConfig_Validate_Cases(t *testing.T) {
 		},
 		{
 			name: "round_limit_too_high",
-			mutate: func(c *PolicyConfig) {
+			mutate: func(c *Config) {
 				c.MaxAutoFixRounds = MaxRoundCeiling + 1
 			},
 			wantErr: true,
@@ -122,7 +122,7 @@ func TestPolicyConfig_Validate_Cases(t *testing.T) {
 		},
 		{
 			name: "round_limit_negative",
-			mutate: func(c *PolicyConfig) {
+			mutate: func(c *Config) {
 				c.MaxReviseRounds = -1
 			},
 			wantErr: true,
@@ -130,7 +130,7 @@ func TestPolicyConfig_Validate_Cases(t *testing.T) {
 		},
 		{
 			name: "negative_human_timeout",
-			mutate: func(c *PolicyConfig) {
+			mutate: func(c *Config) {
 				c.HumanTimeoutHours = -2
 			},
 			wantErr: true,
@@ -138,7 +138,7 @@ func TestPolicyConfig_Validate_Cases(t *testing.T) {
 		},
 		{
 			name: "negative_pr_age",
-			mutate: func(c *PolicyConfig) {
+			mutate: func(c *Config) {
 				c.MinPRAgeMinutes = -1
 			},
 			wantErr: true,
@@ -146,7 +146,7 @@ func TestPolicyConfig_Validate_Cases(t *testing.T) {
 		},
 		{
 			name: "bad_tracker_label_with_whitespace",
-			mutate: func(c *PolicyConfig) {
+			mutate: func(c *Config) {
 				c.TrackerLabel = "agent ready"
 			},
 			wantErr: true,
@@ -154,7 +154,7 @@ func TestPolicyConfig_Validate_Cases(t *testing.T) {
 		},
 		{
 			name: "round_limit_at_ceiling_ok",
-			mutate: func(c *PolicyConfig) {
+			mutate: func(c *Config) {
 				c.MaxAutoFixRounds = MaxRoundCeiling
 			},
 			wantErr: false,

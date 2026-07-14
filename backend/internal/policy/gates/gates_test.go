@@ -40,7 +40,7 @@ func withQuietLogger(t *testing.T) {
 // newTestRunContext returns a RunContext populated with the bare minimum
 // the gates read. Fields the gates don't touch (e.g. SessionID) get empty
 // strings — keeps test intent visible.
-func newTestRunContext(cfg policy.PolicyConfig, attempt int) policy.RunContext {
+func newTestRunContext(cfg policy.Config, attempt int) policy.RunContext {
 	return policy.RunContext{
 		RunID:     "run-test",
 		ProjectID: "proj-test",

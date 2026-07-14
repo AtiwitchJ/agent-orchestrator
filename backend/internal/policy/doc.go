@@ -2,7 +2,7 @@
 // tracker-spawned pull request from "PR opened" to "merge ready" via four
 // sequential gates: CI, agent self-review, human approve, agent final-pass.
 //
-// The engine is opt-in per project (see PolicyConfig.Enabled) and is
+// The engine is opt-in per project (see Config.Enabled) and is
 // transport-agnostic: it exposes the Engine interface and gate types so the
 // loopback daemon can drive it in-process, and CLI commands / HTTP controllers
 // can submit human decisions without owning the orchestration.

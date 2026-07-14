@@ -181,10 +181,10 @@ const (
 // DeliverableConfig describes the artifact a docs-repo session produces and how
 // the watcher confirms it exists. Exactly one Spec field is non-nil based on Type.
 type DeliverableConfig struct {
-	Type        DeliverableType  `json:"type"`
-	Filesystem  *FilesystemSpec  `json:"filesystem,omitempty"`
-	Database    *DatabaseSpec    `json:"database,omitempty"`
-	Webhook     *WebhookSpec    `json:"webhook,omitempty"`
+	Type       DeliverableType `json:"type"`
+	Filesystem *FilesystemSpec `json:"filesystem,omitempty"`
+	Database   *DatabaseSpec   `json:"database,omitempty"`
+	Webhook    *WebhookSpec    `json:"webhook,omitempty"`
 }
 
 // FilesystemSpec describes a file-system watcher for a docs-repo deliverable.
@@ -361,14 +361,14 @@ func (d *DeliverableConfig) Validate() error {
 			return fmt.Errorf("database.query: is empty")
 		}
 		validConditions := map[string]bool{
-			"exists":       true,
-			"count_gt_0":   true,
-			"value_equals": true,
-			"value_neq":    true,
-			"value_gt":     true,
-			"value_gte":    true,
-			"value_lt":     true,
-			"value_lte":    true,
+			"exists":        true,
+			"count_gt_0":    true,
+			"value_equals":  true,
+			"value_neq":     true,
+			"value_gt":      true,
+			"value_gte":     true,
+			"value_lt":      true,
+			"value_lte":     true,
 			"row_count_eq":  true,
 			"row_count_neq": true,
 			"row_count_gt":  true,

@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// PolicyConfig is the per-project policy engine configuration. It is the typed
+// Config is the per-project policy engine configuration. It is the typed
 // accessor over the JSON blob already accepted by PUT /projects/{id}/config;
 // the service layer hydrates a domain.ProjectConfig.Policy field from this
 // struct and validates it on read.
@@ -15,7 +15,7 @@ import (
 // four-gate sequence with same_agent review and squash merge.
 //
 // Reference: docs/superpowers/specs/2026-07-14-hybrid-approval-gates-design.md §4
-type PolicyConfig struct {
+type Config struct {
 	// Master switches — opt-in.
 	Enabled      bool   `json:"enabled"`
 	TrackerLabel string `json:"tracker_label"` // default "agent-ready"
@@ -40,7 +40,7 @@ type PolicyConfig struct {
 	VetoSecondAgent string `json:"veto_second_agent"` // default = ReviewAgent
 
 	// Merge policy.
-	MergeStrategy   string `json:"merge_strategy"` // default "squash"
+	MergeStrategy string `json:"merge_strategy"` // default "squash"
 	// "squash" | "rebase" | "merge".
 	MinPRAgeMinutes int  `json:"min_pr_age_minutes"` // default 5
 	BlockOnDraft    bool `json:"block_on_draft"`     // default true
@@ -60,19 +60,20 @@ const (
 	MergeStrategyMerge  = "merge"
 )
 
-// Default tracker label applied when PolicyConfig.TrackerLabel is empty.
+// DefaultTrackerLabel is applied when Config.TrackerLabel is empty.
 // Matches the design doc §2 "Opt-in per project" default.
 const DefaultTrackerLabel = "agent-ready"
 
-// Round-limit hard ceiling (design doc §7 "Round limits too high → waste").
-// Any config value above this is rejected by Validate regardless of override.
+// MaxRoundCeiling is the round-limit hard ceiling (design doc §7 "Round
+// limits too high → waste"). Any config value above this is rejected by
+// Validate regardless of override.
 const MaxRoundCeiling = 5
 
 // DefaultPolicyConfig returns the conservative defaults documented in §2 and
 // §4 of the design doc. Callers should apply these to a fresh project before
 // persisting, then re-validate after any user override.
-func DefaultPolicyConfig() PolicyConfig {
-	return PolicyConfig{
+func DefaultPolicyConfig() Config {
+	return Config{
 		Enabled:              false, // opt-in
 		TrackerLabel:         DefaultTrackerLabel,
 		AutoFixOnCIFailure:   true,
@@ -91,7 +92,7 @@ func DefaultPolicyConfig() PolicyConfig {
 	}
 }
 
-// Validate enforces the documented invariants on PolicyConfig. It returns
+// Validate enforces the documented invariants on Config. It returns
 // nil when the config is ready to persist, otherwise an error suitable for
 // surfacing through the existing usageError / 422 path.
 //
@@ -99,7 +100,7 @@ func DefaultPolicyConfig() PolicyConfig {
 // numeric ceilings, not cross-field semantics that require a project record.
 // Callers needing project context (e.g. resolving VetoSecondAgent default)
 // should layer that on top.
-func (c PolicyConfig) Validate() error {
+func (c Config) Validate() error {
 	if c.TrackerLabel != "" && !isValidLabel(c.TrackerLabel) {
 		return fmt.Errorf("%w: tracker_label %q is not a valid label", ErrInvalidConfig, c.TrackerLabel)
 	}

@@ -31,7 +31,7 @@ func (stubEngine) GetRun(ctx context.Context, runID string) (Run, error) {
 // stubGate is a no-op Gate used for the same purpose.
 type stubGate struct{ id GateID }
 
-func (s stubGate) ID() GateID                                       { return s.id }
+func (s stubGate) ID() GateID { return s.id }
 func (stubGate) Run(ctx context.Context, rc RunContext) (GateOutcome, error) {
 	return OutcomePass, nil
 }
@@ -199,6 +199,27 @@ func TestRun_HoldsDerivedState(t *testing.T) {
 				Duration: 30 * time.Second,
 			},
 		},
+	}
+	if r.ID != "run-1" {
+		t.Errorf("ID = %q, want %q", r.ID, "run-1")
+	}
+	if r.ProjectID != "proj-1" {
+		t.Errorf("ProjectID = %q, want %q", r.ProjectID, "proj-1")
+	}
+	if r.SessionID != "sess-1" {
+		t.Errorf("SessionID = %q, want %q", r.SessionID, "sess-1")
+	}
+	if r.PRID != "pr-1" {
+		t.Errorf("PRID = %q, want %q", r.PRID, "pr-1")
+	}
+	if r.Config != DefaultPolicyConfig() {
+		t.Errorf("Config = %+v, want defaults", r.Config)
+	}
+	if r.StartedAt.IsZero() {
+		t.Error("StartedAt is zero, want populated")
+	}
+	if r.UpdatedAt.IsZero() {
+		t.Error("UpdatedAt is zero, want populated")
 	}
 	if r.FinalState != "" {
 		t.Errorf("expected empty FinalState for in-flight run, got %q", r.FinalState)

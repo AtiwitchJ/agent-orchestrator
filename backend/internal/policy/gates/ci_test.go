@@ -8,10 +8,10 @@ import (
 	"github.com/modernagent/modern-agent/backend/internal/policy"
 )
 
-// stubConfig returns a deterministic PolicyConfig suitable for gate tests.
+// stubConfig returns a deterministic Config suitable for gate tests.
 // Defaults match policy.DefaultPolicyConfig so tests reflect what callers
 // would see in production unless they explicitly override a field.
-func stubConfig() policy.PolicyConfig {
+func stubConfig() policy.Config {
 	c := policy.DefaultPolicyConfig()
 	c.Enabled = true
 	return c
@@ -35,9 +35,9 @@ func TestCIGate_AutoFixDisabled_PassImmediately(t *testing.T) {
 
 	for attempt := 0; attempt < 5; attempt++ {
 		out, err := g.Run(context.Background(), policy.RunContext{
-			RunID:  "r1",
-			PRID:   "pr1",
-			Config: c,
+			RunID:   "r1",
+			PRID:    "pr1",
+			Config:  c,
 			Attempt: attempt,
 		})
 		if err != nil {

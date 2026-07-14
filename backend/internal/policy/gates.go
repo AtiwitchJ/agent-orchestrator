@@ -38,18 +38,18 @@ var GateOrder = []GateID{GateCI, GateReview, GateHuman, GateFinal}
 type GateOutcome string
 
 const (
-	// OutcomePass: gate satisfied; engine may advance to the next gate or to
-	// the merge policy.
+	// OutcomePass means the gate is satisfied; engine may advance to the next
+	// gate or to the merge policy.
 	OutcomePass GateOutcome = "pass"
-	// OutcomeFail: gate did not satisfy but the run has remaining rounds; the
-	// engine will retry automatically.
+	// OutcomeFail means the gate did not satisfy but the run has remaining
+	// rounds; the engine will retry automatically.
 	OutcomeFail GateOutcome = "fail"
-	// OutcomeExhausted: round limit hit; engine stops the run and escalates to
-	// the human (design doc §3 — exhausted branches emit agent_exhausted_ci /
-	// agent_exhausted_review notifications).
+	// OutcomeExhausted means the round limit was hit; engine stops the run and
+	// escalates to the human (design doc §3 — exhausted branches emit
+	// agent_exhausted_ci / agent_exhausted_review notifications).
 	OutcomeExhausted GateOutcome = "exhausted"
-	// OutcomeOverridden: gate failed but the human overrode the result
-	// (design doc §3.1 — human_override_after_veto path).
+	// OutcomeOverridden means the gate failed but the human overrode the
+	// result (design doc §3.1 — human_override_after_veto path).
 	OutcomeOverridden GateOutcome = "overridden"
 )
 
@@ -90,15 +90,15 @@ type GateResult struct {
 type RunContext struct {
 	// RunID is the policy run id (stable per PR lifecycle).
 	RunID string
-	// ProjectID identifies the project whose PolicyConfig governs this run.
+	// ProjectID identifies the project whose Config governs this run.
 	ProjectID string
 	// SessionID is the worker session that opened the PR.
 	SessionID string
 	// PRID is the pull request under review.
 	PRID string
-	// Config is the snapshot of PolicyConfig active for this run. Frozen at
+	// Config is the snapshot of Config active for this run. Frozen at
 	// run start so per-project config changes mid-run do not desync gates.
-	Config PolicyConfig
+	Config Config
 	// Attempt is the 1-indexed round within the current gate. Gates use this
 	// to decide whether they are on their last allowed retry.
 	Attempt int

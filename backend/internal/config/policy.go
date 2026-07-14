@@ -55,19 +55,19 @@ type PolicyConfig struct {
 // PRs before a squash merge.
 func DefaultPolicyConfig() PolicyConfig {
 	return PolicyConfig{
-		Enabled:                  false,
-		TrackerLabel:             "agent-ready",
-		AutoFixOnCIFailure:       true,
-		MaxAutoFixRounds:         3,
-		RequireAgentReview:       true,
-		ReviewStrategy:           PolicyReviewSameAgent,
-		MaxReviseRounds:          3,
-		RequireHumanApproval:     true,
-		HumanTimeoutHours:        0,
-		AgentFinalPass:           true,
-		MergeStrategy:            PolicyMergeSquash,
-		MinPRAgeMinutes:          5,
-		BlockOnDraft:             true,
+		Enabled:              false,
+		TrackerLabel:         "agent-ready",
+		AutoFixOnCIFailure:   true,
+		MaxAutoFixRounds:     3,
+		RequireAgentReview:   true,
+		ReviewStrategy:       PolicyReviewSameAgent,
+		MaxReviseRounds:      3,
+		RequireHumanApproval: true,
+		HumanTimeoutHours:    0,
+		AgentFinalPass:       true,
+		MergeStrategy:        PolicyMergeSquash,
+		MinPRAgeMinutes:      5,
+		BlockOnDraft:         true,
 	}
 }
 
@@ -179,6 +179,6 @@ func (c *PolicyConfig) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return err
 	}
-	* c = PolicyConfig(cfg).WithDefaults()
+	*c = PolicyConfig(cfg).WithDefaults()
 	return nil
 }

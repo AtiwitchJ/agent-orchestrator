@@ -25,7 +25,7 @@ import (
 //     per design doc §3 (Gate 1: "exhausted → notify human, stop run").
 //
 // The round-limit default lives in policy.DefaultPolicyConfig (3 rounds);
-// Validate on PolicyConfig caps the override at policy.MaxRoundCeiling so
+// Validate on Config caps the override at policy.MaxRoundCeiling so
 // CIGate can trust the value it reads.
 //
 // Phase 2 will replace the stub with a real SCM observer subscription: fetch

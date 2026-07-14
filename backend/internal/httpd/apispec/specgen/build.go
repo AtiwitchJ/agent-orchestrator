@@ -71,6 +71,8 @@ func Build() ([]byte, error) {
 			"Pull-request actions (SCM lane)"),
 		*(&openapi31.Tag{Name: "reviews"}).WithDescription(
 			"Code-review runs and findings"),
+		*(&openapi31.Tag{Name: "policy"}).WithDescription(
+			"Hybrid approval-gate policy: per-project config and gate-run state"),
 		*(&openapi31.Tag{Name: "notifications"}).WithDescription(
 			"Durable dashboard notifications"),
 		*(&openapi31.Tag{Name: "events"}).WithDescription(
@@ -239,6 +241,15 @@ var schemaNames = map[string]string{
 	"ControllersSetProjectHQRoleResponse": "SetProjectHQRoleResponse",
 	"ControllersEnsureHQResponse":         "EnsureHQResponse",
 	"ControllersOrgCompanyIDParam":        "OrgCompanyIDParam",
+	// httpd/controllers — policy wire envelopes
+	"ControllersPolicyConfigDTO":           "PolicyConfigDTO",
+	"ControllersPolicyConfigResponse":      "PolicyConfigResponse",
+	"ControllersUpdatePolicyConfigRequest": "UpdatePolicyConfigRequest",
+	"ControllersPolicyRunIDParam":          "PolicyRunIDParam",
+	"ControllersGateResultDTO":             "GateResultDTO",
+	"ControllersPolicyRunDTO":              "PolicyRunDTO",
+	"ControllersPolicyRunGatesResponse":    "PolicyRunGatesResponse",
+	"ControllersPolicyDecideRequest":       "PolicyDecideRequest",
 }
 
 // markRequestBodyRequired sets requestBody.required: true on the operation's
@@ -321,6 +332,7 @@ func operations() []operation {
 	ops = append(ops, messageOperations()...)
 	ops = append(ops, prOperations()...)
 	ops = append(ops, reviewOperations()...)
+	ops = append(ops, policyOperations()...)
 	ops = append(ops, notificationOperations()...)
 	ops = append(ops, importOperations()...)
 	return ops
@@ -460,6 +472,77 @@ func reviewOperations() []operation {
 				{http.StatusBadRequest, envelope.APIError{}},
 				{http.StatusUnprocessableEntity, envelope.APIError{}},
 				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+	}
+}
+
+// policyOperations declares the 5 policy operations: the per-project config
+// sub-resource plus the run read/decide routes. Must stay 1:1 with the routes
+// PolicyController.Register mounts (enforced by the parity test).
+func policyOperations() []operation {
+	return []operation{
+		{
+			method: http.MethodGet, path: "/api/v1/projects/{id}/policy", id: "getProjectPolicy", tag: "policy",
+			summary:    "Return a project's merged policy config (defaults + overrides)",
+			pathParams: []any{controllers.ProjectIDParam{}},
+			resps: []respUnit{
+				{http.StatusOK, controllers.PolicyConfigResponse{}},
+				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusConflict, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodPut, path: "/api/v1/projects/{id}/policy", id: "setProjectPolicy", tag: "policy",
+			summary:    "Update a project's policy config overrides",
+			pathParams: []any{controllers.ProjectIDParam{}},
+			reqBody:    controllers.UpdatePolicyConfigRequest{},
+			resps: []respUnit{
+				{http.StatusOK, controllers.PolicyConfigResponse{}},
+				{http.StatusBadRequest, envelope.APIError{}},
+				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusConflict, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodGet, path: "/api/v1/policy/runs/{runId}", id: "getPolicyRun", tag: "policy",
+			summary:    "Return a policy run's state and last gate outcome",
+			pathParams: []any{controllers.PolicyRunIDParam{}},
+			resps: []respUnit{
+				{http.StatusOK, controllers.PolicyRunDTO{}},
+				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodGet, path: "/api/v1/policy/runs/{runId}/gates", id: "listPolicyRunGates", tag: "policy",
+			summary:    "Return the full gate history for a policy run",
+			pathParams: []any{controllers.PolicyRunIDParam{}},
+			resps: []respUnit{
+				{http.StatusOK, controllers.PolicyRunGatesResponse{}},
+				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodPost, path: "/api/v1/policy/runs/{runId}/decide", id: "decidePolicyRun", tag: "policy",
+			summary:    "Record a human decision (approve / request_changes / override) against a policy run",
+			pathParams: []any{controllers.PolicyRunIDParam{}},
+			reqBody:    controllers.PolicyDecideRequest{},
+			resps: []respUnit{
+				{http.StatusOK, controllers.PolicyRunDTO{}},
+				{http.StatusBadRequest, envelope.APIError{}},
+				{http.StatusUnprocessableEntity, envelope.APIError{}},
+				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusConflict, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
 				{http.StatusNotImplemented, envelope.APIError{}},
 			},
 		},

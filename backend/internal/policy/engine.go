@@ -61,14 +61,14 @@ type Run struct {
 	// ID is the stable policy run id (uuid). Used as the correlation key in
 	// all CDC events for this PR's journey.
 	ID string
-	// ProjectID is the project whose PolicyConfig governs this run.
+	// ProjectID is the project whose Config governs this run.
 	ProjectID string
 	// SessionID is the worker session that opened the PR.
 	SessionID string
 	// PRID is the pull request under review.
 	PRID string
-	// Config is the frozen PolicyConfig snapshot at run start.
-	Config PolicyConfig
+	// Config is the frozen Config snapshot at run start.
+	Config Config
 	// CurrentGate is the GateID the engine is about to enter next, or empty
 	// when the run has reached a terminal state.
 	CurrentGate GateID
