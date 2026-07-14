@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -61,6 +62,63 @@ type ProjectConfig struct {
 	// orchestrator when the project is an HQ (see HQRole). It is a no-op on
 	// ordinary projects.
 	Heartbeat HeartbeatConfig `json:"heartbeat,omitempty"`
+}
+
+// MarshalJSON omits the policy key when the nested PolicyConfig is the zero
+// value, matching the omitempty contract advertised on the field. encoding/
+// json's omitempty does not omit struct values, so without this hook legacy
+// project rows that never set a policy would re-emit `"policy":{}` on round
+// trip, breaking byte-stable storage and confusing the domain test.
+//
+// Implementation note: we marshal a *map* of fields (built from the struct via
+// reflection-free struct→map copy) rather than defining a wire type, because
+// the wire type still carries the omitempty tag — which json.Marshal honors
+// only for the values it actually understands (primitives, slices, maps,
+// interfaces, pointers). For a non-pointer struct field tagged `omitempty`,
+// the tag is silently ignored. Building the map by hand gives us explicit
+// control over which keys appear.
+func (c ProjectConfig) MarshalJSON() ([]byte, error) {
+	out := make(map[string]any, 16)
+	if c.DefaultBranch != "" {
+		out["defaultBranch"] = c.DefaultBranch
+	}
+	if c.SessionPrefix != "" {
+		out["sessionPrefix"] = c.SessionPrefix
+	}
+	if len(c.Env) > 0 {
+		out["env"] = c.Env
+	}
+	if len(c.Symlinks) > 0 {
+		out["symlinks"] = c.Symlinks
+	}
+	if len(c.PostCreate) > 0 {
+		out["postCreate"] = c.PostCreate
+	}
+	if !reflect.DeepEqual(c.AgentConfig, AgentConfig{}) {
+		out["agentConfig"] = c.AgentConfig
+	}
+	if !reflect.DeepEqual(c.Worker, RoleOverride{}) {
+		out["worker"] = c.Worker
+	}
+	if !reflect.DeepEqual(c.Orchestrator, RoleOverride{}) {
+		out["orchestrator"] = c.Orchestrator
+	}
+	if len(c.Reviewers) > 0 {
+		out["reviewers"] = c.Reviewers
+	}
+	if !reflect.DeepEqual(c.TrackerIntake, TrackerIntakeConfig{}) {
+		out["trackerIntake"] = c.TrackerIntake
+	}
+	if c.Policy != (internalconfig.PolicyConfig{}) {
+		out["policy"] = c.Policy
+	}
+	if c.Deliverable != nil {
+		out["deliverable"] = c.Deliverable
+	}
+	if !reflect.DeepEqual(c.Heartbeat, HeartbeatConfig{}) {
+		out["heartbeat"] = c.Heartbeat
+	}
+	return json.Marshal(out)
 }
 
 // DefaultHeartbeatInterval is the wake-up cadence an HQ project gets when it

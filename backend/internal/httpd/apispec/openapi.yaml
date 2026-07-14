@@ -2067,6 +2067,55 @@ components:
       required:
       - company
       type: object
+    ConfigPolicyConfig:
+      properties:
+        agent_final_pass:
+          type: boolean
+        auto_fix_on_ci_failure:
+          type: boolean
+        block_on_draft:
+          type: boolean
+        enabled:
+          type: boolean
+        human_timeout_hours:
+          type: integer
+        max_auto_fix_rounds:
+          type: integer
+        max_revise_rounds:
+          type: integer
+        merge_strategy:
+          type: string
+        min_pr_age_minutes:
+          type: integer
+        require_agent_review:
+          type: boolean
+        require_human_approval:
+          type: boolean
+        review_agent:
+          type: string
+        review_strategy:
+          type: string
+        tracker_label:
+          type: string
+        veto_second_agent:
+          type: string
+      required:
+      - enabled
+      - tracker_label
+      - auto_fix_on_ci_failure
+      - max_auto_fix_rounds
+      - require_agent_review
+      - review_strategy
+      - review_agent
+      - max_revise_rounds
+      - require_human_approval
+      - human_timeout_hours
+      - agent_final_pass
+      - veto_second_agent
+      - merge_strategy
+      - min_pr_age_minutes
+      - block_on_draft
+      type: object
     ControllersSessionView:
       properties:
         activity:
@@ -2658,6 +2707,8 @@ components:
           $ref: '#/components/schemas/DomainHeartbeatConfig'
         orchestrator:
           $ref: '#/components/schemas/RoleOverride'
+        policy:
+          $ref: '#/components/schemas/ConfigPolicyConfig'
         postCreate:
           items:
             type: string
