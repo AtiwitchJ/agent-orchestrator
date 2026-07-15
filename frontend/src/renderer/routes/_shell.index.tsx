@@ -107,7 +107,7 @@ export function CEODashboard() {
 		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-background text-foreground">
 			<MigrationPopup />
 			<DashboardSubhead
-				title="UPPU Holdings CEO Dashboard"
+				title="Vertex Holdings CEO Dashboard"
 				subtitle="Overview of all companies and operations"
 				actions={headerActions}
 			/>
