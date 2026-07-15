@@ -1,16 +1,12 @@
 //go:build integration
 
-// Package policy_test exercises the Phase 1 gate stubs (internal/policy/gates)
-// end to end through the sequencing helpers in internal/policy/state.go.
-//
-// There is no concrete, SQLite-backed policy.Engine implementation yet — only
-// the Engine interface (engine.go) and a fakeEngine used by engine_test.go.
-// The production Engine (design doc §3 state machine, driven by the Store and
-// the SCM observer) is a separate, not-yet-landed unit of work. This test
-// therefore drives the four Gate implementations directly with a hand-rolled
-// loop that mirrors what that Engine will do (walk policy.GateOrder, record a
-// policy.GateResult per attempt, advance via policy.NextGate), rather than
-// exercising a real Engine.
+// Package policy_test exercises the production Engine (internal/policy's
+// engineImpl, via NewEngine) end to end against a real Store implementation
+// and the gate implementations in internal/policy/gates — CIGate graduated to
+// a fake SCM checker, HumanGate graduated to a fake notifier/park, ReviewGate
+// and FinalGate still Phase 1 stubs (see docs/superpowers/plans/
+// 2026-07-14-hybrid-approval-gates.md's gate graduation order: CI → Human →
+// Review → Final, of which this session completed CI and Human).
 package policy_test
 
 import (
@@ -22,19 +18,81 @@ import (
 	"github.com/modernagent/modern-agent/backend/internal/policy/gates"
 )
 
-// fakeSCM stands in for the Phase 2 SCM observer CIGate will consult once the
-// "TODO: implement — auto-fix triggers `ao hooks` activity dispatch" work
-// lands (see gates/ci.go). Phase 1's CIGate stub never reads it — the field
-// exists so this fixture already has the shape Phase 2 will need.
+// memStore is a minimal in-memory policy.Store fake, standing in for the real
+// SQLite-backed store (internal/storage/sqlite/store/policy_store.go) so this
+// test can exercise the Engine's full public contract without a database.
+type memStore struct {
+	runs    map[string]policy.Run
+	results map[string][]policy.GateResult
+}
+
+func newMemStore() *memStore {
+	return &memStore{runs: map[string]policy.Run{}, results: map[string][]policy.GateResult{}}
+}
+
+func (m *memStore) CreateRun(_ context.Context, run policy.Run) error {
+	m.runs[run.ID] = run
+	return nil
+}
+
+func (m *memStore) GetRun(_ context.Context, runID string) (policy.Run, bool, error) {
+	r, ok := m.runs[runID]
+	return r, ok, nil
+}
+
+func (m *memStore) ListActiveRuns(_ context.Context) ([]policy.Run, error) {
+	var out []policy.Run
+	for _, r := range m.runs {
+		if r.FinalState == "" {
+			out = append(out, r)
+		}
+	}
+	return out, nil
+}
+
+func (m *memStore) UpdateCurrentGate(_ context.Context, runID string, gate policy.GateID, updatedAt time.Time) error {
+	r := m.runs[runID]
+	r.CurrentGate = gate
+	r.UpdatedAt = updatedAt
+	m.runs[runID] = r
+	return nil
+}
+
+func (m *memStore) FinalizeRun(_ context.Context, runID, finalState string, updatedAt time.Time) error {
+	r := m.runs[runID]
+	r.FinalState = finalState
+	r.UpdatedAt = updatedAt
+	m.runs[runID] = r
+	return nil
+}
+
+func (m *memStore) RecordGateResult(_ context.Context, result policy.GateResult) error {
+	m.results[result.RunID] = append(m.results[result.RunID], result)
+	return nil
+}
+
+func (m *memStore) ListGateResults(_ context.Context, runID string) ([]policy.GateResult, error) {
+	return append([]policy.GateResult(nil), m.results[runID]...), nil
+}
+
+// fakeSCM stands in for the real SCM observer CIGate consults through its
+// PRChecker seam (gates.NewCIGateWithChecker) — ChecksGreen models "the fake
+// SCM already reports this PR's checks passing."
 type fakeSCM struct {
 	ChecksGreen bool
 }
 
-// fakeAgent stands in for the Phase 2 reviewer adapter spawn ReviewGate will
-// make (see gates/review.go) and backs the one real injectable dependency
-// among the four Phase 1 gates: HumanGate's NotifyFunc.
+func (s *fakeSCM) Check(_ context.Context, _, _ string) (gates.PRCIState, error) {
+	if s.ChecksGreen {
+		return gates.PRCIPassing, nil
+	}
+	return gates.PRCIFailing, nil
+}
+
+// fakeAgent stands in for the real notification/reviewer infrastructure:
+// it backs HumanGate's NotifyFunc so the test can assert the needs_input
+// notification actually fired when the run parked.
 type fakeAgent struct {
-	Approves bool
 	notified []gates.NotifyIntent
 }
 
@@ -43,104 +101,93 @@ func (a *fakeAgent) Notify(_ context.Context, intent gates.NotifyIntent) error {
 	return nil
 }
 
-// TestIntegration_HappyPathPassesAllFourGates drives CIGate, ReviewGate,
-// HumanGate, and FinalGate in policy.GateOrder against a fake SCM/agent pair
-// and asserts every gate is visited exactly once, in order, with
-// policy.OutcomePass.
-//
-// Attempt indexing note: RunContext.Attempt is documented as 1-indexed
-// ("Attempt=1 is the first try" — gates.go), but HumanGate and FinalGate's
-// Phase 1 stubs branch on `rc.Attempt == 0` for "first attempt" (see
-// gates/human.go, gates/final.go). This test passes Attempt=0 on the first
-// call to match the gates' actual behavior; a spec-compliant Attempt=1 first
-// call would make HumanGate and FinalGate fail closed immediately. That
-// mismatch is a pre-existing inconsistency in the Phase 1 stubs, not
-// something this test fixes — flagged here for whoever lands the Phase 2
-// Engine and has to reconcile the two.
+// TestIntegration_HappyPathPassesAllFourGates drives a real Engine (backed by
+// an in-memory Store) through CI (real checker, green) → Review (stub,
+// disabled) → Human (real park + notify, then human approves) → Final (stub,
+// passes on first attempt) and asserts the run reaches FinalStateMerged with
+// one GateResult per gate in order, plus the human notification firing
+// exactly once.
 func TestIntegration_HappyPathPassesAllFourGates(t *testing.T) {
-	// Not yet consulted by the Phase 1 CIGate stub; see doc comment on fakeSCM.
-	scm := &fakeSCM{}
-	agent := &fakeAgent{Approves: true}
-	_ = scm
+	ctx := context.Background()
+	scm := &fakeSCM{ChecksGreen: true}
+	agent := &fakeAgent{}
 
 	cfg := policy.DefaultPolicyConfig()
-	// CIGate and ReviewGate have no "checks are green" / "agent approved"
-	// signal to consult in Phase 1 — they can only ever return
-	// OutcomePass by way of the opt-out flags below, which is the closest
-	// current stand-in for "the fake SCM/agent already said yes".
-	cfg.AutoFixOnCIFailure = false
+	cfg.AutoFixOnCIFailure = true // CIGate's real checker path only engages when this is true.
+	// ReviewGate stays a Phase 1 stub in this session (see gate graduation
+	// order); disable it so the happy path doesn't depend on unimplemented
+	// agent-review behavior.
 	cfg.RequireAgentReview = false
 	cfg.RequireHumanApproval = true
 	cfg.AgentFinalPass = true
 
-	gateImpls := map[policy.GateID]policy.Gate{
-		policy.GateCI:     gates.NewCIGate(),
-		policy.GateReview: gates.NewReviewGate(cfg.ReviewStrategy),
-		policy.GateHuman:  gates.NewHumanGate(agent.Notify),
-		policy.GateFinal:  gates.NewFinalGate(),
+	store := newMemStore()
+	run := policy.Run{
+		ID: "run-1", ProjectID: "proj-1", SessionID: "sess-1", PRID: "pr-1",
+		Config: cfg, CurrentGate: policy.GateCI, StartedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(),
+	}
+	if err := store.CreateRun(ctx, run); err != nil {
+		t.Fatalf("CreateRun: %v", err)
 	}
 
-	rc := policy.RunContext{
-		RunID:     "run-1",
-		ProjectID: "proj-1",
-		SessionID: "sess-1",
-		PRID:      "pr-1",
-		Config:    cfg,
+	engine := policy.NewEngine(store, []policy.Gate{
+		gates.NewCIGateWithChecker(scm.Check),
+		gates.NewReviewGate(cfg.ReviewStrategy),
+		gates.NewHumanGate(agent.Notify),
+		gates.NewFinalGate(),
+	})
+
+	if err := engine.Run(ctx, "run-1"); err != nil {
+		t.Fatalf("Run() = %v, want nil", err)
 	}
 
-	var order []policy.GateID
-	var results []policy.GateResult
-	current := policy.GateOrder[0]
-	for current != "" {
-		gate, ok := gateImpls[current]
-		if !ok {
-			t.Fatalf("no gate implementation registered for %s", current)
-		}
-		rc.Attempt = 0
-		start := time.Now()
-		outcome, err := gate.Run(context.Background(), rc)
-		if err != nil {
-			t.Fatalf("gate %s: unexpected error: %v", current, err)
-		}
-		order = append(order, current)
-		results = append(results, policy.GateResult{
-			RunID:    rc.RunID,
-			GateID:   current,
-			Attempt:  1,
-			Outcome:  outcome,
-			Duration: time.Since(start),
-		})
-		if outcome != policy.OutcomePass {
-			t.Fatalf("gate %s: outcome = %s, want pass (happy path)", current, outcome)
-		}
-		current = policy.NextGate(current)
+	got, err := engine.GetRun(ctx, "run-1")
+	if err != nil {
+		t.Fatalf("GetRun() = %v, want nil", err)
 	}
-
-	wantOrder := policy.GateOrder
-	if len(order) != len(wantOrder) {
-		t.Fatalf("visited %d gates, want %d: %v", len(order), len(wantOrder), order)
+	if got.CurrentGate != policy.GateHuman || got.FinalState != "" {
+		t.Fatalf("after first Run(): got = %+v, want parked at human, not terminal", got)
 	}
-	for i, g := range wantOrder {
-		if order[i] != g {
-			t.Errorf("order[%d] = %s, want %s (full order: %v)", i, order[i], g, order)
-		}
-	}
-
-	if len(results) != 4 {
-		t.Fatalf("recorded %d gate results, want 4", len(results))
-	}
-	for _, r := range results {
-		if r.Outcome != policy.OutcomePass {
-			t.Errorf("gate %s: recorded outcome %s, want pass", r.GateID, r.Outcome)
-		}
-	}
-
-	// HumanGate is the one gate that exercises the fake agent: it should have
-	// emitted exactly one needs_input notification on its (only) attempt.
 	if len(agent.notified) != 1 {
-		t.Fatalf("agent.notified = %d entries, want 1 (from HumanGate)", len(agent.notified))
+		t.Fatalf("agent.notified = %d entries, want 1 (from HumanGate parking)", len(agent.notified))
 	}
 	if agent.notified[0].Kind != "needs_input" || agent.notified[0].RunID != "run-1" {
 		t.Errorf("notified = %+v, want kind=needs_input runId=run-1", agent.notified[0])
+	}
+
+	if err := engine.Decide(ctx, "run-1", policy.Decision{Action: policy.DecisionApprove}); err != nil {
+		t.Fatalf("Decide(approve) = %v, want nil", err)
+	}
+
+	got, err = engine.GetRun(ctx, "run-1")
+	if err != nil {
+		t.Fatalf("GetRun() = %v, want nil", err)
+	}
+	if got.FinalState != policy.FinalStateMerged {
+		t.Fatalf("FinalState = %q, want %q", got.FinalState, policy.FinalStateMerged)
+	}
+	if got.CurrentGate != "" {
+		t.Errorf("CurrentGate = %q, want empty (terminal)", got.CurrentGate)
+	}
+
+	wantOrder := []policy.GateID{policy.GateCI, policy.GateReview, policy.GateHuman, policy.GateHuman, policy.GateFinal}
+	if len(got.GateHistory) != len(wantOrder) {
+		t.Fatalf("GateHistory = %d entries, want %d: %+v", len(got.GateHistory), len(wantOrder), got.GateHistory)
+	}
+	for i, want := range wantOrder {
+		if got.GateHistory[i].GateID != want {
+			t.Errorf("GateHistory[%d].GateID = %s, want %s", i, got.GateHistory[i].GateID, want)
+		}
+	}
+	if got.GateHistory[2].Outcome != policy.OutcomeParked {
+		t.Errorf("GateHistory[2] (human park) outcome = %s, want parked", got.GateHistory[2].Outcome)
+	}
+	if got.GateHistory[3].Outcome != policy.OutcomePass {
+		t.Errorf("GateHistory[3] (human approve) outcome = %s, want pass", got.GateHistory[3].Outcome)
+	}
+	for i, r := range got.GateHistory {
+		if r.Outcome != policy.OutcomePass && r.Outcome != policy.OutcomeParked {
+			t.Errorf("GateHistory[%d] = %+v, want pass or parked (happy path)", i, r)
+		}
 	}
 }

@@ -279,9 +279,9 @@ func TestReviewGate_Exhausted(t *testing.T) {
 // -----------------------------------------------------------------------------
 
 // TestHumanGate_RequiresApproval: default config (RequireHumanApproval=true),
-// Attempt=0 → OutcomePass AND the injected notifier is called exactly once
-// with kind=needs_input. The Phase 1 stub pretends the human approved on
-// first contact; Phase 2 will park the run waiting for Engine.Decide.
+// Attempt=0 → OutcomeParked AND the injected notifier is called exactly once
+// with kind=needs_input. The engine records the park and waits for
+// Engine.Decide.
 func TestHumanGate_RequiresApproval(t *testing.T) {
 	withQuietLogger(t)
 	cfg := policy.DefaultPolicyConfig() // RequireHumanApproval=true
@@ -299,8 +299,8 @@ func TestHumanGate_RequiresApproval(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run() err = %v, want nil", err)
 	}
-	if out != policy.OutcomePass {
-		t.Errorf("Run() outcome = %q, want %q", out, policy.OutcomePass)
+	if out != policy.OutcomeParked {
+		t.Errorf("Run() outcome = %q, want %q", out, policy.OutcomeParked)
 	}
 	if got := calls.Load(); got != 1 {
 		t.Errorf("notifier call count = %d, want 1", got)
@@ -358,8 +358,8 @@ func TestHumanGate_NilNotifierOK(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run() err = %v, want nil", err)
 	}
-	if out != policy.OutcomePass {
-		t.Errorf("Run() outcome = %q, want %q", out, policy.OutcomePass)
+	if out != policy.OutcomeParked {
+		t.Errorf("Run() outcome = %q, want %q", out, policy.OutcomeParked)
 	}
 }
 

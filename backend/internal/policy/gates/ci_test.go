@@ -2,6 +2,7 @@ package gates
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -109,6 +110,70 @@ func TestCIGate_ExhaustedWhenMaxRoundsZero(t *testing.T) {
 	}
 	if out != policy.OutcomeExhausted {
 		t.Fatalf("got %q, want %q", out, policy.OutcomeExhausted)
+	}
+}
+
+// TestCIGate_CheckerPassing verifies that a wired PRChecker reporting
+// PRCIPassing passes the gate outright, without falling through to the
+// round-counting stub path.
+func TestCIGate_CheckerPassing(t *testing.T) {
+	g := NewCIGateWithChecker(func(context.Context, string, string) (PRCIState, error) {
+		return PRCIPassing, nil
+	})
+	out, err := g.Run(context.Background(), policy.RunContext{
+		RunID: "r1", SessionID: "s1", PRID: "pr1", Config: stubConfig(), Attempt: 0,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out != policy.OutcomePass {
+		t.Fatalf("got %q, want %q", out, policy.OutcomePass)
+	}
+}
+
+// TestCIGate_CheckerFailingRetriesThenExhausts verifies a wired PRChecker
+// reporting a non-passing state drives the same retry/exhaust round-counting
+// as the stub, rather than passing or erroring.
+func TestCIGate_CheckerFailingRetriesThenExhausts(t *testing.T) {
+	g := NewCIGateWithChecker(func(context.Context, string, string) (PRCIState, error) {
+		return PRCIFailing, nil
+	})
+	c := stubConfig() // MaxAutoFixRounds = 3
+
+	for attempt := 0; attempt < c.MaxAutoFixRounds; attempt++ {
+		out, err := g.Run(context.Background(), policy.RunContext{
+			RunID: "r1", SessionID: "s1", PRID: "pr1", Config: c, Attempt: attempt,
+		})
+		if err != nil {
+			t.Fatalf("attempt %d: unexpected error: %v", attempt, err)
+		}
+		if out != policy.OutcomeFail {
+			t.Fatalf("attempt %d: got %q, want %q", attempt, out, policy.OutcomeFail)
+		}
+	}
+	out, err := g.Run(context.Background(), policy.RunContext{
+		RunID: "r1", SessionID: "s1", PRID: "pr1", Config: c, Attempt: c.MaxAutoFixRounds,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out != policy.OutcomeExhausted {
+		t.Fatalf("got %q, want %q", out, policy.OutcomeExhausted)
+	}
+}
+
+// TestCIGate_CheckerErrorIsInfrastructureFailure verifies a PRChecker error
+// is surfaced as a non-nil error (infrastructure trouble), not an outcome —
+// per the Gate contract, this must not be conflated with OutcomeFail.
+func TestCIGate_CheckerErrorIsInfrastructureFailure(t *testing.T) {
+	g := NewCIGateWithChecker(func(context.Context, string, string) (PRCIState, error) {
+		return "", errors.New("scm unavailable")
+	})
+	_, err := g.Run(context.Background(), policy.RunContext{
+		RunID: "r1", SessionID: "s1", PRID: "pr1", Config: stubConfig(), Attempt: 0,
+	})
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }
 

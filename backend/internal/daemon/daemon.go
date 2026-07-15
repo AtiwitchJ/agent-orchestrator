@@ -174,6 +174,7 @@ func Run() error {
 	// register an auto-provisioned HQ repo through the same project service
 	// the /api/v1/projects surface uses.
 	projectSvc := projectsvc.NewWithDeps(projectsvc.Deps{Store: store, Sessions: sessionSvc, DefaultHarness: domain.AgentHarness(cfg.Agent), Telemetry: telemetrySink})
+	policyEngine := newPolicyEngine(store, notificationWriter)
 
 	srv, err := httpd.NewWithDeps(cfg, log, termMgr, httpd.APIDeps{
 		Projects:           projectSvc,
@@ -183,6 +184,7 @@ func Run() error {
 		Agents:             agentsvc.New(),
 		Sessions:           sessionSvc,
 		Reviews:            reviewSvc,
+		Policy:             policyEngine,
 		Notifications:      notifier,
 		NotificationStream: notificationHub,
 		Import:             importsvc.New(importsvc.Deps{Store: store}),

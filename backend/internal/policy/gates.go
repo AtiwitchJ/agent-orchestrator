@@ -51,6 +51,13 @@ const (
 	// OutcomeOverridden means the gate failed but the human overrode the
 	// result (design doc §3.1 — human_override_after_veto path).
 	OutcomeOverridden GateOutcome = "overridden"
+	// OutcomeParked means the gate is waiting on external input (a human
+	// Decision) before it can produce a terminal outcome. It is not itself
+	// terminal or retryable — the engine records it once, stops driving the
+	// run, and resumes only when Engine.Decide arrives for the same gate.
+	// Only HumanGate (and, once implemented, the Gate 4 hybrid-veto path)
+	// returns this.
+	OutcomeParked GateOutcome = "parked"
 )
 
 // GateResult is the durable record of a single gate attempt. One row per

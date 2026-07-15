@@ -140,4 +140,8 @@ var (
 	// ErrAlreadyTerminal is returned by Run / Decide when the run has already
 	// reached a final state and cannot accept further state transitions.
 	ErrAlreadyTerminal = errors.New("policy: run is already terminal")
+	// ErrRunNotParked is returned by Decide when the run is not currently
+	// waiting on a human decision (i.e. the last recorded GateResult for the
+	// current gate is not OutcomeParked).
+	ErrRunNotParked = errors.New("policy: run is not waiting for a decision")
 )

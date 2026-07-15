@@ -48,24 +48,19 @@ type NotifyIntent struct {
 // the engine emits a needs_input notification and parks the run until a
 // Decision arrives via Engine.Decide.
 //
-// Phase 1 behavior (stub):
+// Behavior:
 //
-//   - rc.Config.RequireHumanApproval == false → pass immediately.
+//   - rc.Config.RequireHumanApproval == false → pass immediately, no
+//     notification.
 //   - rc.Attempt == 0 (first try): emit a needs_input notification through
 //     the injected NotifyFunc (no-op when no notifier is configured, so the
-//     gate still works in minimal test setups) and return OutcomePass. In
-//     Phase 1 the stub pretends the human approved on first contact; Phase 2
-//     will park the run waiting for Engine.Decide and only resolve then.
-//   - rc.Attempt > 0: this should not happen in production because Phase 2
-//     parks the run after the first emit and never re-invokes Run without a
-//     Decision. Phase 1 fails closed with a reason to surface the bug
-//     rather than silently loop.
-//
-// The reason for returning OutcomePass on first attempt rather than waiting:
-// Phase 2 is where the gate will truly block. Phase 1's job is to exercise
-// the engine state machine with realistic outcome shapes; if we returned
-// OutcomeFail on first attempt, the engine would never reach Gate 4 in
-// stub mode. The deliberate pass keeps the closed-loop testable today.
+//     gate still works in minimal test setups) and return OutcomeParked. The
+//     engine records this and stops driving the run until a human calls
+//     Engine.Decide (approve / request_changes / override).
+//   - rc.Attempt > 0: should not happen in production — the engine never
+//     re-invokes Run for a parked gate, only Decide advances it. Fails
+//     closed with a reason to surface the bug rather than silently looping,
+//     in case some other caller does invoke it this way.
 type HumanGate struct {
 	// Notify is the notifier HumanGate invokes on the first attempt. nil
 	// disables notification (useful for tests that only care about the
@@ -104,9 +99,8 @@ func (g *HumanGate) Run(ctx context.Context, rc policy.RunContext) (policy.GateO
 	}
 
 	if rc.Attempt == 0 {
-		// First attempt — emit the needs_input notification and pretend the
-		// human approved. Phase 2 replaces this with a real wait for
-		// Engine.Decide.
+		// First attempt — emit the needs_input notification and park,
+		// waiting for a human Decision.
 		if err := g.emitNeedsInput(ctx, rc); err != nil {
 			// Notification failure is transient infrastructure: report
 			// the error so the engine retries (matches Gate contract: a
@@ -116,15 +110,15 @@ func (g *HumanGate) Run(ctx context.Context, rc policy.RunContext) (policy.GateO
 				slog.String("err", err.Error()))
 			return "", fmt.Errorf("emit needs_input: %w", err)
 		}
-		log.InfoContext(ctx, "human gate: needs_input emitted, passing stub (Phase 2 will park and wait)")
-		return policy.OutcomePass, nil
+		log.InfoContext(ctx, "human gate: needs_input emitted, parking for a human Decision")
+		return policy.OutcomeParked, nil
 	}
 
-	// rc.Attempt > 0 in Phase 1 means the engine re-entered the gate
-	// without an explicit Decision, which should never happen once Phase 2
-	// lands. Fail closed with a descriptive reason so the bug surfaces
-	// immediately.
-	reason := fmt.Sprintf("human gate re-entered at attempt %d without a Decision; Phase 2 must park on first try", rc.Attempt)
+	// rc.Attempt > 0 means the engine re-entered the gate without an
+	// explicit Decision, which should never happen (the engine never
+	// re-invokes Run for a parked gate). Fail closed with a descriptive
+	// reason so the bug surfaces immediately.
+	reason := fmt.Sprintf("human gate re-entered at attempt %d without a Decision; the engine must park on first try", rc.Attempt)
 	log.WarnContext(ctx, "human gate: unexpected retry, failing closed",
 		slog.String("reason", reason))
 	return policy.OutcomeFail, nil
