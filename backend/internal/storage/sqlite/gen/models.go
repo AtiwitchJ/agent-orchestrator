@@ -260,6 +260,39 @@ type TrackerLink struct {
 	CreatedAt int64
 }
 
+type WorkCard struct {
+	ID                 string
+	ProjectID          string
+	BoardID            string
+	Title              string
+	Notes              string
+	Priority           string
+	LabelsJson         string
+	Status             string
+	ScheduledAt        sql.NullInt64
+	ReadyAt            sql.NullInt64
+	Position           int64
+	TargetPath         string
+	RepoName           string
+	Agent              string
+	SessionID          string
+	WaitingForInput    int64
+	PausedRetarget     int64
+	GoalVersion        int64
+	SupersededByCardID string
+	CreatedAt          int64
+	UpdatedAt          int64
+}
+
+type WorkCardEvent struct {
+	ID        string
+	CardID    string
+	ProjectID string
+	Kind      string
+	Payload   string
+	CreatedAt int64
+}
+
 type WorkspaceRepo struct {
 	ProjectID     domain.ProjectID
 	Name          string
