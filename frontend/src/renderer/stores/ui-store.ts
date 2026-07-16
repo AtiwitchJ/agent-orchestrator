@@ -13,10 +13,12 @@ type UiState = {
 	isSidebarOpen: boolean;
 	isInspectorOpen: boolean;
 	theme: Theme;
+	orgName: string;
 	restartingProjectIds: ReadonlySet<string>;
 	orchestratorReplacementErrors: Record<string, string>;
 	setWorkbenchTab: (tab: WorkbenchTab) => void;
 	setTheme: (theme: Theme) => void;
+	setOrgName: (name: string) => void;
 	toggleTheme: () => void;
 	toggleSidebar: () => void;
 	toggleInspector: () => void;
@@ -27,6 +29,8 @@ type UiState = {
 const sidebarStorageKey = "ao.sidebar.open";
 const inspectorStorageKey = "ao.inspector.open";
 const themeStorageKey = "ao.theme";
+const orgNameStorageKey = "ao.orgName";
+const defaultOrgName = "Vertex Holdings";
 
 function getLocalStorage() {
 	if (typeof window === "undefined" || !window.localStorage) return null;
@@ -52,6 +56,10 @@ function initialTheme(): Theme {
 	return systemTheme();
 }
 
+function initialOrgName(): string {
+	return getLocalStorage()?.getItem(orgNameStorageKey)?.trim() || defaultOrgName;
+}
+
 export function readStoredTheme(): Theme | null {
 	const stored = getLocalStorage()?.getItem(themeStorageKey);
 	return stored === "light" || stored === "dark" ? stored : null;
@@ -62,9 +70,15 @@ export const useUiStore = create<UiState>((set) => ({
 	isSidebarOpen: initialSidebarOpen(),
 	isInspectorOpen: initialInspectorOpen(),
 	theme: initialTheme(),
+	orgName: initialOrgName(),
 	restartingProjectIds: new Set<string>(),
 	orchestratorReplacementErrors: {},
 	setWorkbenchTab: (workbenchTab) => set({ workbenchTab }),
+	setOrgName: (name) => {
+		const orgName = name.trim() || defaultOrgName;
+		getLocalStorage()?.setItem(orgNameStorageKey, orgName);
+		set({ orgName });
+	},
 	setTheme: (theme) => {
 		getLocalStorage()?.setItem(themeStorageKey, theme);
 		set({ theme });

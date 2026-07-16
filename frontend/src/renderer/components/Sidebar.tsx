@@ -162,6 +162,7 @@ export function Sidebar({
 	const ordinaryWorkspaces = workspaces.filter((workspace) => !workspace.hqRole);
 	const theme = useUiStore((s) => s.theme);
 	const toggleTheme = useUiStore((s) => s.toggleTheme);
+	const orgName = useUiStore((s) => s.orgName);
 	// Disclosure state: projects are expanded by default; a project id present in
 	// this set is collapsed (sessions hidden).
 	const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -265,7 +266,7 @@ export function Sidebar({
 					{/* Section label (project-sidebar__nav-label) */}
 					<div className="flex shrink-0 items-center justify-between px-2 pb-2 group-data-[collapsible=icon]:hidden">
 						<SidebarGroupLabel className="h-auto rounded-none p-0 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-passive">
-							Vertex Holdings Org
+							{orgName} Org
 						</SidebarGroupLabel>
 					</div>
 

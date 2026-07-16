@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Building2, Plus, ArrowRight, Briefcase, Terminal } from "lucide-react";
+import { Building2, Plus, ArrowRight, Briefcase, Pencil, Terminal } from "lucide-react";
+import { useUiStore } from "../stores/ui-store";
 import { useCompaniesQuery, companiesQueryKey } from "../hooks/useCompaniesQuery";
 import { useWorkspaceQuery } from "../hooks/useWorkspaceQuery";
 import { apiClient, apiErrorMessage } from "../lib/api-client";
@@ -24,6 +25,10 @@ export function CEODashboard() {
 	const workspacesQuery = useWorkspaceQuery();
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
+	const orgName = useUiStore((s) => s.orgName);
+	const setOrgName = useUiStore((s) => s.setOrgName);
+	// null = not editing; string = the draft name being typed.
+	const [orgNameDraft, setOrgNameDraft] = useState<string | null>(null);
 	const [newCompanyName, setNewCompanyName] = useState("");
 	const [isCreating, setIsCreating] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -107,7 +112,41 @@ export function CEODashboard() {
 		<div className="flex h-full min-h-0 flex-col overflow-y-auto bg-background text-foreground">
 			<MigrationPopup />
 			<DashboardSubhead
-				title="Vertex Holdings CEO Dashboard"
+				title={
+					orgNameDraft === null ? (
+						<span className="group/orgname inline-flex items-center gap-2">
+							{orgName} CEO Dashboard
+							<button
+								aria-label="Rename organization"
+								className="text-passive opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/orgname:opacity-100"
+								onClick={() => setOrgNameDraft(orgName)}
+								type="button"
+							>
+								<Pencil size={14} aria-hidden="true" />
+							</button>
+						</span>
+					) : (
+						<input
+							aria-label="Organization name"
+							autoFocus
+							className="w-64 rounded-md border border-input bg-transparent px-2 py-0.5 text-[17px] font-bold outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+							value={orgNameDraft}
+							onChange={(e) => setOrgNameDraft(e.target.value)}
+							onBlur={() => {
+								setOrgName(orgNameDraft);
+								setOrgNameDraft(null);
+							}}
+							onKeyDown={(e) => {
+								if (e.key === "Enter") {
+									setOrgName(orgNameDraft);
+									setOrgNameDraft(null);
+								} else if (e.key === "Escape") {
+									setOrgNameDraft(null);
+								}
+							}}
+						/>
+					)
+				}
 				subtitle="Overview of all companies and operations"
 				actions={headerActions}
 			/>

@@ -57,6 +57,25 @@ function renderDashboard() {
 	);
 }
 
+describe("CEODashboard org name", () => {
+	it("renames the organization inline and reflects it in the title", async () => {
+		const user = userEvent.setup();
+		renderDashboard();
+
+		expect(screen.getByText(/Vertex Holdings CEO Dashboard/)).toBeInTheDocument();
+
+		await user.click(screen.getByLabelText("Rename organization"));
+		const input = screen.getByLabelText("Organization name");
+		await user.clear(input);
+		await user.type(input, "Acme Group{Enter}");
+
+		expect(screen.getByText(/Acme Group CEO Dashboard/)).toBeInTheDocument();
+		expect(window.localStorage.getItem("ao.orgName")).toBe("Acme Group");
+		// Reset the persisted name so other tests see the default.
+		window.localStorage.removeItem("ao.orgName");
+	});
+});
+
 describe("CEODashboard Watch Live", () => {
 	it("navigates to /terminals pre-filled with CEO HQ, that company's PM HQ, and its worker orchestrator", async () => {
 		const user = userEvent.setup();

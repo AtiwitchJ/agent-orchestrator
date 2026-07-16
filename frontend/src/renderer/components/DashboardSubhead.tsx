@@ -8,7 +8,7 @@ export function DashboardSubhead({
 	count,
 	actions,
 }: {
-	title: string;
+	title: ReactNode;
 	subtitle: string;
 	count?: number;
 	actions?: ReactNode;
