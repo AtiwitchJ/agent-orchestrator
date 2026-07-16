@@ -14,16 +14,25 @@ test("the Reviews tab renders the reviewer panel for a session that owns PRs", a
 				reviewerHandleId: "reviewer-pane",
 				reviews: [
 					{
-						id: "run-1",
-						reviewId: "review-1",
-						sessionId: "stacked-auth",
-						harness: "codex",
-						status: "complete",
-						verdict: "approved",
-						body: "Looks good.",
 						prUrl: "https://github.com/me/api-gateway/pull/41",
+						prNumber: 41,
+						title: "auth stack",
 						targetSha: "abc123",
-						createdAt: new Date().toISOString(),
+						status: "up_to_date",
+						latestRun: {
+							id: "run-1",
+							reviewId: "review-1",
+							batchId: "batch-1",
+							sessionId: "stacked-auth",
+							githubReviewId: "gh-1",
+							harness: "codex",
+							status: "complete",
+							verdict: "approved",
+							body: "Looks good.",
+							prUrl: "https://github.com/me/api-gateway/pull/41",
+							targetSha: "abc123",
+							createdAt: new Date().toISOString(),
+						},
 					},
 				],
 			},
@@ -59,7 +68,8 @@ test("the Reviews tab renders the reviewer panel for a session that owns PRs", a
 	// actions — never the empty state, since this session owns a PR.
 	await expect(inspector.getByText("No pull request opened yet.")).toHaveCount(0);
 	await expect(inspector.getByText("codex")).toBeVisible();
-	await expect(inspector.getByText("Approved")).toBeVisible();
+	// "Approved" appears twice (aggregate status + per-PR row) — assert the aggregate.
+	await expect(inspector.getByText("Approved").first()).toBeVisible();
 	await expect(inspector.getByRole("button", { name: "Re-run review" })).toBeVisible();
 	await expect(inspector.getByRole("button", { name: "Open terminal" })).toBeVisible();
 });
