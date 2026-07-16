@@ -19,6 +19,9 @@ vi.mock("../lib/api-client", () => ({
 vi.mock("../components/MigrationPopup", () => ({ MigrationPopup: () => null }));
 vi.mock("../components/HQSection", () => ({ HQSection: () => null }));
 vi.mock("../components/HeartbeatPauseSwitch", () => ({ HeartbeatPauseSwitch: () => null }));
+vi.mock("../lib/shell-context", () => ({
+	useShell: () => ({ daemonStatus: { state: "running" }, createProject: vi.fn() }),
+}));
 
 import { CEODashboard } from "./_shell.index";
 

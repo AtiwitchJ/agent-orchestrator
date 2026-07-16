@@ -10,6 +10,8 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { DashboardSubhead } from "../components/DashboardSubhead";
+import { CreateProjectFlow } from "../components/Sidebar";
+import { useShell } from "../lib/shell-context";
 import { groupWorkspacesByCompany, sessionIsActive } from "../types/workspace";
 import { MigrationPopup } from "../components/MigrationPopup";
 import { HQSection } from "../components/HQSection";
@@ -25,6 +27,7 @@ export function CEODashboard() {
 	const workspacesQuery = useWorkspaceQuery();
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
+	const { createProject } = useShell();
 	const orgName = useUiStore((s) => s.orgName);
 	const setOrgName = useUiStore((s) => s.setOrgName);
 	// null = not editing; string = the draft name being typed.
@@ -101,10 +104,18 @@ export function CEODashboard() {
 	) : (
 		<>
 			<HeartbeatPauseSwitch />
-			<Button onClick={() => setIsCreating(true)} className="gap-2">
+			<Button variant="outline" onClick={() => setIsCreating(true)} className="gap-2">
 				<Plus size={16} />
 				Add Company
 			</Button>
+			<CreateProjectFlow onCreateProject={createProject}>
+				{({ disabled, choosePath, label }) => (
+					<Button onClick={choosePath} disabled={disabled} className="gap-2">
+						<Plus size={16} />
+						{label === "New project" ? "Add Project" : label}
+					</Button>
+				)}
+			</CreateProjectFlow>
 		</>
 	);
 
