@@ -62,6 +62,8 @@ type ProjectConfig struct {
 	// orchestrator when the project is an HQ (see HQRole). It is a no-op on
 	// ordinary projects.
 	Heartbeat HeartbeatConfig `json:"heartbeat,omitempty"`
+
+	Workboard WorkboardConfig `json:"workboard,omitempty"`
 }
 
 // MarshalJSON omits the policy key when the nested PolicyConfig is the zero
@@ -78,7 +80,7 @@ type ProjectConfig struct {
 // the tag is silently ignored. Building the map by hand gives us explicit
 // control over which keys appear.
 func (c ProjectConfig) MarshalJSON() ([]byte, error) {
-	out := make(map[string]any, 16)
+	out := make(map[string]any, 17)
 	if c.DefaultBranch != "" {
 		out["defaultBranch"] = c.DefaultBranch
 	}
@@ -117,6 +119,9 @@ func (c ProjectConfig) MarshalJSON() ([]byte, error) {
 	}
 	if !reflect.DeepEqual(c.Heartbeat, HeartbeatConfig{}) {
 		out["heartbeat"] = c.Heartbeat
+	}
+	if !reflect.DeepEqual(c.Workboard, WorkboardConfig{}) {
+		out["workboard"] = c.Workboard
 	}
 	return json.Marshal(out)
 }
