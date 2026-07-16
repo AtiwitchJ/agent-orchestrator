@@ -1235,6 +1235,95 @@ paths:
       summary: Update a project's policy config overrides
       tags:
       - policy
+  /api/v1/projects/{projectId}/workboard/cards:
+    get:
+      operationId: listWorkCards
+      parameters:
+      - description: Project identifier.
+        in: path
+        name: projectId
+        required: true
+        schema:
+          description: Project identifier.
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListWorkCardsResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: List a project's durable work cards
+      tags:
+      - workboard
+    post:
+      operationId: createWorkCard
+      parameters:
+      - description: Project identifier.
+        in: path
+        name: projectId
+        required: true
+        schema:
+          description: Project identifier.
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkCardRequest'
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkCardResponse'
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Create a durable work card on a project board
+      tags:
+      - workboard
   /api/v1/prs/{id}/merge:
     post:
       operationId: mergePR
@@ -2141,6 +2230,146 @@ paths:
       summary: Clean up terminated session workspaces
       tags:
       - sessions
+  /api/v1/workboard/cards/{cardId}:
+    get:
+      operationId: getWorkCard
+      parameters:
+      - description: Work card identifier.
+        in: path
+        name: cardId
+        required: true
+        schema:
+          description: Work card identifier.
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkCardResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Fetch one work card
+      tags:
+      - workboard
+    patch:
+      operationId: updateWorkCard
+      parameters:
+      - description: Work card identifier.
+        in: path
+        name: cardId
+        required: true
+        schema:
+          description: Work card identifier.
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWorkCardRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkCardResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Update mutable work-card fields
+      tags:
+      - workboard
+  /api/v1/workboard/cards/{cardId}/move:
+    post:
+      operationId: moveWorkCard
+      parameters:
+      - description: Work card identifier.
+        in: path
+        name: cardId
+        required: true
+        schema:
+          description: Work card identifier.
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveWorkCardRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkCardResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Internal Server Error
+        "501":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+          description: Not Implemented
+      summary: Move a work card to a status and board position
+      tags:
+      - workboard
 components:
   schemas:
     APIError:
@@ -2436,6 +2665,52 @@ components:
       required:
       - name
       type: object
+    CreateWorkCardRequest:
+      properties:
+        agent:
+          type: string
+        labels:
+          items:
+            type: string
+          type: array
+        notes:
+          type: string
+        priority:
+          enum:
+          - low
+          - normal
+          - high
+          - urgent
+          type: string
+        scheduledAt:
+          format: date-time
+          type:
+          - "null"
+          - string
+        status:
+          enum:
+          - triage
+          - backlog
+          - todo
+          - scheduled
+          - ready
+          - running
+          - review
+          - blocked
+          - done
+          type: string
+        targetPath:
+          type: string
+        title:
+          type: string
+      required:
+      - title
+      - notes
+      - priority
+      - labels
+      - targetPath
+      - agent
+      type: object
     DegradedProject:
       properties:
         id:
@@ -2709,6 +2984,15 @@ components:
       required:
       - sessions
       type: object
+    ListWorkCardsResponse:
+      properties:
+        cards:
+          items:
+            $ref: '#/components/schemas/WorkCardResponse'
+          type: array
+      required:
+      - cards
+      type: object
     MarkAllNotificationsReadResponse:
       properties:
         notifications:
@@ -2740,6 +3024,27 @@ components:
       - ok
       - prNumber
       - method
+      type: object
+    MoveWorkCardRequest:
+      properties:
+        position:
+          format: int64
+          type: integer
+        status:
+          enum:
+          - triage
+          - backlog
+          - todo
+          - scheduled
+          - ready
+          - running
+          - review
+          - blocked
+          - done
+          type: string
+      required:
+      - status
+      - position
       type: object
     NotificationEnvelope:
       properties:
@@ -3100,6 +3405,8 @@ components:
           type: array
         trackerIntake:
           $ref: '#/components/schemas/TrackerIntakeConfig'
+        workboard:
+          $ref: '#/components/schemas/WorkboardConfig'
         worker:
           $ref: '#/components/schemas/RoleOverride'
       type: object
@@ -3847,6 +4154,181 @@ components:
           - "null"
           - string
       type: object
+    UpdateWorkCardRequest:
+      properties:
+        agent:
+          type:
+          - "null"
+          - string
+        labels:
+          items:
+            type: string
+          type:
+          - "null"
+          - array
+        notes:
+          type:
+          - "null"
+          - string
+        position:
+          type:
+          - "null"
+          - integer
+        priority:
+          enum:
+          - low
+          - normal
+          - high
+          - urgent
+          type:
+          - "null"
+          - string
+        scheduledAt:
+          format: date-time
+          type:
+          - "null"
+          - string
+        status:
+          enum:
+          - triage
+          - backlog
+          - todo
+          - scheduled
+          - ready
+          - running
+          - review
+          - blocked
+          - done
+          type:
+          - "null"
+          - string
+        targetPath:
+          type:
+          - "null"
+          - string
+        title:
+          type:
+          - "null"
+          - string
+      type: object
+    WorkCardResponse:
+      properties:
+        agent:
+          type: string
+        boardId:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        goalVersion:
+          type: integer
+        id:
+          type: string
+        labels:
+          items:
+            type: string
+          type: array
+        notes:
+          type: string
+        pausedRetarget:
+          type: boolean
+        position:
+          format: int64
+          type: integer
+        priority:
+          enum:
+          - low
+          - normal
+          - high
+          - urgent
+          type: string
+        projectId:
+          type: string
+        readyAt:
+          format: date-time
+          type:
+          - "null"
+          - string
+        repoName:
+          type: string
+        scheduledAt:
+          format: date-time
+          type:
+          - "null"
+          - string
+        sessionId:
+          type: string
+        status:
+          enum:
+          - triage
+          - backlog
+          - todo
+          - scheduled
+          - ready
+          - running
+          - review
+          - blocked
+          - done
+          type: string
+        supersededByCardId:
+          type: string
+        targetPath:
+          type: string
+        title:
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        waitingForInput:
+          type: boolean
+      required:
+      - id
+      - projectId
+      - boardId
+      - title
+      - notes
+      - priority
+      - labels
+      - status
+      - position
+      - targetPath
+      - agent
+      - waitingForInput
+      - pausedRetarget
+      - goalVersion
+      - createdAt
+      - updatedAt
+      type: object
+    WorkboardAutonomousConfig:
+      properties:
+        enabled:
+          type: boolean
+        mode:
+          type: string
+        shortTimeoutMinutes:
+          type: integer
+        sticky:
+          type: boolean
+      type: object
+    WorkboardConfig:
+      properties:
+        answerDenylist:
+          items:
+            type: string
+          type: array
+        answerTimeoutMinutes:
+          type: integer
+        autonomous:
+          $ref: '#/components/schemas/WorkboardAutonomousConfig'
+        fallbackAgents:
+          items:
+            type: string
+          type: array
+        limitCooldownMinutes:
+          type: integer
+        wipLimit:
+          type: integer
+      type: object
     WorkspaceRepo:
       properties:
         name:
@@ -3884,3 +4366,5 @@ tags:
   name: events
 - description: Legacy AO project import (availability probe and run)
   name: import
+- description: Durable project work cards and their board placement
+  name: workboard

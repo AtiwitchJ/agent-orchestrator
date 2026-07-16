@@ -453,6 +453,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{projectId}/workboard/cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a project's durable work cards */
+        get: operations["listWorkCards"];
+        put?: never;
+        /** Create a durable work card on a project board */
+        post: operations["createWorkCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/prs/{id}/merge": {
         parameters: {
             query?: never;
@@ -746,6 +764,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workboard/cards/{cardId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetch one work card */
+        get: operations["getWorkCard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update mutable work-card fields */
+        patch: operations["updateWorkCard"];
+        trace?: never;
+    };
+    "/api/v1/workboard/cards/{cardId}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move a work card to a status and board position */
+        post: operations["moveWorkCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -861,6 +914,19 @@ export interface components {
         CreateCompanyInput: {
             name: string;
         };
+        CreateWorkCardRequest: {
+            agent: string;
+            labels: string[];
+            notes: string;
+            /** @enum {string} */
+            priority: "low" | "normal" | "high" | "urgent";
+            /** Format: date-time */
+            scheduledAt?: null | string;
+            /** @enum {string} */
+            status?: "triage" | "backlog" | "todo" | "scheduled" | "ready" | "running" | "review" | "blocked" | "done";
+            targetPath: string;
+            title: string;
+        };
         DegradedProject: {
             id: string;
             kind: string;
@@ -968,6 +1034,9 @@ export interface components {
         ListSessionsResponse: {
             sessions: components["schemas"]["ControllersSessionView"][];
         };
+        ListWorkCardsResponse: {
+            cards: components["schemas"]["WorkCardResponse"][];
+        };
         MarkAllNotificationsReadResponse: {
             notifications: components["schemas"]["NotificationResponse"][];
         };
@@ -982,6 +1051,12 @@ export interface components {
             method: string;
             ok: boolean;
             prNumber: number;
+        };
+        MoveWorkCardRequest: {
+            /** Format: int64 */
+            position: number;
+            /** @enum {string} */
+            status: "triage" | "backlog" | "todo" | "scheduled" | "ready" | "running" | "review" | "blocked" | "done";
         };
         NotificationEnvelope: {
             notification: components["schemas"]["NotificationResponse"];
@@ -1123,6 +1198,7 @@ export interface components {
             sessionPrefix?: string;
             symlinks?: string[];
             trackerIntake?: components["schemas"]["TrackerIntakeConfig"];
+            workboard?: components["schemas"]["WorkboardConfig"];
             worker?: components["schemas"]["RoleOverride"];
         };
         ProjectGetResponse: {
@@ -1404,6 +1480,64 @@ export interface components {
             reviewStrategy?: null | string;
             trackerLabel?: null | string;
             vetoSecondAgent?: null | string;
+        };
+        UpdateWorkCardRequest: {
+            agent?: null | string;
+            labels?: null | string[];
+            notes?: null | string;
+            position?: null | number;
+            /** @enum {null|string} */
+            priority?: "low" | "normal" | "high" | "urgent" | null;
+            /** Format: date-time */
+            scheduledAt?: null | string;
+            /** @enum {null|string} */
+            status?: "triage" | "backlog" | "todo" | "scheduled" | "ready" | "running" | "review" | "blocked" | "done" | null;
+            targetPath?: null | string;
+            title?: null | string;
+        };
+        WorkCardResponse: {
+            agent: string;
+            boardId: string;
+            /** Format: date-time */
+            createdAt: string;
+            goalVersion: number;
+            id: string;
+            labels: string[];
+            notes: string;
+            pausedRetarget: boolean;
+            /** Format: int64 */
+            position: number;
+            /** @enum {string} */
+            priority: "low" | "normal" | "high" | "urgent";
+            projectId: string;
+            /** Format: date-time */
+            readyAt?: null | string;
+            repoName?: string;
+            /** Format: date-time */
+            scheduledAt?: null | string;
+            sessionId?: string;
+            /** @enum {string} */
+            status: "triage" | "backlog" | "todo" | "scheduled" | "ready" | "running" | "review" | "blocked" | "done";
+            supersededByCardId?: string;
+            targetPath: string;
+            title: string;
+            /** Format: date-time */
+            updatedAt: string;
+            waitingForInput: boolean;
+        };
+        WorkboardAutonomousConfig: {
+            enabled?: boolean;
+            mode?: string;
+            shortTimeoutMinutes?: number;
+            sticky?: boolean;
+        };
+        WorkboardConfig: {
+            answerDenylist?: string[];
+            answerTimeoutMinutes?: number;
+            autonomous?: components["schemas"]["WorkboardAutonomousConfig"];
+            fallbackAgents?: string[];
+            limitCooldownMinutes?: number;
+            wipLimit?: number;
         };
         WorkspaceRepo: {
             name: string;
@@ -3042,6 +3176,119 @@ export interface operations {
             };
         };
     };
+    listWorkCards: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project identifier. */
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListWorkCardsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    createWorkCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project identifier. */
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWorkCardRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkCardResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
     mergePR: {
         parameters: {
             query?: never;
@@ -4146,6 +4393,182 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CleanupSessionsResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    getWorkCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Work card identifier. */
+                cardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkCardResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    updateWorkCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Work card identifier. */
+                cardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateWorkCardRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkCardResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Implemented */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+        };
+    };
+    moveWorkCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Work card identifier. */
+                cardId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoveWorkCardRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkCardResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIError"];
                 };
             };
             /** @description Internal Server Error */

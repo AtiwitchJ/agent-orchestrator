@@ -14,6 +14,7 @@ import (
 	orgsvc "github.com/modernagent/modern-agent/backend/internal/service/org"
 	projectsvc "github.com/modernagent/modern-agent/backend/internal/service/project"
 	sessionsvc "github.com/modernagent/modern-agent/backend/internal/service/session"
+	workboardsvc "github.com/modernagent/modern-agent/backend/internal/service/workboard"
 )
 
 // HTTP response envelopes for the projects surface — the SINGLE definition of
@@ -29,6 +30,125 @@ import (
 // as the path parameter.
 type ProjectIDParam struct {
 	ID string `path:"id" description:"Project identifier (registry key)."`
+}
+
+// WorkboardProjectIDParam is the project path parameter for workboard routes.
+type WorkboardProjectIDParam struct {
+	ProjectID string `path:"projectId" description:"Project identifier."`
+}
+
+// WorkCardIDParam is the work-card path parameter shared by card routes.
+type WorkCardIDParam struct {
+	CardID string `path:"cardId" description:"Work card identifier."`
+}
+
+// WorkCardResponse is the durable work-card read model exposed by the API.
+// Waiting and retargeting flags remain independent durable facts; clients
+// derive any display badge from them at read time.
+type WorkCardResponse struct {
+	ID                 string     `json:"id"`
+	ProjectID          string     `json:"projectId"`
+	BoardID            string     `json:"boardId"`
+	Title              string     `json:"title"`
+	Notes              string     `json:"notes"`
+	Priority           string     `json:"priority" enum:"low,normal,high,urgent"`
+	Labels             []string   `json:"labels"`
+	Status             string     `json:"status" enum:"triage,backlog,todo,scheduled,ready,running,review,blocked,done"`
+	ScheduledAt        *time.Time `json:"scheduledAt,omitempty"`
+	ReadyAt            *time.Time `json:"readyAt,omitempty"`
+	Position           int64      `json:"position"`
+	TargetPath         string     `json:"targetPath"`
+	RepoName           string     `json:"repoName,omitempty"`
+	Agent              string     `json:"agent"`
+	SessionID          string     `json:"sessionId,omitempty"`
+	WaitingForInput    bool       `json:"waitingForInput"`
+	PausedRetarget     bool       `json:"pausedRetarget"`
+	GoalVersion        int        `json:"goalVersion"`
+	SupersededByCardID string     `json:"supersededByCardId,omitempty"`
+	CreatedAt          time.Time  `json:"createdAt"`
+	UpdatedAt          time.Time  `json:"updatedAt"`
+}
+
+// CreateWorkCardRequest is the body of POST /api/v1/projects/{projectId}/workboard/cards.
+type CreateWorkCardRequest struct {
+	Title       string     `json:"title"`
+	Notes       string     `json:"notes"`
+	Priority    string     `json:"priority" enum:"low,normal,high,urgent"`
+	Labels      []string   `json:"labels"`
+	Status      string     `json:"status,omitempty" enum:"triage,backlog,todo,scheduled,ready,running,review,blocked,done"`
+	TargetPath  string     `json:"targetPath"`
+	Agent       string     `json:"agent"`
+	ScheduledAt *time.Time `json:"scheduledAt,omitempty"`
+}
+
+func (r CreateWorkCardRequest) toInput(projectID string) workboardsvc.CreateInput {
+	return workboardsvc.CreateInput{
+		ProjectID: projectID, Title: r.Title, Notes: r.Notes,
+		Priority: domain.CardPriority(r.Priority), Labels: r.Labels, Status: domain.CardStatus(r.Status),
+		TargetPath: r.TargetPath, Agent: r.Agent, ScheduledAt: r.ScheduledAt,
+	}
+}
+
+// UpdateWorkCardRequest is the body of PATCH /api/v1/workboard/cards/{cardId}.
+type UpdateWorkCardRequest struct {
+	Title       *string    `json:"title,omitempty"`
+	Notes       *string    `json:"notes,omitempty"`
+	Priority    *string    `json:"priority,omitempty" enum:"low,normal,high,urgent"`
+	Labels      *[]string  `json:"labels,omitempty"`
+	Status      *string    `json:"status,omitempty" enum:"triage,backlog,todo,scheduled,ready,running,review,blocked,done"`
+	ScheduledAt *time.Time `json:"scheduledAt,omitempty"`
+	TargetPath  *string    `json:"targetPath,omitempty"`
+	Agent       *string    `json:"agent,omitempty"`
+	Position    *int64     `json:"position,omitempty"`
+}
+
+func (r UpdateWorkCardRequest) toInput() workboardsvc.UpdateInput {
+	in := workboardsvc.UpdateInput{
+		Title: r.Title, Notes: r.Notes, Labels: r.Labels, ScheduledAt: r.ScheduledAt,
+		TargetPath: r.TargetPath, Agent: r.Agent, Position: r.Position,
+	}
+	if r.Priority != nil {
+		priority := domain.CardPriority(*r.Priority)
+		in.Priority = &priority
+	}
+	if r.Status != nil {
+		status := domain.CardStatus(*r.Status)
+		in.Status = &status
+	}
+	return in
+}
+
+// MoveWorkCardRequest is the body of POST /api/v1/workboard/cards/{cardId}/move.
+type MoveWorkCardRequest struct {
+	Status   string `json:"status" enum:"triage,backlog,todo,scheduled,ready,running,review,blocked,done"`
+	Position int64  `json:"position"`
+}
+
+// ListWorkCardsResponse is the body of GET /api/v1/projects/{projectId}/workboard/cards.
+type ListWorkCardsResponse struct {
+	Cards []WorkCardResponse `json:"cards"`
+}
+
+func newWorkCardResponse(card domain.WorkCard) WorkCardResponse {
+	return WorkCardResponse{
+		ID: card.ID, ProjectID: card.ProjectID, BoardID: card.BoardID, Title: card.Title, Notes: card.Notes,
+		Priority: string(card.Priority), Labels: append([]string(nil), card.Labels...), Status: string(card.Status),
+		ScheduledAt: card.ScheduledAt, ReadyAt: card.ReadyAt, Position: card.Position, TargetPath: card.TargetPath,
+		RepoName: card.RepoName, Agent: card.Agent, SessionID: card.SessionID, WaitingForInput: card.WaitingForInput,
+		PausedRetarget: card.PausedRetarget, GoalVersion: card.GoalVersion, SupersededByCardID: card.SupersededByCardID,
+		CreatedAt: card.CreatedAt, UpdatedAt: card.UpdatedAt,
+	}
+}
+
+func workCardResponses(cards []domain.WorkCard) []WorkCardResponse {
+	if cards == nil {
+		return []WorkCardResponse{}
+	}
+	responses := make([]WorkCardResponse, len(cards))
+	for i, card := range cards {
+		responses[i] = newWorkCardResponse(card)
+	}
+	return responses
 }
 
 // ListProjectsResponse is the body of GET /api/v1/projects.

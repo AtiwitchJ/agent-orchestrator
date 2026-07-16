@@ -35,6 +35,7 @@ type APIDeps struct {
 	Notifications      controllers.NotificationService
 	NotificationStream controllers.NotificationStream
 	Import             controllers.ImportService
+	Workboard          controllers.WorkboardService
 	CDC                cdc.Source
 	Events             cdcSubscriber
 	Telemetry          ports.EventSink
@@ -55,6 +56,7 @@ type API struct {
 	policy        *controllers.PolicyController
 	notifications *controllers.NotificationsController
 	imports       *controllers.ImportController
+	workboard     *controllers.WorkboardController
 	events        *EventsController
 }
 
@@ -86,6 +88,7 @@ func NewAPI(cfg config.Config, deps APIDeps) *API {
 		policy:        &controllers.PolicyController{Projects: deps.Projects, Engine: deps.Policy},
 		notifications: &controllers.NotificationsController{Svc: deps.Notifications, Stream: deps.NotificationStream},
 		imports:       &controllers.ImportController{Svc: deps.Import},
+		workboard:     &controllers.WorkboardController{Svc: deps.Workboard},
 		events:        &EventsController{Source: deps.CDC, Live: deps.Events},
 	}
 }
@@ -115,6 +118,7 @@ func (a *API) Register(root chi.Router) {
 			a.policy.Register(r)
 			a.notifications.Register(r)
 			a.imports.Register(r)
+			a.workboard.Register(r)
 			// Sibling REST controllers plug in here.
 		})
 		// Long-lived streams intentionally bypass the REST timeout middleware.

@@ -79,6 +79,8 @@ func Build() ([]byte, error) {
 			"Server-sent CDC event stream with durable replay"),
 		*(&openapi31.Tag{Name: "import"}).WithDescription(
 			"Legacy AO project import (availability probe and run)"),
+		*(&openapi31.Tag{Name: "workboard"}).WithDescription(
+			"Durable project work cards and their board placement"),
 	}
 
 	for _, op := range operations() {
@@ -134,16 +136,25 @@ var schemaNames = map[string]string{
 	// httpd/envelope
 	"EnvelopeAPIError": "APIError",
 	// domain
-	"DomainProjectID":           "ProjectID",
-	"DomainSessionID":           "SessionID",
-	"DomainIssueID":             "IssueID",
-	"DomainSession":             "Session",
-	"DomainProjectConfig":       "ProjectConfig",
-	"DomainTrackerIntakeConfig": "TrackerIntakeConfig",
-	"DomainAgentConfig":         "AgentConfig",
-	"DomainRoleOverride":        "RoleOverride",
+	"DomainProjectID":                 "ProjectID",
+	"DomainSessionID":                 "SessionID",
+	"DomainIssueID":                   "IssueID",
+	"DomainSession":                   "Session",
+	"DomainProjectConfig":             "ProjectConfig",
+	"DomainTrackerIntakeConfig":       "TrackerIntakeConfig",
+	"DomainAgentConfig":               "AgentConfig",
+	"DomainRoleOverride":              "RoleOverride",
+	"DomainWorkboardConfig":           "WorkboardConfig",
+	"DomainWorkboardAutonomousConfig": "WorkboardAutonomousConfig",
 	// httpd/controllers (wire envelopes)
 	"ControllersListProjectsResponse":             "ListProjectsResponse",
+	"ControllersWorkboardProjectIDParam":          "WorkboardProjectIDParam",
+	"ControllersWorkCardIDParam":                  "WorkCardIDParam",
+	"ControllersWorkCardResponse":                 "WorkCardResponse",
+	"ControllersCreateWorkCardRequest":            "CreateWorkCardRequest",
+	"ControllersUpdateWorkCardRequest":            "UpdateWorkCardRequest",
+	"ControllersMoveWorkCardRequest":              "MoveWorkCardRequest",
+	"ControllersListWorkCardsResponse":            "ListWorkCardsResponse",
 	"ControllersProjectResponse":                  "ProjectResponse",
 	"ControllersGetProjectResponse":               "ProjectGetResponse",
 	"ControllersProjectOrDegraded":                "ProjectOrDegraded",
@@ -335,7 +346,76 @@ func operations() []operation {
 	ops = append(ops, policyOperations()...)
 	ops = append(ops, notificationOperations()...)
 	ops = append(ops, importOperations()...)
+	ops = append(ops, workboardOperations()...)
 	return ops
+}
+
+// workboardOperations declares the project work-card CRUD routes. Must stay
+// 1:1 with WorkboardController.Register (enforced by TestRouteSpecParity).
+func workboardOperations() []operation {
+	return []operation{
+		{
+			method: http.MethodGet, path: "/api/v1/projects/{projectId}/workboard/cards", id: "listWorkCards", tag: "workboard",
+			summary:    "List a project's durable work cards",
+			pathParams: []any{controllers.WorkboardProjectIDParam{}},
+			resps: []respUnit{
+				{http.StatusOK, controllers.ListWorkCardsResponse{}},
+				{http.StatusBadRequest, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodPost, path: "/api/v1/projects/{projectId}/workboard/cards", id: "createWorkCard", tag: "workboard",
+			summary:    "Create a durable work card on a project board",
+			pathParams: []any{controllers.WorkboardProjectIDParam{}},
+			reqBody:    controllers.CreateWorkCardRequest{},
+			resps: []respUnit{
+				{http.StatusCreated, controllers.WorkCardResponse{}},
+				{http.StatusBadRequest, envelope.APIError{}},
+				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodGet, path: "/api/v1/workboard/cards/{cardId}", id: "getWorkCard", tag: "workboard",
+			summary:    "Fetch one work card",
+			pathParams: []any{controllers.WorkCardIDParam{}},
+			resps: []respUnit{
+				{http.StatusOK, controllers.WorkCardResponse{}},
+				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodPatch, path: "/api/v1/workboard/cards/{cardId}", id: "updateWorkCard", tag: "workboard",
+			summary:    "Update mutable work-card fields",
+			pathParams: []any{controllers.WorkCardIDParam{}},
+			reqBody:    controllers.UpdateWorkCardRequest{},
+			resps: []respUnit{
+				{http.StatusOK, controllers.WorkCardResponse{}},
+				{http.StatusBadRequest, envelope.APIError{}},
+				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+		{
+			method: http.MethodPost, path: "/api/v1/workboard/cards/{cardId}/move", id: "moveWorkCard", tag: "workboard",
+			summary:    "Move a work card to a status and board position",
+			pathParams: []any{controllers.WorkCardIDParam{}},
+			reqBody:    controllers.MoveWorkCardRequest{},
+			resps: []respUnit{
+				{http.StatusOK, controllers.WorkCardResponse{}},
+				{http.StatusBadRequest, envelope.APIError{}},
+				{http.StatusNotFound, envelope.APIError{}},
+				{http.StatusInternalServerError, envelope.APIError{}},
+				{http.StatusNotImplemented, envelope.APIError{}},
+			},
+		},
+	}
 }
 
 func agentOperations() []operation {

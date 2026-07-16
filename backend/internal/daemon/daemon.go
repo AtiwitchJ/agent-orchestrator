@@ -31,6 +31,7 @@ import (
 	notificationsvc "github.com/modernagent/modern-agent/backend/internal/service/notification"
 	orgsvc "github.com/modernagent/modern-agent/backend/internal/service/org"
 	projectsvc "github.com/modernagent/modern-agent/backend/internal/service/project"
+	workboardsvc "github.com/modernagent/modern-agent/backend/internal/service/workboard"
 	"github.com/modernagent/modern-agent/backend/internal/skillassets"
 	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
 	"github.com/modernagent/modern-agent/backend/internal/terminal"
@@ -188,6 +189,7 @@ func Run() error {
 		Notifications:      notifier,
 		NotificationStream: notificationHub,
 		Import:             importsvc.New(importsvc.Deps{Store: store}),
+		Workboard:          workboardsvc.New(store),
 		CDC:                store,
 		Events:             cdcPipe.Broadcaster,
 		Activity:           lcStack.LCM,
