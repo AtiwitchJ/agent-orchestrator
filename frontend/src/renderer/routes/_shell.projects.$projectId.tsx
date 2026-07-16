@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { SessionMessagesPanel } from "../components/SessionMessagesPanel";
 import { SessionsBoard } from "../components/SessionsBoard";
+import { Workboard } from "../components/Workboard";
+import { useState } from "react";
 
 export const Route = createFileRoute("/_shell/projects/$projectId")({
 	component: ProjectBoardRoute,
@@ -8,12 +9,10 @@ export const Route = createFileRoute("/_shell/projects/$projectId")({
 
 function ProjectBoardRoute() {
 	const { projectId } = Route.useParams();
+	const [showSessions, setShowSessions] = useState(false);
 	return (
-		<div className="flex h-full min-h-0">
-			<div className="min-w-0 flex-1">
-				<SessionsBoard projectId={projectId} />
-			</div>
-			<SessionMessagesPanel projectId={projectId} />
+		<div className="h-full min-h-0">
+			{showSessions ? <SessionsBoard projectId={projectId} /> : <Workboard projectId={projectId} onShowSessions={() => setShowSessions(true)} />}
 		</div>
 	);
 }
