@@ -103,9 +103,46 @@ func TestCRUDUsesPartialUpdateAndMove(t *testing.T) {
 	}
 }
 
+func TestMoveAndUpdatePreserveReadyTimestamp(t *testing.T) {
+	now := testNow
+	svc, root := newTestServiceWithClock(t, func() time.Time { return now })
+	ctx := context.Background()
+	card, err := svc.Create(ctx, workboard.CreateInput{
+		ProjectID: "p1", Title: "ready", Notes: "notes", Priority: domain.CardPriorityNormal,
+		Labels: []string{"bug"}, Status: domain.CardStatusReady, TargetPath: root, Agent: "codex",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	readyAt := *card.ReadyAt
+
+	now = now.Add(time.Hour)
+	moved, err := svc.Move(ctx, card.ID, domain.CardStatusReady, 1)
+	if err != nil {
+		t.Fatalf("Move: %v", err)
+	}
+	if moved.ReadyAt == nil || !moved.ReadyAt.Equal(readyAt) {
+		t.Fatalf("Move ReadyAt = %v, want %v", moved.ReadyAt, readyAt)
+	}
+
+	now = now.Add(time.Hour)
+	status := domain.CardStatusReady
+	updated, err := svc.Update(ctx, card.ID, workboard.UpdateInput{Status: &status})
+	if err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if updated.ReadyAt == nil || !updated.ReadyAt.Equal(readyAt) {
+		t.Fatalf("Update ReadyAt = %v, want %v", updated.ReadyAt, readyAt)
+	}
+}
+
 var testNow = time.Date(2026, 7, 17, 8, 0, 0, 0, time.UTC)
 
 func newTestService(t *testing.T) (*workboard.Service, string) {
+	return newTestServiceWithClock(t, func() time.Time { return testNow })
+}
+
+func newTestServiceWithClock(t *testing.T, clock func() time.Time) (*workboard.Service, string) {
 	t.Helper()
 	root := t.TempDir()
 	store, err := sqlite.Open(t.TempDir())
@@ -118,5 +155,5 @@ func newTestService(t *testing.T) (*workboard.Service, string) {
 	}); err != nil {
 		t.Fatalf("register project: %v", err)
 	}
-	return workboard.NewWithDeps(workboard.Deps{Store: store, Clock: func() time.Time { return testNow }}), root
+	return workboard.NewWithDeps(workboard.Deps{Store: store, Clock: clock}), root
 }

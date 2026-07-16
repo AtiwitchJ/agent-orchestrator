@@ -185,10 +185,11 @@ func (s *Service) Move(ctx context.Context, id string, status domain.CardStatus,
 	if err != nil {
 		return domain.WorkCard{}, err
 	}
+	wasReady := card.Status == domain.CardStatusReady
 	card.Status = status
 	card.Position = position
 	card.UpdatedAt = s.clock().UTC()
-	if status == domain.CardStatusReady {
+	if !wasReady && status == domain.CardStatusReady {
 		readyAt := card.UpdatedAt
 		card.ReadyAt = &readyAt
 	}
@@ -232,8 +233,9 @@ func (s *Service) Update(ctx context.Context, id string, in UpdateInput) (domain
 		if err := domain.ValidateCardStatus(string(*in.Status)); err != nil {
 			return domain.WorkCard{}, apierr.Invalid("WORK_CARD_STATUS_INVALID", err.Error(), nil)
 		}
+		wasReady := card.Status == domain.CardStatusReady
 		card.Status = *in.Status
-		if card.Status == domain.CardStatusReady {
+		if !wasReady && card.Status == domain.CardStatusReady {
 			readyAt := s.clock().UTC()
 			card.ReadyAt = &readyAt
 		}
