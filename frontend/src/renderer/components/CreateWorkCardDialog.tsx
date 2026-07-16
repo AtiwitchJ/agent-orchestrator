@@ -173,7 +173,7 @@ export function CreateWorkCardDialog({ open, projectId, onCreated, onOpenChange 
 						{error ? <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[12px] text-destructive" role="alert">{error}</div> : null}
 						<div className="flex items-center justify-end gap-2 pt-1">
 							<Dialog.Close asChild><Button disabled={createCard.isPending} type="button" variant="ghost">Cancel</Button></Dialog.Close>
-							<Button disabled={!projectId || createCard.isPending} type="submit">{createCard.isPending ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Plus className="size-3.5" aria-hidden="true" />}{createCard.isPending ? "Creating..." : "Create card"}</Button>
+							<Button disabled={!projectId || createCard.isPending} type="submit">{createCard.isPending ? <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Plus className="size-3.5" aria-hidden="true" />}{createCard.isPending ? "Creating..." : "Create card"}</Button>
 						</div>
 					</form>
 				</Dialog.Content>

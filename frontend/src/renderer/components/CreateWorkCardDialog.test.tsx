@@ -69,4 +69,21 @@ describe("CreateWorkCardDialog", () => {
 		expect(await screen.findByText("Select an agent before creating this card.")).toBeInTheDocument();
 		expect(postMock).not.toHaveBeenCalled();
 	});
+
+	it("disables the creating spinner for reduced-motion users", async () => {
+		postMock.mockReturnValue(new Promise(() => undefined));
+		renderDialog();
+		const user = userEvent.setup();
+
+		await user.type(screen.getByLabelText("Title"), "Repair build diagnostics");
+		await user.type(screen.getByLabelText("Notes"), "Keep compiler errors actionable.");
+		await user.type(screen.getByLabelText("Folder"), "/repo/project");
+		await user.type(screen.getByLabelText("Labels"), "frontend{Enter}");
+		await user.click(screen.getByLabelText("Agent"));
+		await user.click(await screen.findByRole("option", { name: "Codex" }));
+		await user.click(screen.getByRole("button", { name: "Create card" }));
+
+		const spinner = document.querySelector(".animate-spin");
+		expect(spinner).toHaveClass("motion-reduce:animate-none");
+	});
 });

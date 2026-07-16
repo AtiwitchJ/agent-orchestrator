@@ -20,6 +20,10 @@ vi.mock("./SessionsBoard", () => ({
 	),
 }));
 
+vi.mock("./SessionMessagesPanel", () => ({
+	SessionMessagesPanel: ({ projectId }: { projectId?: string }) => <aside>Messages for {projectId}</aside>,
+}));
+
 import { ProjectBoard } from "./ProjectBoard";
 
 describe("ProjectBoard", () => {
@@ -28,8 +32,10 @@ describe("ProjectBoard", () => {
 		render(<ProjectBoard projectId="proj-1" />);
 
 		expect(screen.getByText("Workboard primary")).toBeInTheDocument();
+		expect(screen.getByText("Messages for proj-1")).toBeInTheDocument();
 		await user.click(screen.getByRole("button", { name: "Show sessions" }));
 		expect(screen.getByText("Sessions board")).toBeInTheDocument();
+		expect(screen.getByText("Messages for proj-1")).toBeInTheDocument();
 		await user.click(screen.getByRole("button", { name: "Return to Workboard" }));
 		expect(screen.getByText("Workboard primary")).toBeInTheDocument();
 	});
