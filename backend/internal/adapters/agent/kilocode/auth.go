@@ -30,7 +30,10 @@ func (p *Plugin) AuthStatus(ctx context.Context) (ports.AgentAuthStatus, error) 
 		return status, nil
 	}
 
-	probeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	// 5s (not the usual 3s probe cap, matching amp): this package's test binary
+	// is large (modernc.org/sqlite), and under a fully loaded `go test -race
+	// ./...` run the fork/exec of the probe alone can exceed 3s.
+	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(probeCtx, binary, "auth", "list").CombinedOutput()
 	if probeCtx.Err() != nil {
