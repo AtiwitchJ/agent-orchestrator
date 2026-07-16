@@ -1,4 +1,4 @@
-# Node / Electron
+# ── Node / Electron ──────────────────────────────────────────────
 node_modules/
 .pnpm/
 dist/
@@ -8,8 +8,9 @@ build/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.tsbuildinfo
 
-# Go
+# ── Go ───────────────────────────────────────────────────────────
 .go/
 bin/
 *.test
@@ -19,7 +20,7 @@ vendor/
 /backend/backend
 modern-agent.yaml
 
-# Backend runtime data artifacts (SQLite store + WAL, CDC event log).
+# ── Backend runtime data (SQLite store + WAL, CDC event log) ─────
 # Created at AO_DATA_DIR (outside the repo by default); ignored here so a
 # data dir pointed at the tree never gets committed.
 *.db
@@ -35,37 +36,43 @@ session-events.jsonl.*
 # worktree; its review writeup must never be committed onto the worker branch.
 /review.md
 
-# Environment
+# ── Frontend build / test artifacts ──────────────────────────────
+# electron-forge / vite build output
+.vite/
+dist-electron/
+frontend/release/
+# electron-builder debug dump, written to the cwd on every NSIS build
+builder-debug.yml
+# built daemon binary copied into the frontend bundle dir
+frontend/daemon/
+# playwright artifacts
+frontend/test-results/
+frontend/playwright-report/
+# vitest coverage output
+coverage/
+
+# ── Environment ──────────────────────────────────────────────────
 .direnv/
 .env
 .env.*
 !.env.example
 
-# Editor / IDE
+# ── Editor / IDE ─────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *~
 
-# Local tooling (not for the team)
+# ── Local tooling / agent state (not for the team) ───────────────
 .codegraph/
 .cursor/
+.claude/
+# per-machine agent memory (Memory Bank) — session context, not project docs
+memory-bank/
 
-# OS
+# ── OS ───────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 
-# Personal local overrides (not for the team)
+# ── Personal local overrides (not for the team) ──────────────────
 .envrc.local
-
-# electron-forge / vite build output
-.vite/
-dist-electron/
-# electron-builder debug dump, written to the cwd on every NSIS build
-builder-debug.yml
-
-# playwright artifacts
-frontend/test-results/
-
-# built daemon binary copied into the frontend bundle dir
-frontend/daemon/

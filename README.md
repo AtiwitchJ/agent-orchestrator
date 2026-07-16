@@ -1,6 +1,6 @@
 <div align="center">
 
-<p style="text-align: center;"><img src="modern_agent_logo.png" alt="Modern Agent" width="200" height="200" style="max-width: 100%; height: auto; margin-left: 50px;" /></p>
+<p style="text-align: center;"><img src="docs/assets/modern_agent_logo.png" alt="Modern Agent" width="200" height="200" style="max-width: 100%; height: auto; margin-left: 50px;" /></p>
 
 # Modern Agent
 
@@ -14,7 +14,7 @@
 
 An Agentic IDE that supervises parallel AI coding agents in isolated workspaces, with complete control and automatic feedback loops from CI failures, review comments, and merge conflicts.
 
-![Modern Agent Dashboard](modern_agent_dashboard.png)
+![Modern Agent Dashboard](docs/assets/modern_agent_dashboard.png)
 
 </div>
 
