@@ -19,13 +19,13 @@ describe("env", () => {
 	});
 
 	it("isElectron is true when window.ao is present", () => {
-		(window as Window & { ao: unknown }).ao = { stub: true };
+		(window as unknown as { ao: unknown }).ao = { stub: true };
 		expect(isElectron()).toBe(true);
 		expect(inWebMode()).toBe(false);
 	});
 
 	it("isElectron tolerates a falsy window.ao value", () => {
-		(window as Window & { ao: unknown }).ao = null;
+		(window as unknown as { ao: unknown }).ao = null;
 		expect(isElectron()).toBe(false);
 	});
 });

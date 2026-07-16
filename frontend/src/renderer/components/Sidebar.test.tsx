@@ -202,132 +202,6 @@ describe("Sidebar", () => {
 		expect(navigateMock).toHaveBeenCalledWith({ to: "/projects/$projectId", params: { projectId: "proj-1" } });
 	});
 
-	it("requires explicit worker and orchestrator agents when creating a project", async () => {
-		const user = userEvent.setup();
-		const onCreateProject = vi.fn().mockResolvedValue(undefined) as CreateProjectHandler;
-		window.ao!.app.chooseDirectory = vi.fn().mockResolvedValue("/repo/new-project");
-		renderSidebar({ onCreateProject });
-
-		await user.click(screen.getByLabelText("New project"));
-
-		expect(await screen.findByText("/repo/new-project")).toBeInTheDocument();
-		const dialog = screen.getByRole("dialog", { name: "Project agents" });
-		expect(dialog).toHaveClass("left-1/2", "top-1/2", "-translate-x-1/2", "-translate-y-1/2");
-		await chooseOption(screen.getByRole("combobox", { name: "Worker agent" }), "Codex");
-		await chooseOption(screen.getByRole("combobox", { name: "Orchestrator agent" }), "Claude Code");
-		await user.click(screen.getByRole("button", { name: "Create and start" }));
-
-		await waitFor(() =>
-			expect(onCreateProject).toHaveBeenCalledWith({
-				path: "/repo/new-project",
-				workerAgent: "codex",
-				orchestratorAgent: "claude-code",
-			}),
-		);
-	});
-
-	it("shows needs-auth agents as unavailable while keeping authorized agents selectable", async () => {
-		const user = userEvent.setup();
-		const onCreateProject = vi.fn().mockResolvedValue(undefined) as CreateProjectHandler;
-		window.ao!.app.chooseDirectory = vi.fn().mockResolvedValue("/repo/new-project");
-		getMock.mockImplementation(async (path: string) => {
-			if (path === "/api/v1/companies") return { data: { companies: [] }, error: undefined };
-			return {
-				data: {
-					supported: [
-						{ id: "claude-code", label: "Claude Code" },
-						{ id: "cursor", label: "Cursor" },
-						{ id: "aider", label: "Aider" },
-					],
-					installed: [
-						{ id: "claude-code", label: "Claude Code", authStatus: "authorized" },
-						{ id: "cursor", label: "Cursor", authStatus: "unauthorized" },
-					],
-					authorized: [{ id: "claude-code", label: "Claude Code", authStatus: "authorized" }],
-				},
-				error: undefined,
-			};
-		});
-		renderSidebar({ onCreateProject, seedAgents: false });
-
-		await user.click(screen.getByLabelText("New project"));
-		expect(await screen.findByText("/repo/new-project")).toBeInTheDocument();
-
-		await user.click(screen.getByRole("combobox", { name: "Worker agent" }));
-		const options = await screen.findAllByRole("option");
-		expect(options.map((option) => option.textContent)).toEqual([
-			"Claude Code",
-			"CursorNeeds auth",
-			"AiderNeeds install",
-		]);
-		expect(options[1]).toHaveAttribute("aria-disabled", "true");
-		expect(options[2]).toHaveAttribute("aria-disabled", "true");
-		await user.keyboard("{Escape}");
-
-		await chooseOption(screen.getByRole("combobox", { name: "Worker agent" }), "Claude Code");
-		await chooseOption(screen.getByRole("combobox", { name: "Orchestrator agent" }), "Claude Code");
-		await user.click(screen.getByRole("button", { name: "Create and start" }));
-
-		await waitFor(() =>
-			expect(onCreateProject).toHaveBeenCalledWith(expect.objectContaining({ workerAgent: "claude-code" })),
-		);
-	});
-
-	it("updates project agent options when the catalog loads after the dialog opens", async () => {
-		const user = userEvent.setup();
-		const onCreateProject = vi.fn().mockResolvedValue(undefined) as CreateProjectHandler;
-		window.ao!.app.chooseDirectory = vi.fn().mockResolvedValue("/repo/new-project");
-		let resolveAgents!: (value: {
-			data: {
-				supported: { id: string; label: string }[];
-				installed: { id: string; label: string }[];
-				authorized: { id: string; label: string; authStatus: "authorized" }[];
-			};
-			error: undefined;
-		}) => void;
-		getMock.mockImplementation((path: string) => {
-			if (path === "/api/v1/companies") return Promise.resolve({ data: { companies: [] }, error: undefined });
-			return new Promise((resolve) => {
-				resolveAgents = resolve;
-			});
-		});
-		renderSidebar({ onCreateProject, seedAgents: false });
-
-		await user.click(screen.getByLabelText("New project"));
-		expect(await screen.findByText("/repo/new-project")).toBeInTheDocument();
-		expect(screen.getByRole("button", { name: "Create and start" })).toBeDisabled();
-
-		resolveAgents({
-			data: {
-				supported: [
-					{ id: "claude-code", label: "Claude Code" },
-					{ id: "codex", label: "Codex" },
-				],
-				installed: [
-					{ id: "claude-code", label: "Claude Code" },
-					{ id: "codex", label: "Codex" },
-				],
-				authorized: [
-					{ id: "claude-code", label: "Claude Code", authStatus: "authorized" },
-					{ id: "codex", label: "Codex", authStatus: "authorized" },
-				],
-			},
-			error: undefined,
-		});
-
-		await chooseOption(screen.getByRole("combobox", { name: "Worker agent" }), "Codex");
-		await chooseOption(screen.getByRole("combobox", { name: "Orchestrator agent" }), "Claude Code");
-		await user.click(screen.getByRole("button", { name: "Create and start" }));
-
-		await waitFor(() =>
-			expect(onCreateProject).toHaveBeenCalledWith({
-				path: "/repo/new-project",
-				workerAgent: "codex",
-				orchestratorAgent: "claude-code",
-			}),
-		);
-	});
-
 	it("renames a session inline and persists via the daemon", async () => {
 		const user = userEvent.setup();
 		const workspaceWithSession = { ...workspace, sessions: [session] };
@@ -468,22 +342,24 @@ describe("Sidebar", () => {
 // accepts an onCreateProject prop but never renders a trigger for it. These
 // tests mount it the way the app actually does.
 describe("CreateProjectFlow", () => {
-	function renderCreateProjectFlow(onCreateProject: CreateProjectHandler) {
+	function renderCreateProjectFlow(onCreateProject: CreateProjectHandler, { seedAgents = true } = {}) {
 		const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-		queryClient.setQueryData(agentsQueryKey, {
-			supported: [
-				{ id: "claude-code", label: "Claude Code" },
-				{ id: "codex", label: "Codex" },
-			],
-			installed: [
-				{ id: "claude-code", label: "Claude Code" },
-				{ id: "codex", label: "Codex" },
-			],
-			authorized: [
-				{ id: "claude-code", label: "Claude Code", authStatus: "authorized" },
-				{ id: "codex", label: "Codex", authStatus: "authorized" },
-			],
-		});
+		if (seedAgents) {
+			queryClient.setQueryData(agentsQueryKey, {
+				supported: [
+					{ id: "claude-code", label: "Claude Code" },
+					{ id: "codex", label: "Codex" },
+				],
+				installed: [
+					{ id: "claude-code", label: "Claude Code" },
+					{ id: "codex", label: "Codex" },
+				],
+				authorized: [
+					{ id: "claude-code", label: "Claude Code", authStatus: "authorized" },
+					{ id: "codex", label: "Codex", authStatus: "authorized" },
+				],
+			});
+		}
 		render(
 			<QueryClientProvider client={queryClient}>
 				<CreateProjectFlow onCreateProject={onCreateProject}>
@@ -518,6 +394,145 @@ describe("CreateProjectFlow", () => {
 		await waitFor(() =>
 			expect(onCreateProject).toHaveBeenCalledWith(
 				expect.objectContaining({ path: "/repo/new-workspace", asWorkspace: true }),
+			),
+		);
+	});
+
+	it("requires explicit worker and orchestrator agents when creating a project", async () => {
+		const user = userEvent.setup();
+		const onCreateProject = vi.fn().mockResolvedValue(undefined) as CreateProjectHandler;
+		window.ao!.app.chooseDirectory = vi.fn().mockResolvedValue("/repo/new-project");
+		window.ao!.app.detectWorkspace = vi
+			.fn()
+			.mockResolvedValue({ looksLikeWorkspace: false, detectedChildNames: [] });
+		renderCreateProjectFlow(onCreateProject);
+
+		await user.click(screen.getByRole("button", { name: "New project" }));
+
+		expect(await screen.findByText("/repo/new-project")).toBeInTheDocument();
+		const dialog = screen.getByRole("dialog", { name: "Project agents" });
+		expect(dialog).toHaveClass("left-1/2", "top-1/2", "-translate-x-1/2", "-translate-y-1/2");
+		await chooseOption(screen.getByRole("combobox", { name: "Worker agent" }), "Codex");
+		await chooseOption(screen.getByRole("combobox", { name: "Orchestrator agent" }), "Claude Code");
+		await user.click(screen.getByRole("button", { name: "Create and start" }));
+
+		await waitFor(() =>
+			expect(onCreateProject).toHaveBeenCalledWith(
+				expect.objectContaining({
+					path: "/repo/new-project",
+					workerAgent: "codex",
+					orchestratorAgent: "claude-code",
+				}),
+			),
+		);
+	});
+
+	it("shows needs-auth agents as unavailable while keeping authorized agents selectable", async () => {
+		const user = userEvent.setup();
+		const onCreateProject = vi.fn().mockResolvedValue(undefined) as CreateProjectHandler;
+		window.ao!.app.chooseDirectory = vi.fn().mockResolvedValue("/repo/new-project");
+		window.ao!.app.detectWorkspace = vi
+			.fn()
+			.mockResolvedValue({ looksLikeWorkspace: false, detectedChildNames: [] });
+		getMock.mockImplementation(async (path: string) => {
+			if (path === "/api/v1/companies") return { data: { companies: [] }, error: undefined };
+			return {
+				data: {
+					supported: [
+						{ id: "claude-code", label: "Claude Code" },
+						{ id: "cursor", label: "Cursor" },
+						{ id: "aider", label: "Aider" },
+					],
+					installed: [
+						{ id: "claude-code", label: "Claude Code", authStatus: "authorized" },
+						{ id: "cursor", label: "Cursor", authStatus: "unauthorized" },
+					],
+					authorized: [{ id: "claude-code", label: "Claude Code", authStatus: "authorized" }],
+				},
+				error: undefined,
+			};
+		});
+		renderCreateProjectFlow(onCreateProject, { seedAgents: false });
+
+		await user.click(screen.getByRole("button", { name: "New project" }));
+		expect(await screen.findByText("/repo/new-project")).toBeInTheDocument();
+
+		await user.click(screen.getByRole("combobox", { name: "Worker agent" }));
+		const options = await screen.findAllByRole("option");
+		expect(options.map((option) => option.textContent)).toEqual([
+			"Claude Code",
+			"CursorNeeds auth",
+			"AiderNeeds install",
+		]);
+		expect(options[1]).toHaveAttribute("aria-disabled", "true");
+		expect(options[2]).toHaveAttribute("aria-disabled", "true");
+		await user.keyboard("{Escape}");
+
+		await chooseOption(screen.getByRole("combobox", { name: "Worker agent" }), "Claude Code");
+		await chooseOption(screen.getByRole("combobox", { name: "Orchestrator agent" }), "Claude Code");
+		await user.click(screen.getByRole("button", { name: "Create and start" }));
+
+		await waitFor(() =>
+			expect(onCreateProject).toHaveBeenCalledWith(expect.objectContaining({ workerAgent: "claude-code" })),
+		);
+	});
+
+	it("updates project agent options when the catalog loads after the dialog opens", async () => {
+		const user = userEvent.setup();
+		const onCreateProject = vi.fn().mockResolvedValue(undefined) as CreateProjectHandler;
+		window.ao!.app.chooseDirectory = vi.fn().mockResolvedValue("/repo/new-project");
+		window.ao!.app.detectWorkspace = vi
+			.fn()
+			.mockResolvedValue({ looksLikeWorkspace: false, detectedChildNames: [] });
+		let resolveAgents!: (value: {
+			data: {
+				supported: { id: string; label: string }[];
+				installed: { id: string; label: string }[];
+				authorized: { id: string; label: string; authStatus: "authorized" }[];
+			};
+			error: undefined;
+		}) => void;
+		getMock.mockImplementation((path: string) => {
+			if (path === "/api/v1/companies") return Promise.resolve({ data: { companies: [] }, error: undefined });
+			return new Promise((resolve) => {
+				resolveAgents = resolve;
+			});
+		});
+		renderCreateProjectFlow(onCreateProject, { seedAgents: false });
+
+		await user.click(screen.getByRole("button", { name: "New project" }));
+		expect(await screen.findByText("/repo/new-project")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Create and start" })).toBeDisabled();
+
+		resolveAgents({
+			data: {
+				supported: [
+					{ id: "claude-code", label: "Claude Code" },
+					{ id: "codex", label: "Codex" },
+				],
+				installed: [
+					{ id: "claude-code", label: "Claude Code" },
+					{ id: "codex", label: "Codex" },
+				],
+				authorized: [
+					{ id: "claude-code", label: "Claude Code", authStatus: "authorized" },
+					{ id: "codex", label: "Codex", authStatus: "authorized" },
+				],
+			},
+			error: undefined,
+		});
+
+		await chooseOption(screen.getByRole("combobox", { name: "Worker agent" }), "Codex");
+		await chooseOption(screen.getByRole("combobox", { name: "Orchestrator agent" }), "Claude Code");
+		await user.click(screen.getByRole("button", { name: "Create and start" }));
+
+		await waitFor(() =>
+			expect(onCreateProject).toHaveBeenCalledWith(
+				expect.objectContaining({
+					path: "/repo/new-project",
+					workerAgent: "codex",
+					orchestratorAgent: "claude-code",
+				}),
 			),
 		);
 	});

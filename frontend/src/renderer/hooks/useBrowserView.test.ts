@@ -61,7 +61,7 @@ describe("useBrowserView (electron mode)", () => {
 	const originalAo = (window as Window & { ao?: unknown }).ao;
 
 	beforeEach(() => {
-		(window as Window & { ao: unknown }).ao = {
+		(window as unknown as { ao: unknown }).ao = {
 			browser: {
 				ensure: vi.fn(async (sessionId: string) => ({
 					viewId: `view-${sessionId}`,

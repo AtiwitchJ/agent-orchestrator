@@ -84,6 +84,7 @@ export default defineConfig({
 			generatedRouteTree: "./src/renderer/routeTree.gen.ts",
 			target: "react",
 			autoCodeSplitting: true,
+			routeFileIgnorePattern: "\\.test\\.tsx?$",
 		}),
 		react(),
 		tailwindcss(),

@@ -17,6 +17,7 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 
 vi.mock("../lib/api-client", () => ({
 	apiClient: { GET: getMock, PUT: putMock, POST: postMock },
+	hasTrustedApiBaseUrl: () => true,
 	apiErrorMessage: (error: unknown) => {
 		if (error instanceof Error) return error.message;
 		if (typeof error === "object" && error !== null && "message" in error) {
@@ -34,6 +35,11 @@ function renderHQ(scope: { kind: "holding" } | { kind: "company"; companyId: str
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 	});
+	// Keep the seeded workspaces authoritative: without this the observer
+	// refetches on mount (staleTime 0) and overwrites them with the mocked
+	// GET's empty default before the test interacts with the component.
+	// Explicit invalidateQueries() calls in the component still refetch.
+	queryClient.setQueryDefaults(workspaceQueryKey, { staleTime: Infinity });
 	queryClient.setQueryData(workspaceQueryKey, workspaces);
 	render(
 		<QueryClientProvider client={queryClient}>
