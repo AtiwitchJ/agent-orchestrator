@@ -40,12 +40,12 @@ class EventSourceStub {
 	onerror: (() => void) | null = null;
 	onmessage: (() => void) | null = null;
 	listeners: string[] = [];
-	handlers: Record<string, () => void> = {};
+	handlers: Record<string, (event?: Event) => void> = {};
 	constructor(url: string) {
 		this.url = url;
 		EventSourceStub.instances.push(this);
 	}
-	addEventListener(type: string, handler: () => void) {
+	addEventListener(type: string, handler: (event?: Event) => void) {
 		this.listeners.push(type);
 		this.handlers[type] = handler;
 	}
@@ -84,6 +84,20 @@ describe("createEventTransport", () => {
 		// All CDC event types plus onmessage are wired up.
 		expect(EventSourceStub.instances[0].listeners).toContain("session_updated");
 		expect(EventSourceStub.instances[0].onmessage).toBeTypeOf("function");
+	});
+
+	it("invalidates the project Workboard when a work card changes", () => {
+		const queryClient = fakeQueryClient();
+		createEventTransport(queryClient).connect();
+		const source = EventSourceStub.instances[0];
+
+		expect(source.listeners).toContain("work_card_changed");
+		source.handlers["work_card_changed"]?.({
+			data: JSON.stringify({ payload: { project_id: "project-1" } }),
+		} as MessageEvent<string>);
+
+		expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["workboard", "project-1"] });
+		expect(queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["workspaces"] });
 	});
 
 	it("does not reconnect when a daemon status keeps the same base URL", () => {

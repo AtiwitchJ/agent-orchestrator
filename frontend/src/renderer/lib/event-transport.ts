@@ -5,6 +5,7 @@ import { setEventsConnectionState } from "./events-connection";
 import { workspaceQueryKey } from "../hooks/useWorkspaceQuery";
 import { sessionScmSummaryQueryKey } from "../hooks/useSessionScmSummary";
 import { projectMessagesQueryKey } from "../hooks/useProjectMessagesQuery";
+import { workboardQueryKey } from "../hooks/useWorkboardQuery";
 
 export type EventTransport = {
 	connect: () => () => void;
@@ -32,6 +33,7 @@ const CDC_EVENT_TYPES = [
 	"pr_session_changed",
 	"pr_review_thread_added",
 	"pr_review_thread_resolved",
+	"work_card_changed",
 ] as const;
 
 // Agent-to-agent send facts land on their own event and don't change the
@@ -65,6 +67,26 @@ export function createEventTransport(queryClient: QueryClient): EventTransport {
 
 			const refreshMessages = () => {
 				void queryClient.invalidateQueries({ queryKey: projectMessagesQueryKey() });
+			};
+
+			const refreshWorkboard = (event: Event) => {
+				try {
+					const data = JSON.parse((event as MessageEvent<string>).data) as {
+						projectId?: unknown;
+						payload?: { project_id?: unknown };
+					};
+					const projectId =
+						typeof data.projectId === "string"
+							? data.projectId
+							: typeof data.payload?.project_id === "string"
+								? data.payload.project_id
+								: undefined;
+					if (projectId) {
+						void queryClient.invalidateQueries({ queryKey: workboardQueryKey(projectId) });
+					}
+				} catch {
+					// Ignore malformed event data; the next valid CDC event will refresh.
+				}
 			};
 
 			const scheduleRetry = () => {
@@ -108,7 +130,7 @@ export function createEventTransport(queryClient: QueryClient): EventTransport {
 					};
 					source.onmessage = refreshWorkspaces; // unnamed events, if any
 					for (const type of CDC_EVENT_TYPES) {
-						source.addEventListener(type, refreshWorkspaces);
+						source.addEventListener(type, type === "work_card_changed" ? refreshWorkboard : refreshWorkspaces);
 					}
 					source.addEventListener(SESSION_MESSAGE_CREATED_EVENT_TYPE, refreshMessages);
 					// EventSource auto-reconnects and resumes via Last-Event-ID while
