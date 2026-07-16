@@ -72,4 +72,18 @@ describe("Workboard", () => {
 			body: { status: "ready", position: 0 },
 		}));
 	});
+
+	it("moves a focused card to the adjacent column with the arrow keys", async () => {
+		renderBoard();
+		const workCard = screen.getByRole("article", { name: /Repair diagnostics/i });
+
+		fireEvent.keyDown(workCard, { key: "ArrowRight" });
+
+		await waitFor(() => expect(postMock).toHaveBeenCalledWith("/api/v1/workboard/cards/{cardId}/move", {
+			params: { path: { cardId: "card-1" } },
+			body: { status: "backlog", position: 0 },
+		}));
+		expect(await screen.findByText("Moved card to Backlog.")).toBeInTheDocument();
+		expect(workCard).toHaveClass("motion-reduce:transition-none");
+	});
 });

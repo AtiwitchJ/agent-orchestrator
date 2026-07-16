@@ -16,6 +16,7 @@ import { useSessionScmSummary, type SessionPRSummary } from "../hooks/useSession
 import { useWorkspaceQuery, workspaceQueryKey } from "../hooks/useWorkspaceQuery";
 import { OrchestratorIcon } from "./icons";
 import { NewTaskDialog } from "./NewTaskDialog";
+import { Button } from "./ui/button";
 import { spawnOrchestrator } from "../lib/spawn-orchestrator";
 import { restartProjectOrchestrator } from "../lib/restart-orchestrator";
 import { prDiffSummary, sessionPRDisplaySummaries } from "../lib/pr-display";
@@ -26,6 +27,7 @@ import { useUiStore } from "../stores/ui-store";
 type SessionsBoardProps = {
 	/** When set, the board shows only this project's sessions. */
 	projectId?: string;
+	onShowWorkboard?: () => void;
 };
 
 // The four kanban columns, left→right by flow (work → review → merge), ported
@@ -74,7 +76,7 @@ const COLUMNS: Column[] = [
 	},
 ];
 
-export function SessionsBoard({ projectId }: SessionsBoardProps) {
+export function SessionsBoard({ projectId, onShowWorkboard }: SessionsBoardProps) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const workspaceQuery = useWorkspaceQuery();
@@ -151,6 +153,7 @@ export function SessionsBoard({ projectId }: SessionsBoardProps) {
 
 	const actions = projectId ? (
 		<>
+			{onShowWorkboard ? <Button onClick={onShowWorkboard} size="sm" variant="ghost">Workboard</Button> : null}
 			<button
 				aria-label="New task"
 				className="dashboard-app-header__accent-btn"

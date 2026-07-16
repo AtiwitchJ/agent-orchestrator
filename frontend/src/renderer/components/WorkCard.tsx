@@ -1,4 +1,4 @@
-import type { DragEvent } from "react";
+import type { DragEvent, KeyboardEvent } from "react";
 import { cn } from "../lib/utils";
 import type { WorkCard as WorkboardCard } from "../hooks/useWorkboardQuery";
 
@@ -9,20 +9,36 @@ const PRIORITY: Record<WorkboardCard["priority"], { label: string; className: st
 	low: { label: "Low", className: "bg-passive" },
 };
 
-export function WorkCard({ card, onDragStart }: { card: WorkboardCard; onDragStart: (cardId: string) => void }) {
+export function WorkCard({
+	card,
+	onDragStart,
+	onMove,
+}: {
+	card: WorkboardCard;
+	onDragStart: (cardId: string) => void;
+	onMove: (direction: "previous" | "next") => void;
+}) {
 	const priority = PRIORITY[card.priority];
 	const handleDragStart = (event: DragEvent<HTMLElement>) => {
 		event.dataTransfer.effectAllowed = "move";
 		event.dataTransfer.setData("text/plain", card.id);
 		onDragStart(card.id);
 	};
+	const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+		if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+		event.preventDefault();
+		onMove(event.key === "ArrowLeft" ? "previous" : "next");
+	};
 
 	return (
 		<article
+			aria-describedby="workboard-keyboard-help"
+			aria-keyshortcuts="ArrowLeft ArrowRight"
 			aria-label={`${card.title}, ${priority.label} priority`}
-			className="group cursor-grab rounded-[7px] border border-border bg-surface text-left shadow-[0_1px_0_rgb(0_0_0_/_0.18)] transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-weak active:cursor-grabbing"
+			className="group cursor-grab rounded-[7px] border border-border bg-surface text-left shadow-[0_1px_0_rgb(0_0_0_/_0.18)] transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-weak active:cursor-grabbing motion-reduce:transition-none"
 			draggable
 			onDragStart={handleDragStart}
+			onKeyDown={handleKeyDown}
 			tabIndex={0}
 		>
 			<div className="flex items-center gap-2 px-3 pb-2 pt-2.5">

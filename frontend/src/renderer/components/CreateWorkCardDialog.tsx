@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 
 type CreateWorkCardRequest = components["schemas"]["CreateWorkCardRequest"];
 
+const labelsRequiredError = "Add at least one label before creating this card.";
+
 type CreateWorkCardDialogProps = {
 	open: boolean;
 	projectId?: string;
@@ -100,12 +102,16 @@ export function CreateWorkCardDialog({ open, projectId, onCreated, onOpenChange 
 			setError("Title, notes, and folder are required.");
 			return;
 		}
+		const pendingLabel = labelInput.trim().replace(/,$/, "");
+		const nextLabels = pendingLabel && !labels.includes(pendingLabel) ? [...labels, pendingLabel] : labels;
+		if (nextLabels.length === 0) {
+			setError(labelsRequiredError);
+			return;
+		}
 		if (!agent) {
 			setError("Select an agent before creating this card.");
 			return;
 		}
-		const pendingLabel = labelInput.trim().replace(/,$/, "");
-		const nextLabels = pendingLabel && !labels.includes(pendingLabel) ? [...labels, pendingLabel] : labels;
 		setLabels(nextLabels);
 		setLabelInput("");
 		createCard.mutate({ title: cleanTitle, notes: cleanNotes, targetPath: cleanPath, labels: nextLabels, priority, agent });
@@ -114,15 +120,15 @@ export function CreateWorkCardDialog({ open, projectId, onCreated, onOpenChange 
 	return (
 		<Dialog.Root open={open} onOpenChange={(next) => !createCard.isPending && onOpenChange(next)}>
 			<Dialog.Portal>
-				<Dialog.Overlay className="fixed inset-0 z-50 bg-black/55 data-[state=open]:animate-overlay-in" />
-				<Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(620px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-popover p-0 text-popover-foreground shadow-xl data-[state=open]:animate-modal-in">
+				<Dialog.Overlay className="fixed inset-0 z-50 bg-black/55 motion-reduce:animate-none data-[state=open]:animate-overlay-in" />
+				<Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(620px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-popover p-0 text-popover-foreground shadow-xl motion-reduce:animate-none data-[state=open]:animate-modal-in">
 					<div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
 						<div className="min-w-0">
 							<Dialog.Title className="text-[15px] font-semibold text-foreground">Create work card</Dialog.Title>
 							<Dialog.Description className="mt-1 text-[12px] text-muted-foreground">Set the goal, folder, and coding agent for this work.</Dialog.Description>
 						</div>
 						<Dialog.Close asChild>
-							<button aria-label="Close create work card dialog" className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-surface hover:text-foreground" type="button">
+							<button aria-label="Close create work card dialog" className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-surface hover:text-foreground motion-reduce:transition-none" type="button">
 								<X className="size-4" aria-hidden="true" />
 							</button>
 						</Dialog.Close>
@@ -134,7 +140,7 @@ export function CreateWorkCardDialog({ open, projectId, onCreated, onOpenChange 
 						</div>
 						<div className="space-y-1.5">
 							<Label htmlFor={notesId}>Notes</Label>
-							<textarea id={notesId} className="min-h-[104px] w-full resize-y rounded-md border border-border bg-transparent px-3 py-2 text-[13px] leading-relaxed text-foreground outline-none transition placeholder:text-passive focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent-weak" onChange={(event) => setNotes(event.target.value)} placeholder="Describe the outcome and constraints for the coding agent." value={notes} />
+							<textarea id={notesId} className="min-h-[104px] w-full resize-y rounded-md border border-border bg-transparent px-3 py-2 text-[13px] leading-relaxed text-foreground outline-none transition placeholder:text-passive focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent-weak motion-reduce:transition-none" onChange={(event) => setNotes(event.target.value)} placeholder="Describe the outcome and constraints for the coding agent." value={notes} />
 						</div>
 						<div className="grid gap-3 sm:grid-cols-[1fr_150px]">
 							<div className="space-y-1.5">
@@ -158,13 +164,13 @@ export function CreateWorkCardDialog({ open, projectId, onCreated, onOpenChange 
 								<div className="min-h-8 rounded-md border border-border bg-transparent px-2 py-1 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-weak">
 									<div className="flex flex-wrap items-center gap-1">
 										{labels.map((label) => <button aria-label={`Remove ${label} label`} className="rounded-[3px] bg-raised px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:text-foreground" key={label} onClick={() => setLabels((current) => current.filter((item) => item !== label))} type="button">{label} ×</button>)}
-										<input aria-label="Labels" className="min-w-[8rem] flex-1 bg-transparent px-1 py-0.5 text-[12px] text-foreground outline-none placeholder:text-passive" onChange={(event) => setLabelInput(event.target.value)} onKeyDown={handleLabelKeyDown} placeholder={labels.length ? "Add label" : "Type then Enter"} value={labelInput} />
+										<input aria-invalid={error === labelsRequiredError || undefined} aria-label="Labels" className="min-w-[8rem] flex-1 bg-transparent px-1 py-0.5 text-[12px] text-foreground outline-none placeholder:text-passive" id={labelsId} onChange={(event) => setLabelInput(event.target.value)} onKeyDown={handleLabelKeyDown} placeholder={labels.length ? "Add label" : "Type then Enter"} value={labelInput} />
 									</div>
 								</div>
 							</div>
 							<RequiredAgentField authorized={agentsQuery.data?.authorized} disabled={agentsQuery.isFetching && !agentsQuery.data} id={agentId} installed={agentsQuery.data?.installed} invalid={Boolean(error) && !agent} label="Agent" onChange={setAgent} placeholder="Select coding agent" supported={agentsQuery.data?.supported} value={agent} />
 						</div>
-						{error ? <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">{error}</div> : null}
+						{error ? <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[12px] text-destructive" role="alert">{error}</div> : null}
 						<div className="flex items-center justify-end gap-2 pt-1">
 							<Dialog.Close asChild><Button disabled={createCard.isPending} type="button" variant="ghost">Cancel</Button></Dialog.Close>
 							<Button disabled={!projectId || createCard.isPending} type="submit">{createCard.isPending ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Plus className="size-3.5" aria-hidden="true" />}{createCard.isPending ? "Creating..." : "Create card"}</Button>

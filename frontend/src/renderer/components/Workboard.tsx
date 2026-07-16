@@ -31,6 +31,7 @@ export function Workboard({ projectId, onShowSessions }: { projectId: string; on
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 	const [draggedCardId, setDraggedCardId] = useState<string>();
 	const [moveError, setMoveError] = useState<string>();
+	const [moveAnnouncement, setMoveAnnouncement] = useState<string>();
 	const cardsByStatus = useMemo(() => {
 		const grouped = new Map<CardStatus, WorkboardCard[]>();
 		for (const card of cardsQuery.data ?? []) (grouped.get(card.status) ?? grouped.set(card.status, []).get(card.status)!).push(card);
@@ -46,13 +47,27 @@ export function Workboard({ projectId, onShowSessions }: { projectId: string; on
 		onSuccess: () => queryClient.invalidateQueries({ queryKey: workboardQueryKey(projectId) }),
 		onError: (error) => setMoveError(error instanceof Error ? error.message : "Could not move work card."),
 	});
+	const moveCardTo = (cardId: string, status: CardStatus, position: number) => {
+		if (moveCard.isPending) return;
+		setMoveError(undefined);
+		const destination = WORKBOARD_COLUMNS.find((column) => column.status === status)?.label ?? status;
+		moveCard.mutate(
+			{ cardId, status, position },
+			{ onSuccess: () => setMoveAnnouncement(`Moved card to ${destination}.`) },
+		);
+	};
 	const handleDrop = (event: DragEvent<HTMLElement>, status: CardStatus, position: number) => {
 		event.preventDefault();
 		const cardId = event.dataTransfer.getData("text/plain") || draggedCardId;
 		setDraggedCardId(undefined);
 		if (!cardId) return;
-		setMoveError(undefined);
-		moveCard.mutate({ cardId, status, position });
+		moveCardTo(cardId, status, position);
+	};
+	const moveFocusedCard = (card: WorkboardCard, direction: "previous" | "next") => {
+		const columnIndex = WORKBOARD_COLUMNS.findIndex((column) => column.status === card.status);
+		const destination = WORKBOARD_COLUMNS[columnIndex + (direction === "previous" ? -1 : 1)];
+		if (!destination) return;
+		moveCardTo(card.id, destination.status, (cardsByStatus.get(destination.status) ?? []).length);
 	};
 
 	return (
@@ -62,24 +77,26 @@ export function Workboard({ projectId, onShowSessions }: { projectId: string; on
 				subtitle="Durable work cards in OpenClaw flow order."
 				actions={<><Button onClick={() => setIsCreateOpen(true)} size="sm"><Plus className="size-3.5" aria-hidden="true" />Create card</Button>{onShowSessions ? <Button onClick={onShowSessions} size="sm" variant="ghost">Sessions</Button> : null}</>}
 			/>
+			<p className="sr-only" id="workboard-keyboard-help">Press Left or Right Arrow to move the focused card between columns.</p>
 			<div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden p-[18px]">
 				{cardsQuery.isError ? <p className="py-10 text-center text-[12px] text-passive">Could not load workboard.</p> : (
 					<div className="grid h-full min-w-[1540px] grid-cols-9 gap-2">
 						{WORKBOARD_COLUMNS.map((column) => {
 							const cards = cardsByStatus.get(column.status) ?? [];
-							return <section className={cn("relative flex min-w-0 flex-col overflow-hidden rounded-[10px] bg-[var(--kanban-column-bg)]")} key={column.status} onDragOver={(event) => event.preventDefault()} onDrop={(event) => handleDrop(event, column.status, cards.length)}>
+							return <section aria-label={`${column.label} column, ${cards.length} cards`} className={cn("relative flex min-w-0 flex-col overflow-hidden rounded-[10px] bg-[var(--kanban-column-bg)]")} key={column.status} onDragOver={(event) => event.preventDefault()} onDrop={(event) => handleDrop(event, column.status, cards.length)}>
 								<div className="absolute inset-y-0 left-0 w-[2px]" style={{ background: column.rail }} />
 								<div className="flex shrink-0 items-center gap-2 px-3 pb-2.5 pt-3">
 									<span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{column.label}</span>
 									<span className="ml-auto font-mono text-[10px] text-passive">{cards.length}</span>
 								</div>
-								<div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3"><div className="flex flex-col gap-2">{cards.map((card) => <WorkCard card={card} key={card.id} onDragStart={setDraggedCardId} />)}</div></div>
+								<div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3"><div className="flex flex-col gap-2">{cards.map((card) => <WorkCard card={card} key={card.id} onDragStart={setDraggedCardId} onMove={(direction) => moveFocusedCard(card, direction)} />)}</div></div>
 							</section>;
 						})}
 					</div>
 				)}
 			</div>
 			{moveError ? <p className="px-[18px] pb-3 text-[12px] text-destructive" role="alert">{moveError}</p> : null}
+			{moveAnnouncement ? <p aria-live="polite" className="sr-only">{moveAnnouncement}</p> : null}
 			<CreateWorkCardDialog open={isCreateOpen} projectId={projectId} onCreated={() => undefined} onOpenChange={setIsCreateOpen} />
 		</div>
 	);

@@ -40,6 +40,22 @@ beforeEach(() => {
 });
 
 describe("CreateWorkCardDialog", () => {
+	it("refuses submit without labels before calling the backend", async () => {
+		renderDialog();
+		const user = userEvent.setup();
+
+		await user.type(screen.getByLabelText("Title"), "Repair build diagnostics");
+		await user.type(screen.getByLabelText("Notes"), "Keep compiler errors actionable.");
+		await user.type(screen.getByLabelText("Folder"), "/repo/project");
+		await user.click(screen.getByLabelText("Agent"));
+		await user.click(await screen.findByRole("option", { name: "Codex" }));
+		await user.click(screen.getByRole("button", { name: "Create card" }));
+
+		expect(await screen.findByText("Add at least one label before creating this card.")).toBeInTheDocument();
+		expect(screen.getByLabelText("Labels")).toHaveAttribute("aria-invalid", "true");
+		expect(postMock).not.toHaveBeenCalled();
+	});
+
 	it("refuses submit until an agent is selected", async () => {
 		renderDialog();
 		const user = userEvent.setup();
