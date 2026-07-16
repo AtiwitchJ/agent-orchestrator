@@ -278,16 +278,27 @@ export function Sidebar({
 							</div>
 						) : (
 							<SidebarMenu className="gap-0 group-data-[collapsible=icon]:gap-1">
-								{groupWorkspacesByCompany(ordinaryWorkspaces, companies).map((group) => (
-									<CompanyGroup
-										key={group.id}
-										collapsedIds={collapsedIds}
-										group={group}
-										onRemoveProject={onRemoveProject}
-										onToggleCollapsed={toggleCollapsed}
-										selection={selection}
-									/>
-								))}
+								{companies.length === 0
+									? ordinaryWorkspaces.map((workspace) => (
+											<ProjectItem
+												key={workspace.id}
+												workspace={workspace}
+												expanded={!collapsedIds.has(workspace.id)}
+												selection={selection}
+												onToggle={() => toggleCollapsed(workspace.id)}
+												onRemoveProject={onRemoveProject}
+											/>
+										))
+									: groupWorkspacesByCompany(ordinaryWorkspaces, companies).map((group) => (
+											<CompanyGroup
+												key={group.id}
+												collapsedIds={collapsedIds}
+												group={group}
+												onRemoveProject={onRemoveProject}
+												onToggleCollapsed={toggleCollapsed}
+												selection={selection}
+											/>
+										))}
 							</SidebarMenu>
 						)}
 					</SidebarGroupContent>
