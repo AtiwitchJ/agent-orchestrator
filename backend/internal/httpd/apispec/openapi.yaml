@@ -4184,6 +4184,7 @@ components:
           - "null"
           - string
         scheduledAt:
+          description: Optional scheduled timestamp; set to null to clear.
           format: date-time
           type:
           - "null"

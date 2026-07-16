@@ -46,10 +46,17 @@ type UpdateInput struct {
 	Priority    *domain.CardPriority
 	Labels      *[]string
 	Status      *domain.CardStatus
-	ScheduledAt *time.Time
+	ScheduledAt OptionalTime
 	TargetPath  *string
 	Agent       *string
 	Position    *int64
+}
+
+// OptionalTime preserves the PATCH distinction between an omitted time and an
+// explicit null that clears an existing timestamp.
+type OptionalTime struct {
+	Set   bool
+	Value *time.Time
 }
 
 // Service owns work-card validation and orchestration-free CRUD.
@@ -240,8 +247,8 @@ func (s *Service) Update(ctx context.Context, id string, in UpdateInput) (domain
 			card.ReadyAt = &readyAt
 		}
 	}
-	if in.ScheduledAt != nil {
-		card.ScheduledAt = cloneTime(in.ScheduledAt)
+	if in.ScheduledAt.Set {
+		card.ScheduledAt = cloneTime(in.ScheduledAt.Value)
 	}
 	if in.TargetPath != nil {
 		targetPath, err := s.validateTargetPath(ctx, card.ProjectID, *in.TargetPath)

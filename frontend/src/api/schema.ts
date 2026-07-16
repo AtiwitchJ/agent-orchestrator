@@ -1488,7 +1488,10 @@ export interface components {
             position?: null | number;
             /** @enum {null|string} */
             priority?: "low" | "normal" | "high" | "urgent" | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description Optional scheduled timestamp; set to null to clear.
+             */
             scheduledAt?: null | string;
             /** @enum {null|string} */
             status?: "triage" | "backlog" | "todo" | "scheduled" | "ready" | "running" | "review" | "blocked" | "done" | null;

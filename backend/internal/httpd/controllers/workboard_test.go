@@ -72,6 +72,27 @@ func TestCreateWorkCard_Validation(t *testing.T) {
 	assertErrorCode(t, body, status, http.StatusBadRequest, "WORK_CARD_AGENT_REQUIRED")
 }
 
+func TestMoveWorkCard_RequiresPosition(t *testing.T) {
+	svc := &fakeWorkboardService{cards: []domain.WorkCard{{ID: "card_1"}}}
+	srv := newWorkboardTestServer(t, svc)
+
+	body, status, _ := doRequest(t, srv, http.MethodPost, "/api/v1/workboard/cards/card_1/move", `{"status":"ready"}`)
+	assertErrorCode(t, body, status, http.StatusBadRequest, "WORK_CARD_POSITION_REQUIRED")
+}
+
+func TestUpdateWorkCard_NullScheduledAtClearsSchedule(t *testing.T) {
+	svc := &fakeWorkboardService{cards: []domain.WorkCard{{ID: "card_1"}}}
+	srv := newWorkboardTestServer(t, svc)
+
+	body, status, _ := doRequest(t, srv, http.MethodPatch, "/api/v1/workboard/cards/card_1", `{"scheduledAt":null}`)
+	if status != http.StatusOK {
+		t.Fatalf("update status = %d, want 200; body=%s", status, body)
+	}
+	if !svc.updateIn.ScheduledAt.Set || svc.updateIn.ScheduledAt.Value != nil {
+		t.Fatalf("scheduledAt update = %+v, want explicit nil", svc.updateIn.ScheduledAt)
+	}
+}
+
 func TestWorkboardAPI_CardCRUDAndMove(t *testing.T) {
 	now := time.Date(2026, 7, 17, 10, 0, 0, 0, time.UTC)
 	svc := &fakeWorkboardService{cards: []domain.WorkCard{{

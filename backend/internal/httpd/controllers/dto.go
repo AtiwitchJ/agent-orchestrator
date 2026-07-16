@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"time"
@@ -96,16 +97,19 @@ type UpdateWorkCardRequest struct {
 	Priority    *string    `json:"priority,omitempty" enum:"low,normal,high,urgent"`
 	Labels      *[]string  `json:"labels,omitempty"`
 	Status      *string    `json:"status,omitempty" enum:"triage,backlog,todo,scheduled,ready,running,review,blocked,done"`
-	ScheduledAt *time.Time `json:"scheduledAt,omitempty"`
+	ScheduledAt *time.Time `json:"scheduledAt,omitempty" description:"Optional scheduled timestamp; set to null to clear."`
 	TargetPath  *string    `json:"targetPath,omitempty"`
 	Agent       *string    `json:"agent,omitempty"`
 	Position    *int64     `json:"position,omitempty"`
+
+	scheduledAtSet bool
 }
 
 func (r UpdateWorkCardRequest) toInput() workboardsvc.UpdateInput {
 	in := workboardsvc.UpdateInput{
-		Title: r.Title, Notes: r.Notes, Labels: r.Labels, ScheduledAt: r.ScheduledAt,
-		TargetPath: r.TargetPath, Agent: r.Agent, Position: r.Position,
+		Title: r.Title, Notes: r.Notes, Labels: r.Labels,
+		ScheduledAt: workboardsvc.OptionalTime{Set: r.scheduledAtSet, Value: r.ScheduledAt},
+		TargetPath:  r.TargetPath, Agent: r.Agent, Position: r.Position,
 	}
 	if r.Priority != nil {
 		priority := domain.CardPriority(*r.Priority)
@@ -118,10 +122,64 @@ func (r UpdateWorkCardRequest) toInput() workboardsvc.UpdateInput {
 	return in
 }
 
+// UnmarshalJSON records whether scheduledAt was present so PATCH can
+// distinguish an omitted field from an explicit null that clears the schedule.
+func (r *UpdateWorkCardRequest) UnmarshalJSON(data []byte) error {
+	type request UpdateWorkCardRequest
+	var decoded request
+	if err := unmarshalStrictJSON(data, &decoded); err != nil {
+		return err
+	}
+	_, scheduledAtSet, err := jsonField(data, "scheduledAt")
+	if err != nil {
+		return err
+	}
+	*r = UpdateWorkCardRequest(decoded)
+	r.scheduledAtSet = scheduledAtSet
+	return nil
+}
+
 // MoveWorkCardRequest is the body of POST /api/v1/workboard/cards/{cardId}/move.
 type MoveWorkCardRequest struct {
 	Status   string `json:"status" enum:"triage,backlog,todo,scheduled,ready,running,review,blocked,done"`
 	Position int64  `json:"position"`
+
+	positionSet bool
+}
+
+// UnmarshalJSON records position presence while preserving its required,
+// non-null integer schema for OpenAPI generation.
+func (r *MoveWorkCardRequest) UnmarshalJSON(data []byte) error {
+	type request MoveWorkCardRequest
+	var decoded request
+	if err := unmarshalStrictJSON(data, &decoded); err != nil {
+		return err
+	}
+	raw, positionSet, err := jsonField(data, "position")
+	if err != nil {
+		return err
+	}
+	if positionSet && bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return errors.New("position must be an integer")
+	}
+	*r = MoveWorkCardRequest(decoded)
+	r.positionSet = positionSet
+	return nil
+}
+
+func unmarshalStrictJSON(data []byte, out any) error {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	return dec.Decode(out)
+}
+
+func jsonField(data []byte, name string) (json.RawMessage, bool, error) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return nil, false, err
+	}
+	raw, ok := fields[name]
+	return raw, ok, nil
 }
 
 // ListWorkCardsResponse is the body of GET /api/v1/projects/{projectId}/workboard/cards.

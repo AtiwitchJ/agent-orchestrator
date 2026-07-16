@@ -103,6 +103,35 @@ func TestCRUDUsesPartialUpdateAndMove(t *testing.T) {
 	}
 }
 
+func TestUpdateClearsScheduledAtWhenExplicitlySetToNil(t *testing.T) {
+	svc, root := newTestService(t)
+	ctx := context.Background()
+	scheduledAt := testNow.Add(time.Hour)
+	card, err := svc.Create(ctx, workboard.CreateInput{
+		ProjectID: "p1", Title: "scheduled", Notes: "notes", Priority: domain.CardPriorityNormal,
+		Labels: []string{"bug"}, TargetPath: root, Agent: "codex", ScheduledAt: &scheduledAt,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	unchanged, err := svc.Update(ctx, card.ID, workboard.UpdateInput{})
+	if err != nil {
+		t.Fatalf("Update without scheduledAt: %v", err)
+	}
+	if unchanged.ScheduledAt == nil || !unchanged.ScheduledAt.Equal(scheduledAt) {
+		t.Fatalf("omitted scheduledAt = %v, want %v", unchanged.ScheduledAt, scheduledAt)
+	}
+
+	cleared, err := svc.Update(ctx, card.ID, workboard.UpdateInput{ScheduledAt: workboard.OptionalTime{Set: true}})
+	if err != nil {
+		t.Fatalf("Update clear scheduledAt: %v", err)
+	}
+	if cleared.ScheduledAt != nil {
+		t.Fatalf("cleared scheduledAt = %v, want nil", cleared.ScheduledAt)
+	}
+}
+
 func TestMoveAndUpdatePreserveReadyTimestamp(t *testing.T) {
 	now := testNow
 	svc, root := newTestServiceWithClock(t, func() time.Time { return now })

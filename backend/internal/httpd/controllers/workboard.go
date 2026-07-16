@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/modernagent/modern-agent/backend/internal/domain"
+	"github.com/modernagent/modern-agent/backend/internal/httpd/apierr"
 	"github.com/modernagent/modern-agent/backend/internal/httpd/apispec"
 	"github.com/modernagent/modern-agent/backend/internal/httpd/envelope"
 	workboardsvc "github.com/modernagent/modern-agent/backend/internal/service/workboard"
@@ -105,6 +106,10 @@ func (c *WorkboardController) move(w http.ResponseWriter, r *http.Request) {
 	var req MoveWorkCardRequest
 	if err := decodeJSONStrict(r, &req); err != nil {
 		envelope.WriteAPIError(w, r, http.StatusBadRequest, "bad_request", "INVALID_JSON", "Invalid JSON body", nil)
+		return
+	}
+	if !req.positionSet {
+		envelope.WriteError(w, r, apierr.Invalid("WORK_CARD_POSITION_REQUIRED", "Position is required", nil))
 		return
 	}
 	card, err := c.Svc.Move(r.Context(), chi.URLParam(r, "cardId"), domain.CardStatus(req.Status), req.Position)
