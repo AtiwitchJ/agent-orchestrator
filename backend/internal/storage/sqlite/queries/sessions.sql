@@ -5,15 +5,15 @@ SELECT COALESCE(MAX(num), 0) + 1 AS next FROM sessions WHERE project_id = ?;
 INSERT INTO sessions (
     id, project_id, num, issue_id, kind, harness, display_name,
     activity_state, activity_last_at, first_signal_at, is_terminated,
-    branch, workspace_path, runtime_handle_id, agent_session_id, prompt,
+    branch, workspace_path, runtime_handle_id, agent_session_id, prompt, target_path,
     preview_url, preview_revision, created_at, updated_at, deliverable_confirmed_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateSession :exec
 UPDATE sessions SET
     issue_id = ?, kind = ?, harness = ?, display_name = ?,
     activity_state = ?, activity_last_at = ?, first_signal_at = ?, is_terminated = ?,
-    branch = ?, workspace_path = ?, runtime_handle_id = ?, agent_session_id = ?, prompt = ?,
+    branch = ?, workspace_path = ?, runtime_handle_id = ?, agent_session_id = ?, prompt = ?, target_path = ?,
     preview_url = ?, preview_revision = ?, updated_at = ?, deliverable_confirmed_at = ?
 WHERE id = ?;
 
@@ -21,21 +21,21 @@ WHERE id = ?;
 SELECT id, project_id, num, issue_id, kind, harness,
     activity_state, activity_last_at, is_terminated, branch, workspace_path,
     runtime_handle_id, agent_session_id, prompt, created_at, updated_at, display_name,
-    first_signal_at, preview_url, preview_revision, deliverable_confirmed_at
+    first_signal_at, preview_url, preview_revision, deliverable_confirmed_at, target_path
 FROM sessions WHERE id = ?;
 
 -- name: ListSessionsByProject :many
 SELECT id, project_id, num, issue_id, kind, harness,
     activity_state, activity_last_at, is_terminated, branch, workspace_path,
     runtime_handle_id, agent_session_id, prompt, created_at, updated_at, display_name,
-    first_signal_at, preview_url, preview_revision, deliverable_confirmed_at
+    first_signal_at, preview_url, preview_revision, deliverable_confirmed_at, target_path
 FROM sessions WHERE project_id = ? ORDER BY num;
 
 -- name: ListAllSessions :many
 SELECT id, project_id, num, issue_id, kind, harness,
     activity_state, activity_last_at, is_terminated, branch, workspace_path,
     runtime_handle_id, agent_session_id, prompt, created_at, updated_at, display_name,
-    first_signal_at, preview_url, preview_revision, deliverable_confirmed_at
+    first_signal_at, preview_url, preview_revision, deliverable_confirmed_at, target_path
 FROM sessions ORDER BY project_id, num;
 
 

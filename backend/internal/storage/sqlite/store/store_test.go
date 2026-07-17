@@ -323,6 +323,63 @@ func TestSessionCreateAssignsPerProjectID(t *testing.T) {
 	}
 }
 
+func TestSessionTargetPathRoundTrip(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	seedProject(t, s, "mer")
+
+	rec := sampleRecord("mer")
+	rec.Metadata = domain.SessionMetadata{
+		Branch:          "feat/target-path",
+		WorkspacePath:   "/worktrees/mer-1",
+		RuntimeHandleID: "runtime-1",
+		AgentSessionID:  "agent-1",
+		Prompt:          "implement task 8",
+		TargetPath:      "/repo/services/api",
+		PreviewURL:      "http://localhost:3000",
+		PreviewRevision: 7,
+	}
+	created, err := s.CreateSession(ctx, rec)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	got, ok, err := s.GetSession(ctx, created.ID)
+	if err != nil || !ok {
+		t.Fatalf("get created session: ok=%v err=%v", ok, err)
+	}
+	if got.Metadata != rec.Metadata {
+		t.Fatalf("created metadata = %#v, want %#v", got.Metadata, rec.Metadata)
+	}
+
+	got.Metadata.TargetPath = "/repo/services/web"
+	got.UpdatedAt = got.UpdatedAt.Add(time.Minute)
+	if err := s.UpdateSession(ctx, got); err != nil {
+		t.Fatalf("update session: %v", err)
+	}
+	got, ok, err = s.GetSession(ctx, created.ID)
+	if err != nil || !ok {
+		t.Fatalf("get updated session: ok=%v err=%v", ok, err)
+	}
+	if got.Metadata.TargetPath != "/repo/services/web" {
+		t.Fatalf("updated target path = %q, want /repo/services/web", got.Metadata.TargetPath)
+	}
+
+	zero := sampleRecord("mer")
+	zero.Metadata = domain.SessionMetadata{}
+	empty, err := s.CreateSession(ctx, zero)
+	if err != nil {
+		t.Fatalf("create zero-value session: %v", err)
+	}
+	got, ok, err = s.GetSession(ctx, empty.ID)
+	if err != nil || !ok {
+		t.Fatalf("get zero-value session: ok=%v err=%v", ok, err)
+	}
+	if got.Metadata.TargetPath != "" {
+		t.Fatalf("zero-value target path = %q, want empty", got.Metadata.TargetPath)
+	}
+}
+
 // TestDeleteSessionOnlyRemovesSeedRows covers Bug 4's storage-layer guarantee:
 // DeleteSession removes a session row only when the row is still in seed state
 // (no workspace, no runtime handle, no agent session id, no prompt, not

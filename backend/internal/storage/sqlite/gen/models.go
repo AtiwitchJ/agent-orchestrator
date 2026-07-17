@@ -220,6 +220,7 @@ type Session struct {
 	PreviewURL             string
 	PreviewRevision        int64
 	DeliverableConfirmedAt sql.NullString
+	TargetPath             string
 }
 
 type SessionMessage struct {
