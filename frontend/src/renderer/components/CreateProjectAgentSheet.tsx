@@ -5,6 +5,7 @@ import { memo, useEffect, useState } from "react";
 import type { components } from "../../api/schema";
 import { agentsQueryKey, agentsQueryOptions, refreshAgents } from "../hooks/useAgentsQuery";
 import { AGENT_OPTIONS } from "../lib/agent-options";
+import { WORKBOARD_ORCHESTRATOR_AGENT } from "../lib/workboard-config";
 import { buildIntake, type IntakeForm, IntakeFields, intakeNeedsRule } from "./IntakeFields";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
@@ -67,19 +68,16 @@ export function CreateProjectAgentSheet({
 			: "Could not load agent catalog."
 		: null;
 	const [workerAgent, setWorkerAgent] = useState("");
-	const [orchestratorAgent, setOrchestratorAgent] = useState("");
 	const [intake, setIntake] = useState<IntakeForm>(EMPTY_INTAKE);
 	const [asWorkspace, setAsWorkspace] = useState(false);
 	const intakeIncomplete = intakeNeedsRule(intake);
-	const canSubmit =
-		workerAgent !== "" && orchestratorAgent !== "" && !intakeIncomplete && !isCreating && !isLoadingAgents;
+	const canSubmit = workerAgent !== "" && !intakeIncomplete && !isCreating && !isLoadingAgents;
 
 	useEffect(() => {
 		if (open) {
 			setAsWorkspace(workspaceDetection?.looksLikeWorkspace ?? false);
 		} else {
 			setWorkerAgent("");
-			setOrchestratorAgent("");
 			setIntake(EMPTY_INTAKE);
 			setAsWorkspace(false);
 		}
@@ -115,7 +113,7 @@ export function CreateProjectAgentSheet({
 							if (!canSubmit) return;
 							void onSubmit({
 								workerAgent,
-								orchestratorAgent,
+								orchestratorAgent: WORKBOARD_ORCHESTRATOR_AGENT,
 								trackerIntake: buildIntake(intake),
 								companyId: targetCompanyId,
 								asWorkspace: asWorkspace || undefined,
@@ -134,17 +132,7 @@ export function CreateProjectAgentSheet({
 								disabled={isLoadingAgents}
 								onChange={setWorkerAgent}
 							/>
-							<RequiredAgentField
-								id="newProjectOrchestratorAgent"
-								label="Orchestrator agent"
-								placeholder="Select orchestrator agent"
-								value={orchestratorAgent}
-								authorized={agentOptions}
-								installed={installedAgents}
-								supported={supportedAgents}
-								disabled={isLoadingAgents}
-								onChange={setOrchestratorAgent}
-							/>
+							<ReadonlyAgentField id="newProjectOrchestratorAgent" label="Orchestrator agent" value={WORKBOARD_ORCHESTRATOR_AGENT} />
 						</div>
 
 						{isLoadingAgents && <p className="text-[12px] leading-5 text-muted-foreground">Loading agents...</p>}
@@ -304,3 +292,20 @@ export const RequiredAgentField = memo(function RequiredAgentField({
 		</div>
 	);
 });
+
+function ReadonlyAgentField({ id, label, value }: { id: string; label: string; value: string }) {
+	return (
+		<div className="flex flex-col gap-1.5">
+			<Label htmlFor={id} className="text-[12px] font-medium text-muted-foreground">
+				{label}
+			</Label>
+			<div
+				id={id}
+				aria-label={label}
+				className="flex h-8 items-center rounded-md border border-input bg-transparent px-3 text-[13px] text-foreground"
+			>
+				{value}
+			</div>
+		</div>
+	);
+}

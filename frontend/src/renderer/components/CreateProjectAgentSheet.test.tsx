@@ -48,14 +48,14 @@ describe("CreateProjectAgentSheet", () => {
 	it("creates without intake when the toggle is left off", async () => {
 		const onSubmit = renderSheet();
 		await chooseOption(screen.getByLabelText("Worker agent"), "claude-code");
-		await chooseOption(screen.getByLabelText("Orchestrator agent"), "codex");
+		expect(screen.getByLabelText("Orchestrator agent")).toHaveTextContent("hermes");
 
 		await userEvent.click(screen.getByRole("button", { name: "Create and start" }));
 
 		await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
 		expect(onSubmit).toHaveBeenCalledWith({
 			workerAgent: "claude-code",
-			orchestratorAgent: "codex",
+			orchestratorAgent: "hermes",
 			trackerIntake: undefined,
 		});
 	});
@@ -63,7 +63,7 @@ describe("CreateProjectAgentSheet", () => {
 	it("blocks submit when intake is enabled with no assignee, then passes the intake payload once one is set", async () => {
 		const onSubmit = renderSheet();
 		await chooseOption(screen.getByLabelText("Worker agent"), "claude-code");
-		await chooseOption(screen.getByLabelText("Orchestrator agent"), "codex");
+		expect(screen.getByLabelText("Orchestrator agent")).toHaveTextContent("hermes");
 
 		await userEvent.click(screen.getByLabelText("Enable issue intake"));
 		// Enabled with no eligibility rule → submit stays disabled (compact sheet
@@ -76,7 +76,7 @@ describe("CreateProjectAgentSheet", () => {
 		await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
 		expect(onSubmit).toHaveBeenCalledWith({
 			workerAgent: "claude-code",
-			orchestratorAgent: "codex",
+			orchestratorAgent: "hermes",
 			trackerIntake: { enabled: true, provider: "github", assignee: "octocat" },
 		});
 	});
@@ -98,7 +98,7 @@ describe("CreateProjectAgentSheet", () => {
 			detectedChildNames: [],
 		});
 		await chooseOption(screen.getByLabelText("Worker agent"), "claude-code");
-		await chooseOption(screen.getByLabelText("Orchestrator agent"), "codex");
+		expect(screen.getByLabelText("Orchestrator agent")).toHaveTextContent("hermes");
 
 		await userEvent.click(screen.getByLabelText("Multi-repo workspace"));
 		await userEvent.click(screen.getByRole("button", { name: "Create and start" }));
@@ -106,7 +106,7 @@ describe("CreateProjectAgentSheet", () => {
 		await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
 		expect(onSubmit).toHaveBeenCalledWith({
 			workerAgent: "claude-code",
-			orchestratorAgent: "codex",
+			orchestratorAgent: "hermes",
 			trackerIntake: undefined,
 			asWorkspace: true,
 		});

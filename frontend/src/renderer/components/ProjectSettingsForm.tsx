@@ -7,6 +7,7 @@ import { useWorkspaceQuery, workspaceQueryKey } from "../hooks/useWorkspaceQuery
 import { apiClient, apiErrorMessage } from "../lib/api-client";
 import { assignProjectCompany, createCompany } from "../lib/companies";
 import { spawnOrchestrator } from "../lib/spawn-orchestrator";
+import { isWorkboardEnabled, WORKBOARD_ORCHESTRATOR_AGENT } from "../lib/workboard-config";
 import { newestActiveOrchestrator } from "../types/workspace";
 import { RequiredAgentField } from "./CreateProjectAgentSheet";
 import { DashboardSubhead } from "./DashboardSubhead";
@@ -74,6 +75,7 @@ function SettingsBody({ project, projectId, onSaved }: { project: Project; proje
 	const queryClient = useQueryClient();
 	const workspaceQuery = useWorkspaceQuery();
 	const config = project.config ?? {};
+	const workboardEnabled = isWorkboardEnabled(config);
 	const workspace = workspaceQuery.data?.find((item) => item.id === projectId);
 	const activeOrchestrator = newestActiveOrchestrator(workspace?.sessions ?? []);
 	const intake: TrackerIntakeConfig = config.trackerIntake ?? {};
@@ -81,7 +83,7 @@ function SettingsBody({ project, projectId, onSaved }: { project: Project; proje
 		defaultBranch: config.defaultBranch ?? project.defaultBranch ?? "",
 		sessionPrefix: config.sessionPrefix ?? "",
 		workerAgent: config.worker?.agent ?? "",
-		orchestratorAgent: config.orchestrator?.agent ?? "",
+		orchestratorAgent: workboardEnabled ? WORKBOARD_ORCHESTRATOR_AGENT : config.orchestrator?.agent ?? "",
 		model: config.agentConfig?.model ?? "",
 		permissions: config.agentConfig?.permissions ?? "",
 		reviewerHarness: config.reviewers?.[0]?.harness ?? "",
@@ -93,7 +95,7 @@ function SettingsBody({ project, projectId, onSaved }: { project: Project; proje
 	const [replacementError, setReplacementError] = useState<string | null>(null);
 	const [validationError, setValidationError] = useState<string | null>(null);
 	const initialOrchestratorAgent = config.orchestrator?.agent ?? "";
-	const missingRequiredAgent = form.workerAgent === "" || form.orchestratorAgent === "";
+	const missingRequiredAgent = form.workerAgent === "" || (!workboardEnabled && form.orchestratorAgent === "");
 	const agentsQuery = useQuery(agentsQueryOptions);
 	const agentCatalog = agentsQuery.data;
 	const refreshAgentsMutation = useMutation({
@@ -122,6 +124,7 @@ function SettingsBody({ project, projectId, onSaved }: { project: Project; proje
 
 	const mutation = useMutation({
 		mutationFn: async () => {
+			const desiredOrchestratorAgent = workboardEnabled ? WORKBOARD_ORCHESTRATOR_AGENT : form.orchestratorAgent;
 			// PUT replaces the whole config; merge the edited fields over what loaded
 			// so we don't drop env/symlinks/postCreate the form doesn't expose.
 			const next: ProjectConfig = {
@@ -129,7 +132,7 @@ function SettingsBody({ project, projectId, onSaved }: { project: Project; proje
 				defaultBranch: form.defaultBranch || undefined,
 				sessionPrefix: form.sessionPrefix || undefined,
 				worker: { ...config.worker, agent: form.workerAgent },
-				orchestrator: { ...config.orchestrator, agent: form.orchestratorAgent },
+				orchestrator: { ...config.orchestrator, agent: desiredOrchestratorAgent },
 				agentConfig: blankToUndefined({
 					...config.agentConfig,
 					model: form.model || undefined,
@@ -144,8 +147,8 @@ function SettingsBody({ project, projectId, onSaved }: { project: Project; proje
 			});
 			if (error) throw new Error(apiErrorMessage(error));
 			if (
-				form.orchestratorAgent !== initialOrchestratorAgent ||
-				(activeOrchestrator && activeOrchestrator.provider !== form.orchestratorAgent)
+				desiredOrchestratorAgent !== initialOrchestratorAgent ||
+				(activeOrchestrator && activeOrchestrator.provider !== desiredOrchestratorAgent)
 			) {
 				try {
 					await spawnOrchestrator(projectId, true);
@@ -174,7 +177,7 @@ function SettingsBody({ project, projectId, onSaved }: { project: Project; proje
 				setSavedAt(null);
 				setReplacementError(null);
 				if (missingRequiredAgent) {
-					setValidationError("Worker and orchestrator agents are required.");
+					setValidationError(workboardEnabled ? "Worker agent is required." : "Worker and orchestrator agents are required.");
 					return;
 				}
 				if (intakeIncomplete) {
@@ -241,18 +244,22 @@ function SettingsBody({ project, projectId, onSaved }: { project: Project; proje
 						invalid={validationError !== null && form.workerAgent === ""}
 						onChange={(v) => setForm((f) => ({ ...f, workerAgent: v }))}
 					/>
-					<RequiredAgentField
-						id="orchestratorAgent"
-						value={form.orchestratorAgent}
-						placeholder="Select orchestrator agent"
-						label="Default orchestrator agent"
-						authorized={agentCatalog?.authorized}
-						installed={agentCatalog?.installed}
-						supported={agentCatalog?.supported}
-						disabled={agentsQuery.isFetching && agentCatalog === undefined}
-						invalid={validationError !== null && form.orchestratorAgent === ""}
-						onChange={(v) => setForm((f) => ({ ...f, orchestratorAgent: v }))}
-					/>
+					{workboardEnabled ? (
+						<ReadonlySettingField label="Default orchestrator agent" value={WORKBOARD_ORCHESTRATOR_AGENT} />
+					) : (
+						<RequiredAgentField
+							id="orchestratorAgent"
+							value={form.orchestratorAgent}
+							placeholder="Select orchestrator agent"
+							label="Default orchestrator agent"
+							authorized={agentCatalog?.authorized}
+							installed={agentCatalog?.installed}
+							supported={agentCatalog?.supported}
+							disabled={agentsQuery.isFetching && agentCatalog === undefined}
+							invalid={validationError !== null && form.orchestratorAgent === ""}
+							onChange={(v) => setForm((f) => ({ ...f, orchestratorAgent: v }))}
+						/>
+					)}
 					<div className="flex items-center justify-between gap-3 text-[12px] leading-5 text-muted-foreground">
 						<span>Agent availability is cached.</span>
 						<button
@@ -335,6 +342,17 @@ function SettingsBody({ project, projectId, onSaved }: { project: Project; proje
 				)}
 			</div>
 		</form>
+	);
+}
+
+function ReadonlySettingField({ label, value }: { label: string; value: string }) {
+	return (
+		<div className="flex flex-col gap-1.5">
+			<Label className="text-[12px] font-medium text-muted-foreground">{label}</Label>
+			<div className="flex h-8 items-center rounded-md border border-input bg-transparent px-3 text-[13px] text-foreground">
+				{value}
+			</div>
+		</div>
 	);
 }
 

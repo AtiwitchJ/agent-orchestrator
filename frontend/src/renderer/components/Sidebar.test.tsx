@@ -388,7 +388,7 @@ describe("CreateProjectFlow", () => {
 		expect(screen.getByLabelText("Multi-repo workspace")).toBeChecked();
 		expect(screen.getByText("Detected repos: svc-a, svc-b")).toBeInTheDocument();
 		await chooseOption(screen.getByRole("combobox", { name: "Worker agent" }), "Codex");
-		await chooseOption(screen.getByRole("combobox", { name: "Orchestrator agent" }), "Claude Code");
+		expect(screen.getByLabelText("Orchestrator agent")).toHaveTextContent("hermes");
 		await user.click(screen.getByRole("button", { name: "Create and start" }));
 
 		await waitFor(() =>
@@ -413,7 +413,7 @@ describe("CreateProjectFlow", () => {
 		const dialog = screen.getByRole("dialog", { name: "Project agents" });
 		expect(dialog).toHaveClass("left-1/2", "top-1/2", "-translate-x-1/2", "-translate-y-1/2");
 		await chooseOption(screen.getByRole("combobox", { name: "Worker agent" }), "Codex");
-		await chooseOption(screen.getByRole("combobox", { name: "Orchestrator agent" }), "Claude Code");
+		expect(screen.getByLabelText("Orchestrator agent")).toHaveTextContent("hermes");
 		await user.click(screen.getByRole("button", { name: "Create and start" }));
 
 		await waitFor(() =>
@@ -421,7 +421,7 @@ describe("CreateProjectFlow", () => {
 				expect.objectContaining({
 					path: "/repo/new-project",
 					workerAgent: "codex",
-					orchestratorAgent: "claude-code",
+					orchestratorAgent: "hermes",
 				}),
 			),
 		);
@@ -469,7 +469,7 @@ describe("CreateProjectFlow", () => {
 		await user.keyboard("{Escape}");
 
 		await chooseOption(screen.getByRole("combobox", { name: "Worker agent" }), "Claude Code");
-		await chooseOption(screen.getByRole("combobox", { name: "Orchestrator agent" }), "Claude Code");
+		expect(screen.getByLabelText("Orchestrator agent")).toHaveTextContent("hermes");
 		await user.click(screen.getByRole("button", { name: "Create and start" }));
 
 		await waitFor(() =>
@@ -523,7 +523,7 @@ describe("CreateProjectFlow", () => {
 		});
 
 		await chooseOption(screen.getByRole("combobox", { name: "Worker agent" }), "Codex");
-		await chooseOption(screen.getByRole("combobox", { name: "Orchestrator agent" }), "Claude Code");
+		expect(screen.getByLabelText("Orchestrator agent")).toHaveTextContent("hermes");
 		await user.click(screen.getByRole("button", { name: "Create and start" }));
 
 		await waitFor(() =>
@@ -531,7 +531,7 @@ describe("CreateProjectFlow", () => {
 				expect.objectContaining({
 					path: "/repo/new-project",
 					workerAgent: "codex",
-					orchestratorAgent: "claude-code",
+					orchestratorAgent: "hermes",
 				}),
 			),
 		);
@@ -551,14 +551,14 @@ describe("CreateProjectFlow", () => {
 		expect(await screen.findByText("/repo/new-project")).toBeInTheDocument();
 		expect(screen.getByLabelText("Multi-repo workspace")).not.toBeChecked();
 		await chooseOption(screen.getByRole("combobox", { name: "Worker agent" }), "Codex");
-		await chooseOption(screen.getByRole("combobox", { name: "Orchestrator agent" }), "Claude Code");
+		expect(screen.getByLabelText("Orchestrator agent")).toHaveTextContent("hermes");
 		await user.click(screen.getByRole("button", { name: "Create and start" }));
 
 		await waitFor(() =>
 			expect(onCreateProject).toHaveBeenCalledWith({
 				path: "/repo/new-project",
 				workerAgent: "codex",
-				orchestratorAgent: "claude-code",
+				orchestratorAgent: "hermes",
 				trackerIntake: undefined,
 				companyId: undefined,
 				asWorkspace: undefined,

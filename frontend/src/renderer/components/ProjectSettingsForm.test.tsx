@@ -184,6 +184,48 @@ describe("ProjectSettingsForm", () => {
 		expect(await screen.findByText("Saved.")).toBeInTheDocument();
 	}, 20_000);
 
+	it("locks workboard projects to the hermes orchestrator", async () => {
+		mockProject({
+			id: "proj-1",
+			name: "Project One",
+			kind: "single_repo",
+			path: "/repo/project-one",
+			repo: "git@github.com:acme/project-one.git",
+			defaultBranch: "main",
+			config: {
+				worker: { agent: "codex" },
+				orchestrator: { agent: "goose" },
+				workboard: { wipLimit: 3 },
+			},
+		});
+
+		renderSettings();
+
+		expect(await screen.findByText("git@github.com:acme/project-one.git")).toBeInTheDocument();
+		expect(screen.queryByRole("combobox", { name: "Default orchestrator agent" })).not.toBeInTheDocument();
+		expect(screen.getByText("hermes")).toBeInTheDocument();
+
+		await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+		await waitFor(() => expect(putMock).toHaveBeenCalledTimes(1));
+		expect(putMock).toHaveBeenCalledWith(
+			"/api/v1/projects/{id}/config",
+			expect.objectContaining({
+				params: { path: { id: "proj-1" } },
+				body: {
+					config: expect.objectContaining({
+						worker: { agent: "codex" },
+						orchestrator: { agent: "hermes" },
+						workboard: { wipLimit: 3 },
+					}),
+				},
+			}),
+		);
+		await waitFor(() => expect(postMock).toHaveBeenCalledWith("/api/v1/orchestrators", {
+			body: { projectId: "proj-1", clean: true },
+		}));
+	});
+
 	it("shows the daemon validation message when save fails", async () => {
 		mockProject({
 			id: "proj-1",

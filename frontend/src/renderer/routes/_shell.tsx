@@ -17,6 +17,7 @@ import { ShellProvider } from "../lib/shell-context";
 import { spawnOrchestrator } from "../lib/spawn-orchestrator";
 import { restartProjectOrchestrator } from "../lib/restart-orchestrator";
 import { captureOrchestratorReplacementFailure } from "../lib/orchestrator-replacement-telemetry";
+import { DEFAULT_WORKBOARD_CONFIG, WORKBOARD_ORCHESTRATOR_AGENT } from "../lib/workboard-config";
 import { readStoredTheme, type Theme, useUiStore } from "../stores/ui-store";
 import type { WorkspaceSummary } from "../types/workspace";
 import type { components } from "../../api/schema";
@@ -92,7 +93,8 @@ function ShellLayout() {
 					asWorkspace: input.asWorkspace,
 					config: {
 						worker: { agent: input.workerAgent },
-						orchestrator: { agent: input.orchestratorAgent },
+						orchestrator: { agent: WORKBOARD_ORCHESTRATOR_AGENT },
+						workboard: DEFAULT_WORKBOARD_CONFIG,
 						trackerIntake: input.trackerIntake,
 					},
 				},
@@ -124,7 +126,7 @@ function ShellLayout() {
 				path: data.project.path,
 				type: "main",
 				companyId: input.companyId,
-				orchestratorAgent: input.orchestratorAgent as WorkspaceSummary["orchestratorAgent"],
+				orchestratorAgent: WORKBOARD_ORCHESTRATOR_AGENT as WorkspaceSummary["orchestratorAgent"],
 				sessions: [],
 			};
 			void captureRendererEvent("ao.renderer.project_add_succeeded", { project_id: workspace.id });
