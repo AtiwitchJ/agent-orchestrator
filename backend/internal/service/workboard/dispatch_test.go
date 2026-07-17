@@ -170,10 +170,48 @@ func TestDispatchOnceRollsBackSpawnWhenSessionLinkFails(t *testing.T) {
 	}
 }
 
+func TestDispatchOncePersistsLiveWorkerWhenRollbackFails(t *testing.T) {
+	now := time.Date(2026, time.July, 17, 9, 0, 0, 0, time.UTC)
+	linkErr := errors.New("database unavailable")
+	rollbackErr := errors.New("runtime teardown unavailable")
+	store := newDispatchStore(1, []domain.WorkCard{readyCard("card", domain.CardPriorityNormal, now)})
+	store.failLinkErr = linkErr
+	store.failLinkOnce = true
+	spawner := &dispatchSpawner{rollbackErr: rollbackErr}
+	dispatcher := NewDispatcher(DispatchDeps{Store: store, Spawner: spawner, Clock: func() time.Time { return now }})
+
+	claimed, err := dispatcher.DispatchOnce(context.Background(), "p1")
+	if !errors.Is(err, linkErr) || !errors.Is(err, rollbackErr) {
+		t.Fatalf("DispatchOnce error = %v, want joined link and rollback errors", err)
+	}
+	if !strings.Contains(err.Error(), "persisted live worker session") {
+		t.Fatalf("DispatchOnce error = %v, want durable recovery annotation", err)
+	}
+	if len(claimed) != 0 {
+		t.Fatalf("claimed = %v, want none", claimed)
+	}
+	card := store.cards["card"]
+	if card.Status != domain.CardStatusRunning || card.SessionID != "session-card title\n\ncard notes" {
+		t.Fatalf("card after failed rollback = %#v, want running and linked", card)
+	}
+
+	claimed, err = dispatcher.DispatchOnce(context.Background(), "p1")
+	if err != nil {
+		t.Fatalf("second DispatchOnce: %v", err)
+	}
+	if len(claimed) != 0 {
+		t.Fatalf("second claimed = %v, want none", claimed)
+	}
+	if got := spawner.cardIDs(); !reflect.DeepEqual(got, []string{"card"}) {
+		t.Fatalf("spawned cards = %v, want original spawn only", got)
+	}
+}
+
 type dispatchStore struct {
-	project     domain.ProjectRecord
-	cards       map[string]domain.WorkCard
-	failLinkErr error
+	project      domain.ProjectRecord
+	cards        map[string]domain.WorkCard
+	failLinkErr  error
+	failLinkOnce bool
 }
 
 func newDispatchStore(wipLimit int, cards []domain.WorkCard) *dispatchStore {
@@ -201,7 +239,11 @@ func (s *dispatchStore) ListWorkCards(_ context.Context, projectID, boardID stri
 
 func (s *dispatchStore) UpdateWorkCard(_ context.Context, card domain.WorkCard) error {
 	if card.SessionID != "" && s.failLinkErr != nil {
-		return s.failLinkErr
+		err := s.failLinkErr
+		if s.failLinkOnce {
+			s.failLinkErr = nil
+		}
+		return err
 	}
 	s.cards[card.ID] = card
 	return nil

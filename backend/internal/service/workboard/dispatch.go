@@ -2,6 +2,7 @@ package workboard
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -154,10 +155,23 @@ func (d *Dispatcher) DispatchOnce(ctx context.Context, projectID string) ([]stri
 		card.SessionID = string(session.ID)
 		card.UpdatedAt = now
 		if err := d.store.UpdateWorkCard(ctx, card); err != nil {
-			if _, rollbackErr := d.rollbacker.RollbackSpawn(context.WithoutCancel(ctx), session.ID); rollbackErr != nil {
-				return claimed, fmt.Errorf("link worker session for card %s: %w (rollback session %s: %v)", card.ID, err, session.ID, rollbackErr)
+			linkErr := fmt.Errorf("link worker session for card %s: %w", card.ID, err)
+			persistenceCtx := context.WithoutCancel(ctx)
+			if _, rollbackErr := d.rollbacker.RollbackSpawn(persistenceCtx, session.ID); rollbackErr != nil {
+				if persistErr := d.store.UpdateWorkCard(persistenceCtx, card); persistErr != nil {
+					return claimed, errors.Join(
+						linkErr,
+						fmt.Errorf("rollback session %s: %w", session.ID, rollbackErr),
+						fmt.Errorf("persist live worker session for card %s: %w", card.ID, persistErr),
+					)
+				}
+				return claimed, errors.Join(
+					linkErr,
+					fmt.Errorf("rollback session %s: %w", session.ID, rollbackErr),
+					fmt.Errorf("persisted live worker session %s for card %s after rollback failure", session.ID, card.ID),
+				)
 			}
-			return claimed, fmt.Errorf("link worker session for card %s: %w", card.ID, err)
+			return claimed, linkErr
 		}
 		claimed = append(claimed, card.ID)
 		running++
