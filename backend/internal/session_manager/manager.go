@@ -276,6 +276,11 @@ func (m *Manager) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 		m.rollbackSpawnSeedRow(ctx, id)
 		return domain.SessionRecord{}, fmt.Errorf("spawn %s: target path: %w", id, err)
 	}
+	if err := validateLaunchPath(launchPath, cfg.TargetPath); err != nil {
+		_ = m.workspace.Destroy(ctx, ws)
+		m.rollbackSpawnSeedRow(ctx, id)
+		return domain.SessionRecord{}, fmt.Errorf("spawn %s: target path: %w", id, err)
+	}
 	agentConfig := effectiveAgentConfig(cfg.Kind, project.Config)
 	argv, err := agent.GetLaunchCommand(ctx, ports.LaunchConfig{
 		SessionID:     string(id),
@@ -312,7 +317,7 @@ func (m *Manager) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 		return domain.SessionRecord{}, fmt.Errorf("spawn %s: runtime: %w", id, err)
 	}
 
-	metadata := domain.SessionMetadata{Branch: ws.Branch, WorkspacePath: ws.Path, RuntimeHandleID: handle.ID, Prompt: prompt}
+	metadata := domain.SessionMetadata{Branch: ws.Branch, WorkspacePath: ws.Path, RuntimeHandleID: handle.ID, Prompt: prompt, TargetPath: cfg.TargetPath}
 	if err := m.lcm.MarkSpawned(ctx, id, metadata); err != nil {
 		_ = m.runtime.Destroy(ctx, handle)
 		_ = m.workspace.Destroy(ctx, ws)
@@ -596,6 +601,13 @@ func (m *Manager) Restore(ctx context.Context, id domain.SessionID) (domain.Sess
 	if err := m.prepareWorkspace(ctx, agent, id, ws.Path); err != nil {
 		return domain.SessionRecord{}, fmt.Errorf("restore %s: %w", id, err)
 	}
+	launchPath, err := projectWorktreePath(ws.Path, project.Path, meta.TargetPath)
+	if err != nil {
+		return domain.SessionRecord{}, fmt.Errorf("restore %s: target path: %w", id, err)
+	}
+	if err := validateLaunchPath(launchPath, meta.TargetPath); err != nil {
+		return domain.SessionRecord{}, fmt.Errorf("restore %s: target path: %w", id, err)
+	}
 	// The system prompt is derived, not persisted: recompute it so a restored
 	// session keeps its standing instructions across the relaunch.
 	systemPrompt, err := m.buildSystemPrompt(ctx, rec.Kind, rec.ProjectID)
@@ -604,20 +616,20 @@ func (m *Manager) Restore(ctx context.Context, id domain.SessionID) (domain.Sess
 	}
 	// Restore re-applies the project's resolved agent config so a configured
 	// model/permissions carry across a restore, matching fresh spawn.
-	argv, err := restoreArgv(ctx, agent, id, ws.Path, meta, systemPrompt, effectiveAgentConfig(rec.Kind, project.Config), rec.Kind)
+	argv, err := restoreArgv(ctx, agent, id, launchPath, meta, systemPrompt, effectiveAgentConfig(rec.Kind, project.Config), rec.Kind)
 	if err != nil {
 		return domain.SessionRecord{}, fmt.Errorf("restore %s: %w", id, err)
 	}
 	handle, err := m.runtime.Create(ctx, ports.RuntimeConfig{
 		SessionID:     id,
-		WorkspacePath: ws.Path,
+		WorkspacePath: launchPath,
 		Argv:          argv,
 		Env:           m.runtimeEnv(id, rec.ProjectID, rec.IssueID, project.Config.Env, rec.Harness, meta.Prompt, systemPrompt),
 	})
 	if err != nil {
 		return domain.SessionRecord{}, fmt.Errorf("restore %s: runtime: %w", id, err)
 	}
-	metadata := domain.SessionMetadata{Branch: ws.Branch, WorkspacePath: ws.Path, RuntimeHandleID: handle.ID, AgentSessionID: meta.AgentSessionID, Prompt: meta.Prompt}
+	metadata := domain.SessionMetadata{Branch: ws.Branch, WorkspacePath: ws.Path, RuntimeHandleID: handle.ID, AgentSessionID: meta.AgentSessionID, Prompt: meta.Prompt, TargetPath: meta.TargetPath}
 	if err := m.lcm.MarkSpawned(ctx, id, metadata); err != nil {
 		_ = m.runtime.Destroy(ctx, handle)
 		return domain.SessionRecord{}, fmt.Errorf("restore %s: completed: %w", id, err)
@@ -1594,4 +1606,22 @@ func projectWorktreePath(worktreePath, projectPath, targetPath string) (string, 
 		return "", fmt.Errorf("target path %q is outside project path %q", targetPath, projectPath)
 	}
 	return filepath.Join(worktreePath, relative), nil
+}
+
+// validateLaunchPath verifies a requested target survived worktree creation.
+// Workspace child repositories are not materialized by every workspace
+// adapter; launching a runtime in a missing projected directory would otherwise
+// create a live-looking session with a nonexistent cwd.
+func validateLaunchPath(launchPath, targetPath string) error {
+	if targetPath == "" {
+		return nil
+	}
+	info, err := os.Stat(launchPath)
+	if err != nil {
+		return fmt.Errorf("projected target path %q is unavailable: %w", launchPath, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("projected target path %q is not a directory", launchPath)
+	}
+	return nil
 }

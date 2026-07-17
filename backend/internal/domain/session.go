@@ -30,6 +30,9 @@ type SessionMetadata struct {
 	RuntimeHandleID string `json:"runtimeHandleId,omitempty"`
 	AgentSessionID  string `json:"agentSessionId,omitempty"`
 	Prompt          string `json:"prompt,omitempty"`
+	// TargetPath is the optional source path the worker launched from. It is
+	// projected into a recreated worktree when the session is restored.
+	TargetPath string `json:"targetPath,omitempty"`
 	// PreviewURL is the browser preview target the desktop app opens for this
 	// session. Set via `ao preview` (POST /sessions/{id}/preview); persisted so
 	// it survives a daemon restart. Empty means no preview has been requested.
@@ -60,11 +63,11 @@ type SessionRecord struct {
 	// DeliverableConfirmedAt is when the deliverable watcher confirmed the
 	// artifact exists for docs-repo sessions. Zero means no deliverable has
 	// been confirmed yet. Used to derive StatusReportReady.
-	DeliverableConfirmedAt time.Time `json:"deliverableConfirmedAt,omitempty"`
-	IsTerminated            bool     `json:"isTerminated"`
+	DeliverableConfirmedAt time.Time       `json:"deliverableConfirmedAt,omitempty"`
+	IsTerminated           bool            `json:"isTerminated"`
 	Metadata               SessionMetadata `json:"-"`
-	CreatedAt               time.Time       `json:"createdAt"`
-	UpdatedAt               time.Time       `json:"updatedAt"`
+	CreatedAt              time.Time       `json:"createdAt"`
+	UpdatedAt              time.Time       `json:"updatedAt"`
 }
 
 // Session is the read-model returned across the API boundary: a SessionRecord

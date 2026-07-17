@@ -465,22 +465,49 @@ func TestSpawn_AssignsIDAndGoesIdle(t *testing.T) {
 
 func TestSpawn_TargetPathUsesCorrespondingWorktreeDirectory(t *testing.T) {
 	m, st, rt, ws := newManager()
+	root := t.TempDir()
 	project := st.projects["mer"]
-	project.Path = "/repo"
+	project.Path = root
 	st.projects["mer"] = project
-	ws.path = "/worktrees/mer-1"
+	ws.path = filepath.Join(t.TempDir(), "mer-1")
+	if err := os.MkdirAll(filepath.Join(ws.path, "services", "api"), 0o750); err != nil {
+		t.Fatal(err)
+	}
 
 	_, err := m.Spawn(ctx, ports.SpawnConfig{
 		ProjectID:  "mer",
 		Kind:       domain.KindWorker,
 		Prompt:     "do it",
-		TargetPath: "/repo/services/api",
+		TargetPath: filepath.Join(root, "services", "api"),
 	})
 	if err != nil {
 		t.Fatalf("Spawn: %v", err)
 	}
-	if got, want := rt.lastCfg.WorkspacePath, "/worktrees/mer-1/services/api"; got != want {
+	if got, want := rt.lastCfg.WorkspacePath, filepath.Join(ws.path, "services", "api"); got != want {
 		t.Fatalf("runtime workspace path = %q, want %q", got, want)
+	}
+	if got, want := st.sessions["mer-1"].Metadata.TargetPath, filepath.Join(root, "services", "api"); got != want {
+		t.Fatalf("metadata target path = %q, want %q", got, want)
+	}
+}
+
+func TestSpawn_WorkspaceChildTargetMustExistInWorktree(t *testing.T) {
+	m, st, rt, ws := newManager()
+	root := t.TempDir()
+	project := st.projects["mer"]
+	project.Path = root
+	project.Kind = domain.ProjectKindWorkspace
+	st.projects["mer"] = project
+	ws.path = t.TempDir()
+
+	_, err := m.Spawn(ctx, ports.SpawnConfig{
+		ProjectID: "mer", Kind: domain.KindWorker, Prompt: "do it", TargetPath: filepath.Join(root, "child-repo"),
+	})
+	if err == nil || !strings.Contains(err.Error(), "projected target path") {
+		t.Fatalf("Spawn error = %v, want missing projected target path", err)
+	}
+	if rt.created != 0 {
+		t.Fatalf("runtime created = %d, want 0", rt.created)
 	}
 }
 
@@ -646,6 +673,31 @@ func TestRestore_ReopensTerminal(t *testing.T) {
 	}
 	if rt.created != 1 {
 		t.Fatal("restore should relaunch")
+	}
+}
+
+func TestRestore_TargetPathUsesCorrespondingWorktreeDirectory(t *testing.T) {
+	m, st, rt, ws := newManager()
+	root := t.TempDir()
+	project := st.projects["mer"]
+	project.Path = root
+	st.projects["mer"] = project
+	ws.path = filepath.Join(t.TempDir(), "mer-1")
+	if err := os.MkdirAll(filepath.Join(ws.path, "services", "api"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	seedTerminal(st, "mer-1", domain.SessionMetadata{
+		WorkspacePath: "/old/worktree", Branch: "b", AgentSessionID: "agent-x", TargetPath: filepath.Join(root, "services", "api"),
+	})
+
+	if _, err := m.Restore(ctx, "mer-1"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := rt.lastCfg.WorkspacePath, filepath.Join(ws.path, "services", "api"); got != want {
+		t.Fatalf("runtime workspace path = %q, want %q", got, want)
+	}
+	if got, want := st.sessions["mer-1"].Metadata.TargetPath, filepath.Join(root, "services", "api"); got != want {
+		t.Fatalf("metadata target path = %q, want %q", got, want)
 	}
 }
 func TestRestore_AppliesProjectAgentConfig(t *testing.T) {

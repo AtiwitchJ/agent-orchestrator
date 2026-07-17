@@ -207,6 +207,32 @@ func TestDispatchOncePersistsLiveWorkerWhenRollbackFails(t *testing.T) {
 	}
 }
 
+func TestDispatchOnceQuarantinesLiveWorkerWhenRollbackAndPersistenceFail(t *testing.T) {
+	now := time.Date(2026, time.July, 17, 9, 0, 0, 0, time.UTC)
+	linkErr := errors.New("database unavailable")
+	rollbackErr := errors.New("runtime teardown unavailable")
+	store := newDispatchStore(1, []domain.WorkCard{readyCard("card", domain.CardPriorityNormal, now)})
+	store.failLinkErr = linkErr
+	spawner := &dispatchSpawner{rollbackErr: rollbackErr}
+	dispatcher := NewDispatcher(DispatchDeps{Store: store, Spawner: spawner, Clock: func() time.Time { return now }})
+
+	if _, err := dispatcher.DispatchOnce(context.Background(), "p1"); !errors.Is(err, linkErr) || !errors.Is(err, rollbackErr) {
+		t.Fatalf("first DispatchOnce error = %v, want joined link and rollback errors", err)
+	} else if !strings.Contains(err.Error(), "quarantined live worker") {
+		t.Fatalf("first DispatchOnce error = %v, want quarantine annotation", err)
+	}
+	if _, err := dispatcher.DispatchOnce(context.Background(), "p1"); !errors.Is(err, linkErr) {
+		t.Fatalf("second DispatchOnce error = %v, want reconciliation persistence error", err)
+	}
+	if got := spawner.cardIDs(); !reflect.DeepEqual(got, []string{"card"}) {
+		t.Fatalf("spawned cards = %v, want original spawn only", got)
+	}
+	card := store.cards["card"]
+	if card.Status != domain.CardStatusReady || card.SessionID != "" {
+		t.Fatalf("card after failed reconciliation = %#v, want ready and unlinked", card)
+	}
+}
+
 type dispatchStore struct {
 	project      domain.ProjectRecord
 	cards        map[string]domain.WorkCard
