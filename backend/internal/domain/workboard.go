@@ -95,6 +95,17 @@ type WorkCard struct {
 	UpdatedAt          time.Time
 }
 
+// WorkCardEvent is an append-only audit fact associated with a work card.
+// Payload is JSON owned by the event producer.
+type WorkCardEvent struct {
+	ID        string
+	CardID    string
+	ProjectID string
+	Kind      string
+	Payload   string
+	CreatedAt time.Time
+}
+
 type WorkboardAutonomousConfig struct {
 	Enabled             bool   `json:"enabled,omitempty"`
 	Mode                string `json:"mode,omitempty"` // skip_timeout | short_timeout

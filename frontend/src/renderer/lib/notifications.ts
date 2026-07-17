@@ -37,7 +37,10 @@ export async function markAllNotificationsRead(): Promise<NotificationDTO[]> {
 export function mergeUnreadNotification(queryClient: QueryClient, notification: NotificationDTO): boolean {
 	let inserted = false;
 	queryClient.setQueryData<NotificationDTO[]>(unreadNotificationsQueryKey, (current = []) => {
-		if (current.some((item) => item.id === notification.id)) return current;
+		const existing = current.find((item) => item.id === notification.id);
+		if (existing) {
+			return sortNotifications(current.map((item) => (item.id === notification.id ? notification : item)));
+		}
 		inserted = true;
 		return sortNotifications([notification, ...current]);
 	});

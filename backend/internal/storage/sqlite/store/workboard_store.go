@@ -97,6 +97,71 @@ func (s *Store) ClaimReadyWorkCard(ctx context.Context, cardID, projectID string
 	return n > 0, nil
 }
 
+// AppendWorkCardEvent records an immutable work-card audit event.
+func (s *Store) AppendWorkCardEvent(ctx context.Context, event domain.WorkCardEvent) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	if err := s.qw.InsertWorkCardEvent(ctx, gen.InsertWorkCardEventParams{
+		ID:        event.ID,
+		CardID:    event.CardID,
+		ProjectID: event.ProjectID,
+		Kind:      event.Kind,
+		Payload:   event.Payload,
+		CreatedAt: event.CreatedAt.UnixMilli(),
+	}); err != nil {
+		return fmt.Errorf("insert work card event %s: %w", event.ID, err)
+	}
+	return nil
+}
+
+// PrepareHermesAnswerAttempt records a Hermes send attempt and, when requested,
+// consumes the non-sticky autonomous override in the same transaction. A
+// one-shot override is therefore never durably spent without an attempt that
+// owns the decision in its payload.
+func (s *Store) PrepareHermesAnswerAttempt(ctx context.Context, project domain.ProjectRecord, event domain.WorkCardEvent, consumeOneShot bool) error {
+	config, err := marshalProjectConfig(project.Config)
+	if err != nil {
+		return err
+	}
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return s.inTx(ctx, "prepare Hermes answer attempt", func(q *gen.Queries) error {
+		if consumeOneShot {
+			if err := upsertProject(ctx, q, project, config); err != nil {
+				return err
+			}
+		}
+		return q.InsertWorkCardEvent(ctx, gen.InsertWorkCardEventParams{
+			ID:        event.ID,
+			CardID:    event.CardID,
+			ProjectID: event.ProjectID,
+			Kind:      event.Kind,
+			Payload:   event.Payload,
+			CreatedAt: event.CreatedAt.UnixMilli(),
+		})
+	})
+}
+
+// ListWorkCardEvents returns a card's immutable audit facts in creation order.
+func (s *Store) ListWorkCardEvents(ctx context.Context, cardID string) ([]domain.WorkCardEvent, error) {
+	rows, err := s.qr.ListWorkCardEventsByCard(ctx, cardID)
+	if err != nil {
+		return nil, fmt.Errorf("list work card events for %s: %w", cardID, err)
+	}
+	events := make([]domain.WorkCardEvent, 0, len(rows))
+	for _, row := range rows {
+		events = append(events, domain.WorkCardEvent{
+			ID:        row.ID,
+			CardID:    row.CardID,
+			ProjectID: row.ProjectID,
+			Kind:      row.Kind,
+			Payload:   row.Payload,
+			CreatedAt: time.UnixMilli(row.CreatedAt).UTC(),
+		})
+	}
+	return events, nil
+}
+
 func workCardFromRow(row gen.WorkCard) (domain.WorkCard, error) {
 	var labels []string
 	if err := json.Unmarshal([]byte(row.LabelsJson), &labels); err != nil {

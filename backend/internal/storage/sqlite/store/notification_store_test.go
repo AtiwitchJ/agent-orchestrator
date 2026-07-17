@@ -9,7 +9,7 @@ import (
 	"github.com/modernagent/modern-agent/backend/internal/domain"
 )
 
-func TestNotificationStore_InsertListAndDedupe(t *testing.T) {
+func TestNotificationStore_NeedsInputRefreshesCurrentEpisode(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 	seedProject(t, s, "mer")
@@ -24,6 +24,7 @@ func TestNotificationStore_InsertListAndDedupe(t *testing.T) {
 		ProjectID: sess.ProjectID,
 		Type:      domain.NotificationNeedsInput,
 		Title:     "checkout-flow needs input",
+		Body:      "May I run the focused tests?",
 		Status:    domain.NotificationUnread,
 		CreatedAt: now,
 	}
@@ -36,16 +37,50 @@ func TestNotificationStore_InsertListAndDedupe(t *testing.T) {
 	}
 	dup := rec
 	dup.ID = "ntf_2"
-	_, inserted, err = s.CreateNotification(ctx, dup)
-	if err != nil || inserted {
-		t.Fatalf("duplicate inserted=%v err=%v, want false nil", inserted, err)
+	dup.Body = "May I run the full test suite?"
+	dup.CreatedAt = now.Add(time.Minute)
+	created, inserted, err = s.CreateNotification(ctx, dup)
+	if err != nil || !inserted {
+		t.Fatalf("refresh inserted=%v err=%v, want true nil", inserted, err)
+	}
+	if created.ID != rec.ID || created.Body != dup.Body || created.CreatedAt != dup.CreatedAt {
+		t.Fatalf("refreshed notification = %+v", created)
 	}
 	rows, err := s.ListUnreadNotifications(ctx, 10)
 	if err != nil {
 		t.Fatalf("ListUnreadNotifications: %v", err)
 	}
-	if len(rows) != 1 || rows[0].ID != "ntf_1" {
+	if len(rows) != 1 || rows[0].ID != "ntf_1" || rows[0].Body != dup.Body {
 		t.Fatalf("rows = %+v", rows)
+	}
+	recent, err := s.ListRecentNotifications(ctx, 10)
+	if err != nil {
+		t.Fatalf("ListRecentNotifications: %v", err)
+	}
+	if len(recent) != 1 || recent[0].ID != "ntf_1" || recent[0].Status != domain.NotificationUnread {
+		t.Fatalf("recent = %+v", recent)
+	}
+}
+
+func TestNotificationStore_OtherUnreadNotificationsRemainDeduped(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	seedProject(t, s, "mer")
+	sess, err := s.CreateSession(ctx, sampleRecord("mer"))
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	rec := domain.NotificationRecord{
+		ID: "ntf_1", SessionID: sess.ID, ProjectID: sess.ProjectID, PRURL: "https://github.com/o/r/pull/1",
+		Type: domain.NotificationReadyToMerge, Title: "ready", Status: domain.NotificationUnread, CreatedAt: time.Now().UTC(),
+	}
+	if _, inserted, err := s.CreateNotification(ctx, rec); err != nil || !inserted {
+		t.Fatalf("CreateNotification inserted=%v err=%v", inserted, err)
+	}
+	dup := rec
+	dup.ID = "ntf_2"
+	if _, inserted, err := s.CreateNotification(ctx, dup); err != nil || inserted {
+		t.Fatalf("duplicate inserted=%v err=%v, want false nil", inserted, err)
 	}
 }
 

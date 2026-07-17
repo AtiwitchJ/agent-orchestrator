@@ -21,6 +21,7 @@ func startWorkboardDispatcher(ctx context.Context, store *sqlite.Store, sessions
 		logger = slog.Default()
 	}
 	dispatcher := workboardsvc.NewDispatcher(workboardsvc.DispatchDeps{Store: store, Spawner: sessions})
+	answerer := workboardsvc.NewAnswerer(workboardsvc.AnswerDeps{Store: store, Sender: sessions})
 	return observe.StartPollLoop(ctx, workboardDispatchInterval, func(ctx context.Context) error {
 		projects, err := store.ListProjects(ctx)
 		if err != nil {
@@ -29,6 +30,9 @@ func startWorkboardDispatcher(ctx context.Context, store *sqlite.Store, sessions
 		for _, project := range projects {
 			if _, err := dispatcher.DispatchOnce(ctx, project.ID); err != nil {
 				logger.Warn("workboard dispatcher: project dispatch failed", "project", project.ID, "err", err)
+			}
+			if _, err := answerer.ReconcileProject(ctx, project.ID); err != nil {
+				logger.Warn("workboard answerer: project reconcile failed", "project", project.ID, "err", err)
 			}
 		}
 		return nil

@@ -44,3 +44,8 @@ WHERE work_cards.id = sqlc.arg(card_id)
 -- name: InsertWorkCardEvent :exec
 INSERT INTO work_card_events (id, card_id, project_id, kind, payload, created_at)
 VALUES (?, ?, ?, ?, ?, ?);
+
+-- name: ListWorkCardEventsByCard :many
+SELECT * FROM work_card_events
+WHERE card_id = ?
+ORDER BY created_at, id;

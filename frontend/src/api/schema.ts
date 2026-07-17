@@ -1385,6 +1385,8 @@ export interface components {
             session: components["schemas"]["ControllersSessionView"];
         };
         SetActivityRequest: {
+            /** @description Best-effort raw waiting-input detail from the agent hook. */
+            detail?: string;
             /**
              * @description Agent activity state reported by an agent hook.
              * @enum {string}

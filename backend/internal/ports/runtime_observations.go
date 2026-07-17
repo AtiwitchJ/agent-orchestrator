@@ -30,4 +30,7 @@ type ActivitySignal struct {
 	Valid     bool
 	State     domain.ActivityState
 	Timestamp time.Time
+	// Detail carries best-effort raw hook detail for a waiting-input signal.
+	// It is not activity state and must never affect lifecycle reduction.
+	Detail string
 }

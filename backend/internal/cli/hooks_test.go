@@ -55,6 +55,17 @@ func capturedState(t *testing.T, capture *activityCapture) string {
 	return req.State
 }
 
+func capturedDetail(t *testing.T, capture *activityCapture) string {
+	t.Helper()
+	var req struct {
+		Detail string `json:"detail"`
+	}
+	if err := json.Unmarshal([]byte(capture.body), &req); err != nil {
+		t.Fatalf("decode body: %v\nbody=%s", err, capture.body)
+	}
+	return req.Detail
+}
+
 func TestHooks_NotificationReportsWaitingInput(t *testing.T) {
 	t.Setenv("AO_SESSION_ID", "ao-7")
 	cfg := setConfigEnv(t)
@@ -73,6 +84,9 @@ func TestHooks_NotificationReportsWaitingInput(t *testing.T) {
 	}
 	if got := capturedState(t, capture); got != "waiting_input" {
 		t.Errorf("state = %q, want waiting_input", got)
+	}
+	if got := capturedDetail(t, capture); got != `{"notification_type":"idle_prompt"}` {
+		t.Errorf("detail = %q", got)
 	}
 }
 
@@ -128,6 +142,9 @@ func TestHooks_CodexPermissionRequestReportsWaitingInput(t *testing.T) {
 	if got := capturedState(t, capture); got != "waiting_input" {
 		t.Errorf("state = %q, want waiting_input", got)
 	}
+	if got := capturedDetail(t, capture); got != `{"tool_name":"Bash"}` {
+		t.Errorf("detail = %q", got)
+	}
 }
 
 func TestHooks_OpenCodeUserPromptReportsActive(t *testing.T) {
@@ -145,6 +162,9 @@ func TestHooks_OpenCodeUserPromptReportsActive(t *testing.T) {
 	}
 	if got := capturedState(t, capture); got != "active" {
 		t.Errorf("state = %q, want active", got)
+	}
+	if got := capturedDetail(t, capture); got != "" {
+		t.Errorf("detail = %q, want empty for non-waiting activity", got)
 	}
 }
 

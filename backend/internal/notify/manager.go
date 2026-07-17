@@ -18,7 +18,7 @@ type Store interface {
 	CreateNotification(ctx context.Context, rec domain.NotificationRecord) (domain.NotificationRecord, bool, error)
 }
 
-// Publisher pushes newly persisted notifications to live dashboard subscribers.
+// Publisher pushes persisted or refreshed notifications to live dashboard subscribers.
 type Publisher interface {
 	Publish(ctx context.Context, rec domain.NotificationRecord) error
 }
@@ -27,7 +27,7 @@ type Publisher interface {
 type Intent = ports.NotificationIntent
 
 // Manager validates lifecycle intents, enriches them into stored rows, persists
-// unread notifications, and publishes newly inserted rows to live subscribers.
+// unread notifications, and publishes newly created or refreshed rows to live subscribers.
 type Manager struct {
 	store     Store
 	publisher Publisher
@@ -56,7 +56,8 @@ func New(d Deps) *Manager {
 }
 
 // Notify stores one notification intent and publishes it after persistence.
-// Duplicate unread rows are treated as a clean no-op.
+// needs_input transitions refresh their durable detail; other duplicate unread
+// rows are treated as a clean no-op.
 func (m *Manager) Notify(ctx context.Context, intent Intent) error {
 	if m == nil || m.store == nil {
 		return errors.New("notify: store is required")
@@ -69,11 +70,11 @@ func (m *Manager) Notify(ctx context.Context, intent Intent) error {
 		return fmt.Errorf("notify enrich: %w", err)
 	}
 	rec.ID = m.newID()
-	created, inserted, err := m.store.CreateNotification(ctx, rec)
+	created, changed, err := m.store.CreateNotification(ctx, rec)
 	if err != nil {
 		return fmt.Errorf("notify store: %w", err)
 	}
-	if !inserted || m.publisher == nil {
+	if !changed || m.publisher == nil {
 		return nil
 	}
 	if err := m.publisher.Publish(ctx, created); err != nil {

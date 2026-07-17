@@ -98,13 +98,15 @@ afterEach(() => {
 });
 
 describe("notification cache helpers", () => {
-	it("merges unread notifications by id", () => {
+	it("upserts unread notifications by id", () => {
 		const qc = queryClient();
 
 		expect(mergeUnreadNotification(qc, notification())).toBe(true);
-		expect(mergeUnreadNotification(qc, notification())).toBe(false);
+		expect(mergeUnreadNotification(qc, notification({ body: "May I run the focused tests?", createdAt: "2026-06-16T10:01:00Z" }))).toBe(false);
 
-		expect(qc.getQueryData<NotificationDTO[]>(unreadNotificationsQueryKey)).toHaveLength(1);
+		expect(qc.getQueryData<NotificationDTO[]>(unreadNotificationsQueryKey)).toEqual([
+			expect.objectContaining({ id: "ntf_1", body: "May I run the focused tests?", createdAt: "2026-06-16T10:01:00Z" }),
+		]);
 	});
 });
 

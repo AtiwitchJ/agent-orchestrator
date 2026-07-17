@@ -15,6 +15,8 @@ type NotificationIntent struct {
 	ProjectID domain.ProjectID
 	PRURL     string
 	CreatedAt time.Time
+	// Detail is optional waiting-input context supplied by the agent hook.
+	Detail string
 
 	// Enrichment hints. These avoid storage reads on the hot path.
 	SessionDisplayName string

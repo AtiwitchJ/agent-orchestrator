@@ -88,6 +88,46 @@ func (q *Queries) GetUnreadNotificationByDedupe(ctx context.Context, arg GetUnre
 	return i, err
 }
 
+const listRecentNotifications = `-- name: ListRecentNotifications :many
+SELECT id, session_id, project_id, pr_url, type, title, body, status, created_at
+FROM notifications
+ORDER BY created_at DESC
+LIMIT ?
+`
+
+func (q *Queries) ListRecentNotifications(ctx context.Context, limit int64) ([]Notification, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentNotifications, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Notification{}
+	for rows.Next() {
+		var i Notification
+		if err := rows.Scan(
+			&i.ID,
+			&i.SessionID,
+			&i.ProjectID,
+			&i.PRURL,
+			&i.Type,
+			&i.Title,
+			&i.Body,
+			&i.Status,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUnreadNotifications = `-- name: ListUnreadNotifications :many
 SELECT id, session_id, project_id, pr_url, type, title, body, status, created_at
 FROM notifications
@@ -178,6 +218,42 @@ RETURNING id, session_id, project_id, pr_url, type, title, body, status, created
 
 func (q *Queries) MarkNotificationRead(ctx context.Context, id string) (Notification, error) {
 	row := q.db.QueryRowContext(ctx, markNotificationRead, id)
+	var i Notification
+	err := row.Scan(
+		&i.ID,
+		&i.SessionID,
+		&i.ProjectID,
+		&i.PRURL,
+		&i.Type,
+		&i.Title,
+		&i.Body,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const refreshUnreadNeedsInputNotification = `-- name: RefreshUnreadNeedsInputNotification :one
+UPDATE notifications
+SET title = ?, body = ?, created_at = ?
+WHERE id = ? AND status = 'unread'
+RETURNING id, session_id, project_id, pr_url, type, title, body, status, created_at
+`
+
+type RefreshUnreadNeedsInputNotificationParams struct {
+	Title     string
+	Body      string
+	CreatedAt time.Time
+	ID        string
+}
+
+func (q *Queries) RefreshUnreadNeedsInputNotification(ctx context.Context, arg RefreshUnreadNeedsInputNotificationParams) (Notification, error) {
+	row := q.db.QueryRowContext(ctx, refreshUnreadNeedsInputNotification,
+		arg.Title,
+		arg.Body,
+		arg.CreatedAt,
+		arg.ID,
+	)
 	var i Notification
 	err := row.Scan(
 		&i.ID,

@@ -183,6 +183,42 @@ func (q *Queries) InsertWorkCardEvent(ctx context.Context, arg InsertWorkCardEve
 	return err
 }
 
+const listWorkCardEventsByCard = `-- name: ListWorkCardEventsByCard :many
+SELECT id, card_id, project_id, kind, payload, created_at FROM work_card_events
+WHERE card_id = ?
+ORDER BY created_at, id
+`
+
+func (q *Queries) ListWorkCardEventsByCard(ctx context.Context, cardID string) ([]WorkCardEvent, error) {
+	rows, err := q.db.QueryContext(ctx, listWorkCardEventsByCard, cardID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WorkCardEvent{}
+	for rows.Next() {
+		var i WorkCardEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.CardID,
+			&i.ProjectID,
+			&i.Kind,
+			&i.Payload,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWorkCardsByProject = `-- name: ListWorkCardsByProject :many
 SELECT id, project_id, board_id, title, notes, priority, labels_json, status, scheduled_at, ready_at, position, target_path, repo_name, agent, session_id, waiting_for_input, paused_retarget, goal_version, superseded_by_card_id, created_at, updated_at FROM work_cards
 WHERE project_id = ? AND board_id = ?

@@ -3902,6 +3902,9 @@ components:
       type: object
     SetActivityRequest:
       properties:
+        detail:
+          description: Best-effort raw waiting-input detail from the agent hook.
+          type: string
         state:
           description: Agent activity state reported by an agent hook.
           enum:

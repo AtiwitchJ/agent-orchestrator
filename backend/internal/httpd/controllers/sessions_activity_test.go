@@ -45,7 +45,7 @@ func TestSessionsAPI_ActivityAppliesSignal(t *testing.T) {
 	rec := &fakeActivityRecorder{}
 	srv := newActivityTestServer(t, rec)
 
-	body, status, _ := doRequest(t, srv, "POST", "/api/v1/sessions/ao-1/activity", `{"state":"waiting_input"}`)
+	body, status, _ := doRequest(t, srv, "POST", "/api/v1/sessions/ao-1/activity", `{"state":"waiting_input","detail":"May I run tests?"}`)
 	if status != http.StatusOK {
 		t.Fatalf("activity = %d, want 200; body=%s", status, body)
 	}
@@ -63,6 +63,9 @@ func TestSessionsAPI_ActivityAppliesSignal(t *testing.T) {
 	}
 	if !rec.gotSignal.Valid || rec.gotSignal.State != domain.ActivityWaitingInput {
 		t.Fatalf("recorder signal = %#v", rec.gotSignal)
+	}
+	if rec.gotSignal.Detail != "May I run tests?" {
+		t.Fatalf("recorder detail = %q", rec.gotSignal.Detail)
 	}
 }
 

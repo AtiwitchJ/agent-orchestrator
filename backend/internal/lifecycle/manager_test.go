@@ -928,19 +928,19 @@ func TestActivity_WaitingInputTransitionEmitsNotification(t *testing.T) {
 	m.clock = func() time.Time { return now }
 	st.sessions["mer-1"] = domain.SessionRecord{ID: "mer-1", ProjectID: "mer", DisplayName: "checkout-flow", Activity: domain.Activity{State: domain.ActivityActive, LastActivityAt: now.Add(-time.Minute)}, FirstSignalAt: now.Add(-time.Minute)}
 
-	if err := m.ApplyActivitySignal(ctx, "mer-1", ports.ActivitySignal{Valid: true, State: domain.ActivityWaitingInput}); err != nil {
+	if err := m.ApplyActivitySignal(ctx, "mer-1", ports.ActivitySignal{Valid: true, State: domain.ActivityWaitingInput, Detail: "May I run tests?"}); err != nil {
 		t.Fatal(err)
 	}
 	if len(sink.intents) != 1 {
 		t.Fatalf("intents = %d, want 1", len(sink.intents))
 	}
 	intent := sink.intents[0]
-	if intent.Type != domain.NotificationNeedsInput || intent.SessionID != "mer-1" || intent.ProjectID != "mer" || intent.SessionDisplayName != "checkout-flow" {
+	if intent.Type != domain.NotificationNeedsInput || intent.SessionID != "mer-1" || intent.ProjectID != "mer" || intent.SessionDisplayName != "checkout-flow" || intent.Detail != "May I run tests?" {
 		t.Fatalf("intent = %+v", intent)
 	}
 }
 
-func TestActivity_WaitingInputSameStateDoesNotEmitNotification(t *testing.T) {
+func TestActivity_WaitingInputSameStateWithoutDetailDoesNotEmitNotification(t *testing.T) {
 	st := newFakeStore()
 	sink := &fakeNotificationSink{}
 	m := New(st, nil, WithNotificationSink(sink))
@@ -952,6 +952,27 @@ func TestActivity_WaitingInputSameStateDoesNotEmitNotification(t *testing.T) {
 	}
 	if len(sink.intents) != 0 {
 		t.Fatalf("same-state waiting_input emitted %+v", sink.intents)
+	}
+}
+
+func TestActivity_WaitingInputSameStateWithDetailRefreshesNotification(t *testing.T) {
+	st := newFakeStore()
+	sink := &fakeNotificationSink{}
+	m := New(st, nil, WithNotificationSink(sink))
+	now := time.Now()
+	st.sessions["mer-1"] = domain.SessionRecord{ID: "mer-1", ProjectID: "mer", DisplayName: "checkout-flow", Activity: domain.Activity{State: domain.ActivityWaitingInput, LastActivityAt: now}, FirstSignalAt: now}
+
+	if err := m.ApplyActivitySignal(ctx, "mer-1", ports.ActivitySignal{Valid: true, State: domain.ActivityWaitingInput, Detail: "May I run the focused tests?"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.intents) != 1 {
+		t.Fatalf("intents = %+v, want one detail refresh", sink.intents)
+	}
+	if got := sink.intents[0]; got.Detail != "May I run the focused tests?" || got.SessionDisplayName != "checkout-flow" {
+		t.Fatalf("intent = %+v", got)
+	}
+	if got := st.sessions["mer-1"]; got.UpdatedAt != (time.Time{}) {
+		t.Fatalf("same-state detail refresh rewrote session: %+v", got)
 	}
 }
 

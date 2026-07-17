@@ -16,8 +16,10 @@ import (
 
 var _ notificationsvc.Store = (*Store)(nil)
 
-// CreateNotification inserts one unread notification. It returns created=false
-// when the unread dedupe index already has a matching row.
+// CreateNotification inserts one unread notification. needs_input rows refresh
+// the existing unread row for the same session so live clients retain one
+// current item with its stable ID. Other notification types retain unread
+// dedupe behavior.
 func (s *Store) CreateNotification(ctx context.Context, rec domain.NotificationRecord) (domain.NotificationRecord, bool, error) {
 	if err := rec.Validate(); err != nil {
 		return domain.NotificationRecord{}, false, err
@@ -27,7 +29,19 @@ func (s *Store) CreateNotification(ctx context.Context, rec domain.NotificationR
 	if existing, ok, err := s.getUnreadNotificationByDedupe(ctx, rec); err != nil {
 		return domain.NotificationRecord{}, false, err
 	} else if ok {
-		return existing, false, nil
+		if rec.Type != domain.NotificationNeedsInput {
+			return existing, false, nil
+		}
+		row, err := s.qw.RefreshUnreadNeedsInputNotification(ctx, gen.RefreshUnreadNeedsInputNotificationParams{
+			Title:     rec.Title,
+			Body:      rec.Body,
+			CreatedAt: rec.CreatedAt,
+			ID:        existing.ID,
+		})
+		if err != nil {
+			return domain.NotificationRecord{}, false, fmt.Errorf("refresh needs-input notification %s: %w", existing.ID, err)
+		}
+		return notificationFromGen(row), true, nil
 	}
 	row, err := s.qw.CreateNotification(ctx, gen.CreateNotificationParams{
 		ID:        rec.ID,
@@ -51,6 +65,17 @@ func (s *Store) CreateNotification(ctx context.Context, rec domain.NotificationR
 		return domain.NotificationRecord{}, false, fmt.Errorf("create notification %s: %w", rec.ID, err)
 	}
 	return notificationFromGen(row), true, nil
+}
+
+// ListRecentNotifications returns notifications newest-first regardless of
+// acknowledgement status. Callers that derive current state must still apply
+// their own episode guards.
+func (s *Store) ListRecentNotifications(ctx context.Context, limit int) ([]domain.NotificationRecord, error) {
+	rows, err := s.qr.ListRecentNotifications(ctx, int64(limit))
+	if err != nil {
+		return nil, fmt.Errorf("list recent notifications: %w", err)
+	}
+	return notificationsFromGen(rows), nil
 }
 
 // ListUnreadNotifications returns unread notifications newest-first.

@@ -140,7 +140,21 @@ func (m *Manager) ApplyActivitySignal(ctx context.Context, id domain.SessionID, 
 	// first to ARRIVE may match the seeded state — e.g. a turn's "active"
 	// POST is lost and its Stop hook lands idle on the idle-seeded row.
 	if sameActivity(rec.Activity, act) && !rec.FirstSignalAt.IsZero() {
+		// Waiting-input hooks can repeat with newly available question detail.
+		// Keep the activity row a no-op, but allow that detail to refresh the
+		// current notification (and retry a previously failed notification write).
+		if rec.Activity.State == domain.ActivityWaitingInput && s.Detail != "" {
+			intent = &ports.NotificationIntent{
+				Type:               domain.NotificationNeedsInput,
+				SessionID:          rec.ID,
+				ProjectID:          rec.ProjectID,
+				CreatedAt:          timeOr(s.Timestamp, now),
+				Detail:             s.Detail,
+				SessionDisplayName: rec.DisplayName,
+			}
+		}
 		m.mu.Unlock()
+		m.emitNotification(ctx, intent)
 		return nil
 	}
 	next.Activity = act
@@ -161,6 +175,7 @@ func (m *Manager) ApplyActivitySignal(ctx context.Context, id domain.SessionID, 
 			SessionID:          next.ID,
 			ProjectID:          next.ProjectID,
 			CreatedAt:          next.Activity.LastActivityAt,
+			Detail:             s.Detail,
 			SessionDisplayName: next.DisplayName,
 		}
 	}

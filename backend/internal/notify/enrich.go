@@ -52,6 +52,9 @@ func titleForIntent(intent Intent) string {
 func bodyForIntent(intent Intent) string {
 	switch intent.Type {
 	case domain.NotificationNeedsInput:
+		if detail := strings.TrimSpace(intent.Detail); detail != "" {
+			return detail
+		}
 		return "The agent is waiting for your response."
 	case domain.NotificationReadyToMerge:
 		if s := sessionLabel(intent); s != "session" {

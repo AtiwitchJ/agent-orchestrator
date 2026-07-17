@@ -11,6 +11,12 @@ WHERE status = 'unread'
 ORDER BY created_at DESC
 LIMIT ?;
 
+-- name: ListRecentNotifications :many
+SELECT *
+FROM notifications
+ORDER BY created_at DESC
+LIMIT ?;
+
 -- name: MarkNotificationRead :one
 UPDATE notifications
 SET status = 'read'
@@ -28,3 +34,9 @@ SELECT *
 FROM notifications
 WHERE session_id = ? AND type = ? AND pr_url = ? AND status = 'unread'
 LIMIT 1;
+
+-- name: RefreshUnreadNeedsInputNotification :one
+UPDATE notifications
+SET title = ?, body = ?, created_at = ?
+WHERE id = ? AND status = 'unread'
+RETURNING *;

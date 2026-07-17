@@ -36,7 +36,8 @@ const (
 // POST /api/v1/sessions/{id}/activity. The CLI keeps its own copy so it need
 // not import httpd.
 type setActivityAPIRequest struct {
-	State string `json:"state"`
+	State  string `json:"state"`
+	Detail string `json:"detail,omitempty"`
 }
 
 // newHooksCommand builds the hidden `ao hooks <agent> <event>` command that
@@ -82,7 +83,14 @@ func (c *commandContext) runHook(ctx context.Context, agent, event string) error
 	}
 
 	path := "sessions/" + url.PathEscape(sessionID) + "/activity"
-	if err := c.postJSON(ctx, path, setActivityAPIRequest{State: string(state)}, nil); err != nil {
+	// Waiting-input hooks are the only activity callbacks whose native payload
+	// can explain what the worker is blocked on. Preserve that payload as
+	// best-effort detail; adapters still own state derivation above.
+	detail := ""
+	if state == "waiting_input" {
+		detail = strings.TrimSpace(string(payload))
+	}
+	if err := c.postJSON(ctx, path, setActivityAPIRequest{State: string(state), Detail: detail}, nil); err != nil {
 		// Surface the failure for diagnosis, but exit 0: a failed activity
 		// report must not disrupt the agent.
 		c.reportHookFailure(agent, event, sessionID, err)

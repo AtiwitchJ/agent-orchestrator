@@ -34,7 +34,7 @@ func TestManagerNotifyPersistsThenPublishes(t *testing.T) {
 	now := time.Date(2026, 6, 11, 10, 0, 0, 0, time.UTC)
 	mgr := New(Deps{Store: st, Publisher: hub, Clock: func() time.Time { return now }, NewID: func() string { return "ntf_1" }})
 
-	if err := mgr.Notify(context.Background(), Intent{Type: domain.NotificationNeedsInput, SessionID: "mer-1", ProjectID: "mer", SessionDisplayName: "checkout-flow"}); err != nil {
+	if err := mgr.Notify(context.Background(), Intent{Type: domain.NotificationNeedsInput, SessionID: "mer-1", ProjectID: "mer", SessionDisplayName: "checkout-flow", Detail: "May I run tests?"}); err != nil {
 		t.Fatalf("Notify: %v", err)
 	}
 	if len(st.rows) != 1 {
@@ -42,6 +42,9 @@ func TestManagerNotifyPersistsThenPublishes(t *testing.T) {
 	}
 	if got := st.rows[0]; got.ID != "ntf_1" || got.CreatedAt != now || got.Status != domain.NotificationUnread || got.Title != "checkout-flow needs input" {
 		t.Fatalf("stored notification = %+v", got)
+	}
+	if got := st.rows[0].Body; got != "May I run tests?" {
+		t.Fatalf("stored body = %q", got)
 	}
 	select {
 	case got := <-ch:
