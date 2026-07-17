@@ -121,6 +121,9 @@ func TestDispatchOnce(t *testing.T) {
 				if card.SessionID != "" {
 					t.Fatalf("failed card session_id = %q, want empty", card.SessionID)
 				}
+				if card.ReadyAt == nil || !card.ReadyAt.Equal(now.Add(-time.Hour)) {
+					t.Fatalf("failed card ready_at = %v, want original %v", card.ReadyAt, now.Add(-time.Hour))
+				}
 			}
 		})
 	}
@@ -143,6 +146,30 @@ func TestDispatchOnceSpawnsWorkerWithCardHarnessAndPrompt(t *testing.T) {
 	got := spawner.configs[0]
 	if got.ProjectID != "p1" || got.Kind != domain.KindWorker || got.Harness != domain.HarnessCodex || got.Prompt != "card title\n\ncard notes" || got.TargetPath != "/repo/services/api" {
 		t.Fatalf("spawn config = %#v", got)
+	}
+}
+
+func TestDispatchOnceDoesNotSpawnWhenDurableClaimFails(t *testing.T) {
+	now := time.Date(2026, time.July, 17, 9, 0, 0, 0, time.UTC)
+	claimErr := errors.New("database unavailable")
+	store := newDispatchStore(1, []domain.WorkCard{readyCard("card", domain.CardPriorityNormal, now)})
+	store.failClaimErr = claimErr
+	spawner := &dispatchSpawner{}
+	dispatcher := NewDispatcher(DispatchDeps{Store: store, Spawner: spawner, Clock: func() time.Time { return now }})
+
+	claimed, err := dispatcher.DispatchOnce(context.Background(), "p1")
+	if !errors.Is(err, claimErr) {
+		t.Fatalf("DispatchOnce error = %v, want %v", err, claimErr)
+	}
+	if len(claimed) != 0 {
+		t.Fatalf("claimed = %v, want none", claimed)
+	}
+	if got := spawner.cardIDs(); len(got) != 0 {
+		t.Fatalf("spawned cards = %v, want none", got)
+	}
+	card := store.cards["card"]
+	if card.Status != domain.CardStatusReady || card.SessionID != "" {
+		t.Fatalf("card after failed claim = %#v, want ready and unlinked", card)
 	}
 }
 
@@ -170,13 +197,12 @@ func TestDispatchOnceRollsBackSpawnWhenSessionLinkFails(t *testing.T) {
 	}
 }
 
-func TestDispatchOncePersistsLiveWorkerWhenRollbackFails(t *testing.T) {
+func TestDispatchOnceDurablyClaimsCardWhenSessionLinkAndRollbackFail(t *testing.T) {
 	now := time.Date(2026, time.July, 17, 9, 0, 0, 0, time.UTC)
 	linkErr := errors.New("database unavailable")
 	rollbackErr := errors.New("runtime teardown unavailable")
 	store := newDispatchStore(1, []domain.WorkCard{readyCard("card", domain.CardPriorityNormal, now)})
 	store.failLinkErr = linkErr
-	store.failLinkOnce = true
 	spawner := &dispatchSpawner{rollbackErr: rollbackErr}
 	dispatcher := NewDispatcher(DispatchDeps{Store: store, Spawner: spawner, Clock: func() time.Time { return now }})
 
@@ -184,18 +210,19 @@ func TestDispatchOncePersistsLiveWorkerWhenRollbackFails(t *testing.T) {
 	if !errors.Is(err, linkErr) || !errors.Is(err, rollbackErr) {
 		t.Fatalf("DispatchOnce error = %v, want joined link and rollback errors", err)
 	}
-	if !strings.Contains(err.Error(), "persisted live worker session") {
-		t.Fatalf("DispatchOnce error = %v, want durable recovery annotation", err)
+	if !strings.Contains(err.Error(), "remains durably claimed") {
+		t.Fatalf("DispatchOnce error = %v, want durable claim annotation", err)
 	}
 	if len(claimed) != 0 {
 		t.Fatalf("claimed = %v, want none", claimed)
 	}
 	card := store.cards["card"]
-	if card.Status != domain.CardStatusRunning || card.SessionID != "session-card title\n\ncard notes" {
-		t.Fatalf("card after failed rollback = %#v, want running and linked", card)
+	if card.Status != domain.CardStatusRunning || card.SessionID != "" {
+		t.Fatalf("card after failed rollback = %#v, want running and unlinked durable claim", card)
 	}
 
-	claimed, err = dispatcher.DispatchOnce(context.Background(), "p1")
+	newDispatcher := NewDispatcher(DispatchDeps{Store: store, Spawner: spawner, Clock: func() time.Time { return now }})
+	claimed, err = newDispatcher.DispatchOnce(context.Background(), "p1")
 	if err != nil {
 		t.Fatalf("second DispatchOnce: %v", err)
 	}
@@ -207,37 +234,11 @@ func TestDispatchOncePersistsLiveWorkerWhenRollbackFails(t *testing.T) {
 	}
 }
 
-func TestDispatchOnceQuarantinesLiveWorkerWhenRollbackAndPersistenceFail(t *testing.T) {
-	now := time.Date(2026, time.July, 17, 9, 0, 0, 0, time.UTC)
-	linkErr := errors.New("database unavailable")
-	rollbackErr := errors.New("runtime teardown unavailable")
-	store := newDispatchStore(1, []domain.WorkCard{readyCard("card", domain.CardPriorityNormal, now)})
-	store.failLinkErr = linkErr
-	spawner := &dispatchSpawner{rollbackErr: rollbackErr}
-	dispatcher := NewDispatcher(DispatchDeps{Store: store, Spawner: spawner, Clock: func() time.Time { return now }})
-
-	if _, err := dispatcher.DispatchOnce(context.Background(), "p1"); !errors.Is(err, linkErr) || !errors.Is(err, rollbackErr) {
-		t.Fatalf("first DispatchOnce error = %v, want joined link and rollback errors", err)
-	} else if !strings.Contains(err.Error(), "quarantined live worker") {
-		t.Fatalf("first DispatchOnce error = %v, want quarantine annotation", err)
-	}
-	if _, err := dispatcher.DispatchOnce(context.Background(), "p1"); !errors.Is(err, linkErr) {
-		t.Fatalf("second DispatchOnce error = %v, want reconciliation persistence error", err)
-	}
-	if got := spawner.cardIDs(); !reflect.DeepEqual(got, []string{"card"}) {
-		t.Fatalf("spawned cards = %v, want original spawn only", got)
-	}
-	card := store.cards["card"]
-	if card.Status != domain.CardStatusReady || card.SessionID != "" {
-		t.Fatalf("card after failed reconciliation = %#v, want ready and unlinked", card)
-	}
-}
-
 type dispatchStore struct {
 	project      domain.ProjectRecord
 	cards        map[string]domain.WorkCard
+	failClaimErr error
 	failLinkErr  error
-	failLinkOnce bool
 }
 
 func newDispatchStore(wipLimit int, cards []domain.WorkCard) *dispatchStore {
@@ -264,12 +265,11 @@ func (s *dispatchStore) ListWorkCards(_ context.Context, projectID, boardID stri
 }
 
 func (s *dispatchStore) UpdateWorkCard(_ context.Context, card domain.WorkCard) error {
+	if card.Status == domain.CardStatusRunning && card.SessionID == "" && s.failClaimErr != nil {
+		return s.failClaimErr
+	}
 	if card.SessionID != "" && s.failLinkErr != nil {
-		err := s.failLinkErr
-		if s.failLinkOnce {
-			s.failLinkErr = nil
-		}
-		return err
+		return s.failLinkErr
 	}
 	s.cards[card.ID] = card
 	return nil

@@ -51,16 +51,6 @@ type Dispatcher struct {
 	rollbacker SpawnRollbacker
 	clock      func() time.Time
 	locks      sync.Map // map[string]*sync.Mutex, one serialized dispatch per project
-	// quarantined tracks the rare case where spawning succeeded but every
-	// attempt to durably link (or roll back) the worker failed. It prevents a
-	// second local dispatch from spawning a duplicate until reconciliation can
-	// persist the live worker's session ID on the card.
-	quarantined sync.Map // map[string]quarantinedSession, keyed by card ID
-}
-
-type quarantinedSession struct {
-	projectID string
-	sessionID domain.SessionID
 }
 
 // NewDispatcher constructs a workboard dispatcher.
@@ -77,8 +67,9 @@ func NewDispatcher(d DispatchDeps) *Dispatcher {
 }
 
 // DispatchOnce promotes due scheduled cards, then claims ready cards in
-// priority/FIFO order until the project's WIP limit is reached. A card only
-// becomes running after its worker session has been created successfully.
+// priority/FIFO order until the project's WIP limit is reached. Before
+// starting a worker, it writes a durable running claim with no session ID so
+// a dispatcher created after a restart cannot select the same card again.
 func (d *Dispatcher) DispatchOnce(ctx context.Context, projectID string) ([]string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -103,9 +94,6 @@ func (d *Dispatcher) DispatchOnce(ctx context.Context, projectID string) ([]stri
 	cards, err := d.store.ListWorkCards(ctx, projectID, defaultBoardID)
 	if err != nil {
 		return nil, fmt.Errorf("list work cards for project %s: %w", projectID, err)
-	}
-	if err := d.reconcileQuarantined(ctx, projectID, cards); err != nil {
-		return nil, err
 	}
 
 	now := d.clock().UTC()
@@ -153,6 +141,13 @@ func (d *Dispatcher) DispatchOnce(ctx context.Context, projectID string) ([]stri
 		if running >= wipLimit {
 			break
 		}
+		card.Status = domain.CardStatusRunning
+		card.SessionID = ""
+		card.UpdatedAt = now
+		if err := d.store.UpdateWorkCard(ctx, card); err != nil {
+			return claimed, fmt.Errorf("persist dispatch claim for card %s: %w", card.ID, err)
+		}
+
 		session, err := d.spawner.Spawn(ctx, ports.SpawnConfig{
 			ProjectID:  domain.ProjectID(projectID),
 			Kind:       domain.KindWorker,
@@ -161,29 +156,40 @@ func (d *Dispatcher) DispatchOnce(ctx context.Context, projectID string) ([]stri
 			TargetPath: card.TargetPath,
 		})
 		if err != nil {
-			return claimed, fmt.Errorf("spawn worker for card %s: %w", card.ID, err)
+			spawnErr := fmt.Errorf("spawn worker for card %s: %w", card.ID, err)
+			card.Status = domain.CardStatusReady
+			card.SessionID = ""
+			card.UpdatedAt = now
+			if releaseErr := d.store.UpdateWorkCard(context.WithoutCancel(ctx), card); releaseErr != nil {
+				return claimed, errors.Join(
+					spawnErr,
+					fmt.Errorf("release dispatch claim for card %s: %w", card.ID, releaseErr),
+					fmt.Errorf("card %s remains durably claimed as running without a session ID", card.ID),
+				)
+			}
+			return claimed, spawnErr
 		}
 
-		card.Status = domain.CardStatusRunning
 		card.SessionID = string(session.ID)
 		card.UpdatedAt = now
 		if err := d.store.UpdateWorkCard(ctx, card); err != nil {
 			linkErr := fmt.Errorf("link worker session for card %s: %w", card.ID, err)
 			persistenceCtx := context.WithoutCancel(ctx)
 			if _, rollbackErr := d.rollbacker.RollbackSpawn(persistenceCtx, session.ID); rollbackErr != nil {
-				if persistErr := d.store.UpdateWorkCard(persistenceCtx, card); persistErr != nil {
-					d.quarantine(projectID, card.ID, session.ID)
-					return claimed, errors.Join(
-						linkErr,
-						fmt.Errorf("rollback session %s: %w", session.ID, rollbackErr),
-						fmt.Errorf("persist live worker session for card %s: %w", card.ID, persistErr),
-						fmt.Errorf("quarantined live worker session %s for card %s; card remains durably unlinked and duplicate dispatch is prevented until reconciliation succeeds", session.ID, card.ID),
-					)
-				}
 				return claimed, errors.Join(
 					linkErr,
 					fmt.Errorf("rollback session %s: %w", session.ID, rollbackErr),
-					fmt.Errorf("persisted live worker session %s for card %s after rollback failure", session.ID, card.ID),
+					fmt.Errorf("card %s remains durably claimed as running without a session ID", card.ID),
+				)
+			}
+			card.Status = domain.CardStatusReady
+			card.SessionID = ""
+			card.UpdatedAt = now
+			if releaseErr := d.store.UpdateWorkCard(persistenceCtx, card); releaseErr != nil {
+				return claimed, errors.Join(
+					linkErr,
+					fmt.Errorf("release dispatch claim for card %s after rollback: %w", card.ID, releaseErr),
+					fmt.Errorf("card %s remains durably claimed as running without a session ID", card.ID),
 				)
 			}
 			return claimed, linkErr
@@ -199,51 +205,6 @@ func (d *Dispatcher) lockProject(projectID string) func() {
 	lock := value.(*sync.Mutex)
 	lock.Lock()
 	return lock.Unlock
-}
-
-func (d *Dispatcher) quarantine(projectID, cardID string, sessionID domain.SessionID) {
-	d.quarantined.Store(cardID, quarantinedSession{projectID: projectID, sessionID: sessionID})
-}
-
-// reconcileQuarantined retries the durable link before evaluating candidates.
-// A failed retry remains an explicit error: the in-memory guard is only a
-// local duplicate-prevention backstop, never evidence of a persisted claim.
-func (d *Dispatcher) reconcileQuarantined(ctx context.Context, projectID string, cards []domain.WorkCard) error {
-	byID := make(map[string]int, len(cards))
-	for i := range cards {
-		byID[cards[i].ID] = i
-	}
-
-	var reconcileErr error
-	d.quarantined.Range(func(key, value any) bool {
-		cardID := key.(string)
-		claim := value.(quarantinedSession)
-		if claim.projectID != projectID {
-			return true
-		}
-		sessionID := claim.sessionID
-		index, ok := byID[cardID]
-		if !ok {
-			reconcileErr = errors.Join(reconcileErr, fmt.Errorf("reconcile quarantined live worker session %s: card %s is not on project %s default board", sessionID, cardID, projectID))
-			return true
-		}
-		card := cards[index]
-		if card.Status == domain.CardStatusRunning && card.SessionID == string(sessionID) {
-			d.quarantined.Delete(key)
-			return true
-		}
-		card.Status = domain.CardStatusRunning
-		card.SessionID = string(sessionID)
-		card.UpdatedAt = d.clock().UTC()
-		if err := d.store.UpdateWorkCard(context.WithoutCancel(ctx), card); err != nil {
-			reconcileErr = errors.Join(reconcileErr, fmt.Errorf("reconcile quarantined live worker session %s for card %s: %w", sessionID, cardID, err))
-			return true
-		}
-		cards[index] = card
-		d.quarantined.Delete(key)
-		return true
-	})
-	return reconcileErr
 }
 
 func cardReadyAt(card domain.WorkCard) time.Time {
