@@ -509,6 +509,12 @@ func TestSpawn_WorkspaceChildTargetMustExistInWorktree(t *testing.T) {
 	if rt.created != 0 {
 		t.Fatalf("runtime created = %d, want 0", rt.created)
 	}
+	if ws.destroyed != 1 {
+		t.Fatalf("workspace destroy calls = %d, want 1", ws.destroyed)
+	}
+	if _, ok := st.sessions["mer-1"]; ok {
+		t.Fatal("seed session row was not deleted")
+	}
 }
 
 // TestSpawn_StampsUTCTimestamps locks the default clock to UTC so spawn-stamped

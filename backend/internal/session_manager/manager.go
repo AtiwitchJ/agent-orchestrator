@@ -258,6 +258,17 @@ func (m *Manager) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 		m.rollbackSpawnSeedRow(ctx, id)
 		return domain.SessionRecord{}, fmt.Errorf("spawn %s: provision: %w", id, err)
 	}
+	launchPath, err := projectWorktreePath(ws.Path, project.Path, cfg.TargetPath)
+	if err != nil {
+		_ = m.workspace.Destroy(ctx, ws)
+		m.rollbackSpawnSeedRow(ctx, id)
+		return domain.SessionRecord{}, fmt.Errorf("spawn %s: target path: %w", id, err)
+	}
+	if err := validateLaunchPath(launchPath, cfg.TargetPath); err != nil {
+		_ = m.workspace.Destroy(ctx, ws)
+		m.rollbackSpawnSeedRow(ctx, id)
+		return domain.SessionRecord{}, fmt.Errorf("spawn %s: target path: %w", id, err)
+	}
 
 	agent, ok := m.agents.Agent(cfg.Harness)
 	if !ok {
@@ -269,17 +280,6 @@ func (m *Manager) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 		_ = m.workspace.Destroy(ctx, ws)
 		m.rollbackSpawnSeedRow(ctx, id)
 		return domain.SessionRecord{}, fmt.Errorf("spawn %s: %w", id, err)
-	}
-	launchPath, err := projectWorktreePath(ws.Path, project.Path, cfg.TargetPath)
-	if err != nil {
-		_ = m.workspace.Destroy(ctx, ws)
-		m.rollbackSpawnSeedRow(ctx, id)
-		return domain.SessionRecord{}, fmt.Errorf("spawn %s: target path: %w", id, err)
-	}
-	if err := validateLaunchPath(launchPath, cfg.TargetPath); err != nil {
-		_ = m.workspace.Destroy(ctx, ws)
-		m.rollbackSpawnSeedRow(ctx, id)
-		return domain.SessionRecord{}, fmt.Errorf("spawn %s: target path: %w", id, err)
 	}
 	agentConfig := effectiveAgentConfig(cfg.Kind, project.Config)
 	argv, err := agent.GetLaunchCommand(ctx, ports.LaunchConfig{
