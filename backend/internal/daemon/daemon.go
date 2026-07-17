@@ -143,6 +143,7 @@ func Run() error {
 		return fmt.Errorf("wire session service: %w", err)
 	}
 	lcStack.trackerDone = startTrackerIntake(ctx, store, sessionSvc, log)
+	workboardDone := startWorkboardDispatcher(ctx, store, sessionSvc, log)
 	previewDone := preview.NewPoller(store, sessionSvc, "http://"+cfg.Addr(), preview.PollerConfig{Logger: log}).Start(ctx)
 
 	// stallmon watches for worker sessions whose activity_state has claimed
@@ -197,6 +198,7 @@ func Run() error {
 	})
 	if err != nil {
 		stop()
+		<-workboardDone
 		<-previewDone
 		<-stallDone
 		<-heartbeatDone
@@ -245,6 +247,7 @@ func Run() error {
 	// via defer) avoids the LIFO trap where a Stop() that blocks on ctx-cancel
 	// runs before the cancel: a non-signal exit path would hang otherwise.
 	stop()
+	<-workboardDone
 	<-previewDone
 	<-stallDone
 	<-heartbeatDone
