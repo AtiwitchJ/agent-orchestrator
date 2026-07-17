@@ -3,9 +3,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkCard as WorkboardCard } from "../hooks/useWorkboardQuery";
 
-const { postMock, useWorkboardCardsMock } = vi.hoisted(() => ({
+const { postMock, useWorkboardCardsMock, useWorkspaceQueryMock } = vi.hoisted(() => ({
 	postMock: vi.fn(),
 	useWorkboardCardsMock: vi.fn(),
+	useWorkspaceQueryMock: vi.fn(),
 }));
 
 vi.mock("../hooks/useWorkboardQuery", () => ({
@@ -17,6 +18,10 @@ vi.mock("../lib/api-client", () => ({
 	apiClient: { POST: (...args: unknown[]) => postMock(...args) },
 	apiErrorMessage: () => "Request failed",
 }));
+
+vi.mock("../hooks/useWorkspaceQuery", () => ({ useWorkspaceQuery: (...args: unknown[]) => useWorkspaceQueryMock(...args) }));
+vi.mock("../lib/shell-context", () => ({ useShell: () => ({ daemonStatus: { state: "ready" } }) }));
+vi.mock("./TerminalPane", () => ({ TerminalPane: () => <div>live terminal preview</div> }));
 
 import { Workboard } from "./Workboard";
 
@@ -39,12 +44,17 @@ const card: WorkboardCard = {
 	updatedAt: "2026-01-01T00:00:00Z",
 };
 
-function renderBoard() {
-	render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workboard projectId="proj-1" /></QueryClientProvider>);
+function renderBoard(onShowSessions?: () => void) {
+	render(
+		<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+			<Workboard onShowSessions={onShowSessions} projectId="proj-1" />
+		</QueryClientProvider>,
+	);
 }
 
 beforeEach(() => {
 	useWorkboardCardsMock.mockReset().mockReturnValue({ data: [card], isError: false });
+	useWorkspaceQueryMock.mockReset().mockReturnValue({ data: [] });
 	postMock.mockReset().mockResolvedValue({ data: { ...card, status: "ready" }, error: undefined });
 });
 
@@ -85,5 +95,47 @@ describe("Workboard", () => {
 		}));
 		expect(await screen.findByText("Moved card to Backlog.")).toBeInTheDocument();
 		expect(workCard).toHaveClass("motion-reduce:transition-none");
+	});
+
+	it("opens a live terminal preview for a selected running card", () => {
+		const runningCard = { ...card, status: "running" as const, sessionId: "session-1" };
+		useWorkboardCardsMock.mockReturnValue({ data: [runningCard], isError: false });
+		useWorkspaceQueryMock.mockReturnValue({
+			data: [{ id: "proj-1", name: "Project", path: "/repo/project", sessions: [{
+				id: "session-1",
+				workspaceId: "proj-1",
+				workspaceName: "Project",
+				title: "Repair diagnostics",
+				provider: "codex",
+				branch: "session/session-1",
+				status: "working",
+				updatedAt: "2026-01-01T00:00:00Z",
+				prs: [],
+			}] }],
+		});
+
+		renderBoard();
+		fireEvent.click(screen.getByRole("article", { name: /Repair diagnostics/i }));
+
+		expect(screen.getByRole("complementary", { name: /Focus panel for Repair diagnostics/i })).toBeInTheDocument();
+		expect(screen.getByText("live terminal preview")).toBeInTheDocument();
+	});
+
+	it("keeps non-focused cards off the live terminal and offers the fallback terminal action", async () => {
+		const onShowSessions = vi.fn();
+		const linkedCard = { ...card, status: "review" as const, sessionId: "session-1" };
+		useWorkboardCardsMock.mockReturnValue({ data: [linkedCard], isError: false });
+
+		renderBoard(onShowSessions);
+
+		expect(screen.queryByText("live terminal preview")).not.toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole("article", { name: /Repair diagnostics/i }));
+
+		expect(screen.queryByText("live terminal preview")).not.toBeInTheDocument();
+		await waitFor(() => expect(screen.getByRole("button", { name: "Open terminal" })).toBeInTheDocument());
+
+		fireEvent.click(screen.getByRole("button", { name: "Open terminal" }));
+		expect(onShowSessions).toHaveBeenCalledTimes(1);
 	});
 });

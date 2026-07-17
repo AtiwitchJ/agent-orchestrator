@@ -1,3 +1,4 @@
+import { Terminal } from "lucide-react";
 import type { DragEvent, KeyboardEvent } from "react";
 import { cn } from "../lib/utils";
 import type { WorkCard as WorkboardCard } from "../hooks/useWorkboardQuery";
@@ -13,10 +14,14 @@ export function WorkCard({
 	card,
 	onDragStart,
 	onMove,
+	onFocus,
+	selected = false,
 }: {
 	card: WorkboardCard;
 	onDragStart: (cardId: string) => void;
 	onMove: (direction: "previous" | "next") => void;
+	onFocus: (card: WorkboardCard) => void;
+	selected?: boolean;
 }) {
 	const priority = PRIORITY[card.priority];
 	const handleDragStart = (event: DragEvent<HTMLElement>) => {
@@ -35,10 +40,12 @@ export function WorkCard({
 			aria-describedby="workboard-keyboard-help"
 			aria-keyshortcuts="ArrowLeft ArrowRight"
 			aria-label={`${card.title}, ${priority.label} priority`}
-			className="group cursor-grab rounded-[7px] border border-border bg-surface text-left shadow-[0_1px_0_rgb(0_0_0_/_0.18)] transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-weak active:cursor-grabbing motion-reduce:transition-none"
+			className={cn("group cursor-grab rounded-[7px] border bg-surface text-left shadow-[0_1px_0_rgb(0_0_0_/_0.18)] transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-weak active:cursor-grabbing motion-reduce:transition-none", selected ? "border-accent ring-1 ring-accent/30" : "border-border")}
 			draggable
 			onDragStart={handleDragStart}
 			onKeyDown={handleKeyDown}
+			onClick={() => onFocus(card)}
+			onFocus={() => onFocus(card)}
 			tabIndex={0}
 		>
 			<div className="flex items-center gap-2 px-3 pb-2 pt-2.5">
@@ -60,6 +67,12 @@ export function WorkCard({
 					{card.targetPath.split("/").filter(Boolean).at(-1) || card.targetPath}
 				</span>
 			</div>
+			{card.sessionId ? (
+				<div className="flex items-center gap-1.5 border-t border-border px-3 py-1.5 font-mono text-[9.5px] text-accent">
+					<Terminal className="size-3" aria-hidden="true" />
+					<span>{card.status === "running" ? "Live session" : "Session linked"}</span>
+				</div>
+			) : null}
 		</article>
 	);
 }

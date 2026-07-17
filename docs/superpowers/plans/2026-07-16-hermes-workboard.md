@@ -594,8 +594,8 @@ Expected: PASS
 - While `CountRunning < WIPLimit`, claim next: set `running`, spawn worker via existing `session.Service.Spawn` with `Harness=card.Agent`, `Prompt=title+"\n\n"+notes`, record `session_id`
 - Skip cards with `PausedRetarget`
 
-- [ ] TDD: table test for ordering + WIP cap with fake spawn
-- [ ] Commit: `feat(workboard): claim ready cards under WIP and spawn workers`
+- [x] TDD: table test for ordering + WIP cap with fake spawn
+- [x] Commit: `feat(workboard): claim ready cards under WIP and spawn workers`
 
 ### Task 9: Force Hermes orchestrator for workboard projects
 
@@ -603,7 +603,7 @@ Expected: PASS
 - Modify project settings UI + `spawn-orchestrator.ts` defaults when workboard enabled
 - Optional: on first workboard open, if no orch, spawn with hermes
 
-- [ ] Commit: `feat(workboard): prefer hermes as project orchestrator`
+- [x] Commit: `feat(workboard): prefer hermes as project orchestrator`
 
 ### Task 10: Card focus panel + preview
 
@@ -611,7 +611,7 @@ Expected: PASS
 - `WorkCardFocusPanel.tsx` — reuse `TerminalPane`/`useTerminalSession` when `card.sessionId` set
 - Card preview: poll last N lines or lightweight snapshot endpoint if needed; v1 may show status + “Open terminal” until snapshot exists — **prefer** attaching a read-only mux consumer throttled to 2fps for the focused card only; non-focused cards show activity badge + last event
 
-- [ ] Commit: `feat(ui): live terminal focus panel for running work cards`
+- [x] Commit: `feat(ui): live terminal focus panel for running work cards`
 
 ---
 

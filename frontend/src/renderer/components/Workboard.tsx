@@ -8,7 +8,11 @@ import { cn } from "../lib/utils";
 import { CreateWorkCardDialog } from "./CreateWorkCardDialog";
 import { DashboardSubhead } from "./DashboardSubhead";
 import { WorkCard } from "./WorkCard";
+import { WorkCardFocusPanel } from "./WorkCardFocusPanel";
 import { Button } from "./ui/button";
+import { useWorkspaceQuery } from "../hooks/useWorkspaceQuery";
+import { useShell } from "../lib/shell-context";
+import { useUiStore } from "../stores/ui-store";
 
 type CardStatus = WorkboardCard["status"];
 type MoveWorkCardRequest = components["schemas"]["MoveWorkCardRequest"];
@@ -28,6 +32,10 @@ export const WORKBOARD_COLUMNS: { status: CardStatus; label: string; rail: strin
 export function Workboard({ projectId, onShowSessions }: { projectId: string; onShowSessions?: () => void }) {
 	const queryClient = useQueryClient();
 	const cardsQuery = useWorkboardCards(projectId);
+	const workspaceQuery = useWorkspaceQuery();
+	const { daemonStatus } = useShell();
+	const theme = useUiStore((state) => state.theme);
+	const [focusedCardId, setFocusedCardId] = useState<string>();
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 	const [draggedCardId, setDraggedCardId] = useState<string>();
 	const [moveError, setMoveError] = useState<string>();
@@ -69,6 +77,10 @@ export function Workboard({ projectId, onShowSessions }: { projectId: string; on
 		if (!destination) return;
 		moveCardTo(card.id, destination.status, (cardsByStatus.get(destination.status) ?? []).length);
 	};
+	const focusedCard = (cardsQuery.data ?? []).find((card) => card.id === focusedCardId);
+	const focusedSession = focusedCard?.sessionId
+		? workspaceQuery.data?.flatMap((workspace) => workspace.sessions).find((session) => session.id === focusedCard.sessionId)
+		: undefined;
 
 	return (
 		<div className="flex h-full min-h-0 flex-col bg-background text-foreground">
@@ -78,22 +90,29 @@ export function Workboard({ projectId, onShowSessions }: { projectId: string; on
 				actions={<><Button onClick={() => setIsCreateOpen(true)} size="sm"><Plus className="size-3.5" aria-hidden="true" />Create card</Button>{onShowSessions ? <Button onClick={onShowSessions} size="sm" variant="ghost">Sessions</Button> : null}</>}
 			/>
 			<p className="sr-only" id="workboard-keyboard-help">Press Left or Right Arrow to move the focused card between columns.</p>
-			<div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden p-[18px]">
-				{cardsQuery.isError ? <p className="py-10 text-center text-[12px] text-passive">Could not load workboard.</p> : (
-					<div className="grid h-full min-w-[1540px] grid-cols-9 gap-2">
-						{WORKBOARD_COLUMNS.map((column) => {
-							const cards = cardsByStatus.get(column.status) ?? [];
-							return <section aria-label={`${column.label} column, ${cards.length} cards`} className={cn("relative flex min-w-0 flex-col overflow-hidden rounded-[10px] bg-[var(--kanban-column-bg)]")} key={column.status} onDragOver={(event) => event.preventDefault()} onDrop={(event) => handleDrop(event, column.status, cards.length)}>
-								<div className="absolute inset-y-0 left-0 w-[2px]" style={{ background: column.rail }} />
-								<div className="flex shrink-0 items-center gap-2 px-3 pb-2.5 pt-3">
-									<span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{column.label}</span>
-									<span className="ml-auto font-mono text-[10px] text-passive">{cards.length}</span>
-								</div>
-								<div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3"><div className="flex flex-col gap-2">{cards.map((card) => <WorkCard card={card} key={card.id} onDragStart={setDraggedCardId} onMove={(direction) => moveFocusedCard(card, direction)} />)}</div></div>
-							</section>;
-						})}
-					</div>
-				)}
+			<div className="flex min-h-0 flex-1">
+				<div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden p-[18px]">
+					{cardsQuery.isError ? <p className="py-10 text-center text-[12px] text-passive">Could not load workboard.</p> : (
+						<div className="grid h-full min-w-[1540px] grid-cols-9 gap-2">
+							{WORKBOARD_COLUMNS.map((column) => {
+								const cards = cardsByStatus.get(column.status) ?? [];
+								return <section aria-label={`${column.label} column, ${cards.length} cards`} className={cn("relative flex min-w-0 flex-col overflow-hidden rounded-[10px] bg-[var(--kanban-column-bg)]")} key={column.status} onDragOver={(event) => event.preventDefault()} onDrop={(event) => handleDrop(event, column.status, cards.length)}>
+									<div className="absolute inset-y-0 left-0 w-[2px]" style={{ background: column.rail }} />
+									<div className="flex shrink-0 items-center gap-2 px-3 pb-2.5 pt-3">
+										<span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{column.label}</span>
+										<span className="ml-auto font-mono text-[10px] text-passive">{cards.length}</span>
+									</div>
+									<div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+										<div className="flex flex-col gap-2">
+											{cards.map((card) => <WorkCard card={card} key={card.id} onDragStart={setDraggedCardId} onMove={(direction) => moveFocusedCard(card, direction)} onFocus={(focused) => setFocusedCardId(focused.id)} selected={card.id === focusedCardId} />)}
+										</div>
+									</div>
+								</section>;
+							})}
+						</div>
+					)}
+				</div>
+				{focusedCard ? <WorkCardFocusPanel card={focusedCard} session={focusedSession} theme={theme} daemonReady={daemonStatus.state === "ready"} onClose={() => setFocusedCardId(undefined)} onShowSessions={onShowSessions} /> : null}
 			</div>
 			{moveError ? <p className="px-[18px] pb-3 text-[12px] text-destructive" role="alert">{moveError}</p> : null}
 			{moveAnnouncement ? <p aria-live="polite" className="sr-only">{moveAnnouncement}</p> : null}
