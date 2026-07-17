@@ -10,6 +10,39 @@ import (
 	"database/sql"
 )
 
+const claimReadyWorkCard = `-- name: ClaimReadyWorkCard :execrows
+UPDATE work_cards
+SET status = 'running', session_id = '', updated_at = ?1
+WHERE work_cards.id = ?2
+  AND work_cards.project_id = ?3
+  AND work_cards.status = 'ready'
+  AND work_cards.paused_retarget = 0
+  AND (
+    SELECT COUNT(*) FROM work_cards AS running_cards
+    WHERE running_cards.project_id = ?3 AND running_cards.status = 'running'
+  ) < CAST(?4 AS INTEGER)
+`
+
+type ClaimReadyWorkCardParams struct {
+	UpdatedAt int64
+	CardID    string
+	ProjectID string
+	WipLimit  int64
+}
+
+func (q *Queries) ClaimReadyWorkCard(ctx context.Context, arg ClaimReadyWorkCardParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, claimReadyWorkCard,
+		arg.UpdatedAt,
+		arg.CardID,
+		arg.ProjectID,
+		arg.WipLimit,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const countRunningCards = `-- name: CountRunningCards :one
 SELECT COUNT(*) FROM work_cards
 WHERE project_id = ? AND status = 'running'

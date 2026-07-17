@@ -30,16 +30,16 @@ SELECT COUNT(*) FROM work_cards
 WHERE project_id = ? AND status = 'running';
 
 -- name: ClaimReadyWorkCard :execrows
-UPDATE work_cards AS card
+UPDATE work_cards
 SET status = 'running', session_id = '', updated_at = sqlc.arg(updated_at)
-WHERE card.id = sqlc.arg(card_id)
-  AND card.project_id = sqlc.arg(project_id)
-  AND card.status = 'ready'
-  AND card.paused_retarget = 0
+WHERE work_cards.id = sqlc.arg(card_id)
+  AND work_cards.project_id = sqlc.arg(project_id)
+  AND work_cards.status = 'ready'
+  AND work_cards.paused_retarget = 0
   AND (
     SELECT COUNT(*) FROM work_cards AS running_cards
     WHERE running_cards.project_id = sqlc.arg(project_id) AND running_cards.status = 'running'
-  ) < sqlc.arg(wip_limit);
+  ) < CAST(sqlc.arg(wip_limit) AS INTEGER);
 
 -- name: InsertWorkCardEvent :exec
 INSERT INTO work_card_events (id, card_id, project_id, kind, payload, created_at)

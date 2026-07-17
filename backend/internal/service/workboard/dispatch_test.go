@@ -198,7 +198,7 @@ func TestDispatchOnce_TwoDispatchersAtomicallyRespectWIPLimit(t *testing.T) {
 	}
 
 	barrier := &listBarrierStore{Store: store, arrived: make(chan struct{}, 2), release: make(chan struct{})}
-	spawner := &dispatchSpawner{}
+	spawner := &dispatchSpawner{sessionStore: store}
 	dispatcherA := NewDispatcher(DispatchDeps{Store: barrier, Spawner: spawner, Clock: func() time.Time { return now }})
 	dispatcherB := NewDispatcher(DispatchDeps{Store: barrier, Spawner: spawner, Clock: func() time.Time { return now }})
 	type result struct {
@@ -206,8 +206,14 @@ func TestDispatchOnce_TwoDispatchersAtomicallyRespectWIPLimit(t *testing.T) {
 		err     error
 	}
 	results := make(chan result, 2)
-	go func() { claimed, err := dispatcherA.DispatchOnce(context.Background(), "p1"); results <- result{claimed, err} }()
-	go func() { claimed, err := dispatcherB.DispatchOnce(context.Background(), "p1"); results <- result{claimed, err} }()
+	go func() {
+		claimed, err := dispatcherA.DispatchOnce(context.Background(), "p1")
+		results <- result{claimed, err}
+	}()
+	go func() {
+		claimed, err := dispatcherB.DispatchOnce(context.Background(), "p1")
+		results <- result{claimed, err}
+	}()
 	<-barrier.arrived
 	<-barrier.arrived
 	close(barrier.release)
@@ -373,8 +379,8 @@ func (s *dispatchStore) ClaimReadyWorkCard(_ context.Context, cardID, projectID 
 
 type listBarrierStore struct {
 	*sqlite.Store
-	arrived chan<- struct{}
-	release <-chan struct{}
+	arrived chan struct{}
+	release chan struct{}
 }
 
 func (s *listBarrierStore) ListWorkCards(ctx context.Context, projectID, boardID string) ([]domain.WorkCard, error) {
@@ -388,11 +394,12 @@ func (s *listBarrierStore) ListWorkCards(ctx context.Context, projectID, boardID
 }
 
 type dispatchSpawner struct {
-	err         error
-	rollbackErr error
-	configs     []ports.SpawnConfig
-	rollbackIDs []domain.SessionID
-	mu          sync.Mutex
+	err          error
+	rollbackErr  error
+	sessionStore *sqlite.Store
+	configs      []ports.SpawnConfig
+	rollbackIDs  []domain.SessionID
+	mu           sync.Mutex
 }
 
 func (s *dispatchSpawner) Spawn(_ context.Context, cfg ports.SpawnConfig) (domain.Session, error) {
@@ -401,6 +408,21 @@ func (s *dispatchSpawner) Spawn(_ context.Context, cfg ports.SpawnConfig) (domai
 	s.configs = append(s.configs, cfg)
 	if s.err != nil {
 		return domain.Session{}, s.err
+	}
+	if s.sessionStore != nil {
+		now := time.Now().UTC().Truncate(time.Second)
+		rec, err := s.sessionStore.CreateSession(context.Background(), domain.SessionRecord{
+			ProjectID: cfg.ProjectID,
+			Kind:      cfg.Kind,
+			Harness:   cfg.Harness,
+			Activity:  domain.Activity{State: domain.ActivityActive, LastActivityAt: now},
+			CreatedAt: now,
+			UpdatedAt: now,
+		})
+		if err != nil {
+			return domain.Session{}, err
+		}
+		return domain.Session{SessionRecord: rec}, nil
 	}
 	return domain.Session{SessionRecord: domain.SessionRecord{ID: domain.SessionID("session-" + cfg.Prompt)}}, nil
 }
