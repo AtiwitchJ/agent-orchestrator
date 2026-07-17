@@ -1,0 +1,5 @@
+./attachment.go
+./doc.go
+./manager.go
+./outputpulse.go
+./protocol.go

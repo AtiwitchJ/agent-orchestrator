@@ -1,0 +1,5 @@
+./activity.go
+./auth.go
+./copilot.go
+./hooks.go
+./install.go

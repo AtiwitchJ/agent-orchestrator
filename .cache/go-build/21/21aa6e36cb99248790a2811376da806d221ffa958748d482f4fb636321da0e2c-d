@@ -1,0 +1,4 @@
+./config.go
+./importer.go
+./paths.go
+./project.go

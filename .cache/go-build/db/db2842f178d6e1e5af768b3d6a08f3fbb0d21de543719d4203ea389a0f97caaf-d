@@ -1,0 +1,4 @@
+./activity.go
+./hooks.go
+./install.go
+./opencode.go

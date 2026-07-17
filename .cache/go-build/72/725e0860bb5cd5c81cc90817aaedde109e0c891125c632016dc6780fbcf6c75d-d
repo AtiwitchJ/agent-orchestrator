@@ -1,0 +1,3 @@
+./enrich.go
+./hub.go
+./manager.go

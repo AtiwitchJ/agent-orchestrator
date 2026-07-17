@@ -1,0 +1,13 @@
+./cdc_wiring.go
+./daemon.go
+./deliverable_wiring.go
+./lifecycle_wiring.go
+./policy_wiring.go
+./scm_wiring.go
+./stale.go
+./telemetry_wiring.go
+./tracker_intake_wiring.go
+./workboard_wiring.go
+./stale_test.go
+./telemetry_wiring_test.go
+./wiring_test.go

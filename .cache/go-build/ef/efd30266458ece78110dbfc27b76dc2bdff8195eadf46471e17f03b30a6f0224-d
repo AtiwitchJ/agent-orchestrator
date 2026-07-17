@@ -1,0 +1,4 @@
+./fanout.go
+./localsqlite.go
+./noop.go
+./posthog.go

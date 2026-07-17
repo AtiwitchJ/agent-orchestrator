@@ -1,0 +1,5 @@
+./auth.go
+./client.go
+./doc.go
+./observer_provider.go
+./provider.go

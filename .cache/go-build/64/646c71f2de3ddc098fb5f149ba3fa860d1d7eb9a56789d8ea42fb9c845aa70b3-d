@@ -1,0 +1,5 @@
+./activity.go
+./auth.go
+./hermes.go
+./hooks.go
+./install.go

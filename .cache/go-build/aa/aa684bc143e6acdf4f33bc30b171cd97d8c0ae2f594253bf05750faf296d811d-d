@@ -1,0 +1,11 @@
+./attach.go
+./client.go
+./host.go
+./host_conpty_other.go
+./host_main.go
+./pidalive_unix.go
+./proto.go
+./ring.go
+./runtime.go
+./spawn.go
+./spawn_other.go

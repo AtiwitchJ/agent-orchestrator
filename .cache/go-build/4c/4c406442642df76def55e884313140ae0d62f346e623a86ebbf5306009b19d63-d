@@ -1,0 +1,5 @@
+./activity.go
+./auth.go
+./droid.go
+./hooks.go
+./install.go
