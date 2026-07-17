@@ -5,12 +5,14 @@ import (
 	"errors"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/modernagent/modern-agent/backend/internal/domain"
 	"github.com/modernagent/modern-agent/backend/internal/ports"
 	sessionsvc "github.com/modernagent/modern-agent/backend/internal/service/session"
+	"github.com/modernagent/modern-agent/backend/internal/storage/sqlite"
 )
 
 func TestDispatchOnce(t *testing.T) {
@@ -173,6 +175,72 @@ func TestDispatchOnceDoesNotSpawnWhenDurableClaimFails(t *testing.T) {
 	}
 }
 
+func TestDispatchOnce_TwoDispatchersAtomicallyRespectWIPLimit(t *testing.T) {
+	now := time.Date(2026, time.July, 17, 9, 0, 0, 0, time.UTC)
+	store, err := sqlite.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	if err := store.UpsertProject(context.Background(), domain.ProjectRecord{
+		ID: "p1", Path: t.TempDir(), RegisteredAt: now,
+		Config: domain.ProjectConfig{Workboard: domain.WorkboardConfig{WIPLimit: 1}},
+	}); err != nil {
+		t.Fatalf("seed project: %v", err)
+	}
+	for _, card := range []domain.WorkCard{
+		readyCard("first", domain.CardPriorityHigh, now.Add(-time.Hour)),
+		readyCard("second", domain.CardPriorityNormal, now.Add(-time.Hour)),
+	} {
+		if err := store.CreateWorkCard(context.Background(), card); err != nil {
+			t.Fatalf("seed card %s: %v", card.ID, err)
+		}
+	}
+
+	barrier := &listBarrierStore{Store: store, arrived: make(chan struct{}, 2), release: make(chan struct{})}
+	spawner := &dispatchSpawner{}
+	dispatcherA := NewDispatcher(DispatchDeps{Store: barrier, Spawner: spawner, Clock: func() time.Time { return now }})
+	dispatcherB := NewDispatcher(DispatchDeps{Store: barrier, Spawner: spawner, Clock: func() time.Time { return now }})
+	type result struct {
+		claimed []string
+		err     error
+	}
+	results := make(chan result, 2)
+	go func() { claimed, err := dispatcherA.DispatchOnce(context.Background(), "p1"); results <- result{claimed, err} }()
+	go func() { claimed, err := dispatcherB.DispatchOnce(context.Background(), "p1"); results <- result{claimed, err} }()
+	<-barrier.arrived
+	<-barrier.arrived
+	close(barrier.release)
+
+	var totalClaims int
+	for range 2 {
+		result := <-results
+		if result.err != nil {
+			t.Fatalf("DispatchOnce: %v", result.err)
+		}
+		totalClaims += len(result.claimed)
+	}
+	if totalClaims != 1 {
+		t.Fatalf("total claims = %d, want 1", totalClaims)
+	}
+	if got := spawner.cardIDs(); len(got) != 1 {
+		t.Fatalf("spawned cards = %v, want exactly one", got)
+	}
+	cards, err := store.ListWorkCards(context.Background(), "p1", defaultBoardID)
+	if err != nil {
+		t.Fatalf("list cards: %v", err)
+	}
+	running := 0
+	for _, card := range cards {
+		if card.Status == domain.CardStatusRunning {
+			running++
+		}
+	}
+	if running != 1 {
+		t.Fatalf("running cards = %d, want 1", running)
+	}
+}
+
 func TestDispatchOnceRollsBackSpawnWhenSessionLinkFails(t *testing.T) {
 	now := time.Date(2026, time.July, 17, 9, 0, 0, 0, time.UTC)
 	linkErr := errors.New("database unavailable")
@@ -239,6 +307,7 @@ type dispatchStore struct {
 	cards        map[string]domain.WorkCard
 	failClaimErr error
 	failLinkErr  error
+	mu           sync.Mutex
 }
 
 func newDispatchStore(wipLimit int, cards []domain.WorkCard) *dispatchStore {
@@ -254,6 +323,8 @@ func (s *dispatchStore) GetProject(_ context.Context, id string) (domain.Project
 }
 
 func (s *dispatchStore) ListWorkCards(_ context.Context, projectID, boardID string) ([]domain.WorkCard, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if projectID != s.project.ID || boardID != defaultBoardID {
 		return nil, nil
 	}
@@ -265,9 +336,8 @@ func (s *dispatchStore) ListWorkCards(_ context.Context, projectID, boardID stri
 }
 
 func (s *dispatchStore) UpdateWorkCard(_ context.Context, card domain.WorkCard) error {
-	if card.Status == domain.CardStatusRunning && card.SessionID == "" && s.failClaimErr != nil {
-		return s.failClaimErr
-	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if card.SessionID != "" && s.failLinkErr != nil {
 		return s.failLinkErr
 	}
@@ -275,14 +345,59 @@ func (s *dispatchStore) UpdateWorkCard(_ context.Context, card domain.WorkCard) 
 	return nil
 }
 
+func (s *dispatchStore) ClaimReadyWorkCard(_ context.Context, cardID, projectID string, wipLimit int, at time.Time) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.failClaimErr != nil {
+		return false, s.failClaimErr
+	}
+	card, ok := s.cards[cardID]
+	if !ok || card.ProjectID != projectID || card.Status != domain.CardStatusReady || card.PausedRetarget {
+		return false, nil
+	}
+	running := 0
+	for _, card := range s.cards {
+		if card.ProjectID == projectID && card.Status == domain.CardStatusRunning {
+			running++
+		}
+	}
+	if running >= wipLimit {
+		return false, nil
+	}
+	card.Status = domain.CardStatusRunning
+	card.SessionID = ""
+	card.UpdatedAt = at
+	s.cards[cardID] = card
+	return true, nil
+}
+
+type listBarrierStore struct {
+	*sqlite.Store
+	arrived chan<- struct{}
+	release <-chan struct{}
+}
+
+func (s *listBarrierStore) ListWorkCards(ctx context.Context, projectID, boardID string) ([]domain.WorkCard, error) {
+	cards, err := s.Store.ListWorkCards(ctx, projectID, boardID)
+	if err != nil {
+		return nil, err
+	}
+	s.arrived <- struct{}{}
+	<-s.release
+	return cards, nil
+}
+
 type dispatchSpawner struct {
 	err         error
 	rollbackErr error
 	configs     []ports.SpawnConfig
 	rollbackIDs []domain.SessionID
+	mu          sync.Mutex
 }
 
 func (s *dispatchSpawner) Spawn(_ context.Context, cfg ports.SpawnConfig) (domain.Session, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.configs = append(s.configs, cfg)
 	if s.err != nil {
 		return domain.Session{}, s.err
@@ -291,11 +406,15 @@ func (s *dispatchSpawner) Spawn(_ context.Context, cfg ports.SpawnConfig) (domai
 }
 
 func (s *dispatchSpawner) RollbackSpawn(_ context.Context, id domain.SessionID) (sessionsvc.RollbackOutcome, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.rollbackIDs = append(s.rollbackIDs, id)
 	return sessionsvc.RollbackOutcome{Killed: s.rollbackErr == nil}, s.rollbackErr
 }
 
 func (s *dispatchSpawner) cardIDs() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	var ids []string
 	for _, cfg := range s.configs {
 		title, _, _ := strings.Cut(cfg.Prompt, "\n\n")

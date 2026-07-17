@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/modernagent/modern-agent/backend/internal/domain"
@@ -20,6 +19,7 @@ type DispatchStore interface {
 	GetProject(ctx context.Context, id string) (domain.ProjectRecord, bool, error)
 	ListWorkCards(ctx context.Context, projectID, boardID string) ([]domain.WorkCard, error)
 	UpdateWorkCard(ctx context.Context, card domain.WorkCard) error
+	ClaimReadyWorkCard(ctx context.Context, cardID, projectID string, wipLimit int, at time.Time) (bool, error)
 }
 
 // WorkerSpawner starts a worker through the existing session-service boundary.
@@ -50,7 +50,6 @@ type Dispatcher struct {
 	spawner    WorkerSpawner
 	rollbacker SpawnRollbacker
 	clock      func() time.Time
-	locks      sync.Map // map[string]*sync.Mutex, one serialized dispatch per project
 }
 
 // NewDispatcher constructs a workboard dispatcher.
@@ -67,9 +66,9 @@ func NewDispatcher(d DispatchDeps) *Dispatcher {
 }
 
 // DispatchOnce promotes due scheduled cards, then claims ready cards in
-// priority/FIFO order until the project's WIP limit is reached. Before
-// starting a worker, it writes a durable running claim with no session ID so
-// a dispatcher created after a restart cannot select the same card again.
+// priority/FIFO order. Before starting a worker, it atomically writes a
+// durable running claim only if the project is still below its WIP limit, so
+// independent dispatcher instances cannot over-claim the same project.
 func (d *Dispatcher) DispatchOnce(ctx context.Context, projectID string) ([]string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -80,9 +79,6 @@ func (d *Dispatcher) DispatchOnce(ctx context.Context, projectID string) ([]stri
 	if d.rollbacker == nil {
 		return nil, fmt.Errorf("workboard dispatcher requires spawn rollback support")
 	}
-
-	unlock := d.lockProject(projectID)
-	defer unlock()
 
 	project, ok, err := d.store.GetProject(ctx, projectID)
 	if err != nil {
@@ -114,12 +110,8 @@ func (d *Dispatcher) DispatchOnce(ctx context.Context, projectID string) ([]stri
 	if wipLimit <= 0 {
 		wipLimit = domain.DefaultWorkboardConfig().WIPLimit
 	}
-	running := 0
 	candidates := make([]domain.WorkCard, 0, len(cards))
 	for _, card := range cards {
-		if card.Status == domain.CardStatusRunning {
-			running++
-		}
 		if card.Status == domain.CardStatusReady && !card.PausedRetarget {
 			candidates = append(candidates, card)
 		}
@@ -138,15 +130,16 @@ func (d *Dispatcher) DispatchOnce(ctx context.Context, projectID string) ([]stri
 
 	var claimed []string
 	for _, card := range candidates {
-		if running >= wipLimit {
-			break
+		won, err := d.store.ClaimReadyWorkCard(ctx, card.ID, projectID, wipLimit, now)
+		if err != nil {
+			return claimed, fmt.Errorf("persist dispatch claim for card %s: %w", card.ID, err)
+		}
+		if !won {
+			continue
 		}
 		card.Status = domain.CardStatusRunning
 		card.SessionID = ""
 		card.UpdatedAt = now
-		if err := d.store.UpdateWorkCard(ctx, card); err != nil {
-			return claimed, fmt.Errorf("persist dispatch claim for card %s: %w", card.ID, err)
-		}
 
 		session, err := d.spawner.Spawn(ctx, ports.SpawnConfig{
 			ProjectID:  domain.ProjectID(projectID),
@@ -195,16 +188,8 @@ func (d *Dispatcher) DispatchOnce(ctx context.Context, projectID string) ([]stri
 			return claimed, linkErr
 		}
 		claimed = append(claimed, card.ID)
-		running++
 	}
 	return claimed, nil
-}
-
-func (d *Dispatcher) lockProject(projectID string) func() {
-	value, _ := d.locks.LoadOrStore(projectID, &sync.Mutex{})
-	lock := value.(*sync.Mutex)
-	lock.Lock()
-	return lock.Unlock
 }
 
 func cardReadyAt(card domain.WorkCard) time.Time {

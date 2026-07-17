@@ -78,6 +78,25 @@ func (s *Store) UpdateWorkCard(ctx context.Context, card domain.WorkCard) error 
 	return nil
 }
 
+// ClaimReadyWorkCard atomically transitions one ready card to running when it
+// is still eligible and the project's durable running-card count is below the
+// supplied WIP limit. The returned flag reports whether this dispatcher won
+// the claim; callers must not start a worker when it is false.
+func (s *Store) ClaimReadyWorkCard(ctx context.Context, cardID, projectID string, wipLimit int, at time.Time) (bool, error) {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	n, err := s.qw.ClaimReadyWorkCard(ctx, gen.ClaimReadyWorkCardParams{
+		UpdatedAt: at.UnixMilli(),
+		CardID:    cardID,
+		ProjectID: projectID,
+		WipLimit:  int64(wipLimit),
+	})
+	if err != nil {
+		return false, fmt.Errorf("claim ready work card %s: %w", cardID, err)
+	}
+	return n > 0, nil
+}
+
 func workCardFromRow(row gen.WorkCard) (domain.WorkCard, error) {
 	var labels []string
 	if err := json.Unmarshal([]byte(row.LabelsJson), &labels); err != nil {

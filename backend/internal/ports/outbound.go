@@ -189,4 +189,8 @@ type WorkspaceInfo struct {
 	Branch    string
 	SessionID domain.SessionID
 	ProjectID domain.ProjectID
+	// Created reports that this workspace operation created the worktree. A
+	// restore failure may safely call Destroy only when this is true; an
+	// existing worktree can contain user work and must be preserved.
+	Created bool
 }

@@ -287,6 +287,10 @@ type fakeWorkspace struct {
 	// sharedLog, when non-nil, receives entries alongside calls so ordering
 	// tests can compare workspace calls against store calls in one sequence.
 	sharedLog *[]string
+	// restoreCreated controls whether Restore reports creating a new worktree.
+	// The default models an existing restored worktree, which must not be
+	// removed if a later restore step fails.
+	restoreCreated bool
 }
 
 func (w *fakeWorkspace) Create(_ context.Context, cfg ports.WorkspaceConfig) (ports.WorkspaceInfo, error) {
@@ -298,14 +302,19 @@ func (w *fakeWorkspace) Create(_ context.Context, cfg ports.WorkspaceConfig) (po
 	if path == "" {
 		path = "/ws/" + string(cfg.SessionID)
 	}
-	return ports.WorkspaceInfo{Path: path, Branch: cfg.Branch, SessionID: cfg.SessionID, ProjectID: cfg.ProjectID}, nil
+	return ports.WorkspaceInfo{Path: path, Branch: cfg.Branch, SessionID: cfg.SessionID, ProjectID: cfg.ProjectID, Created: true}, nil
 }
 func (w *fakeWorkspace) Destroy(context.Context, ports.WorkspaceInfo) error {
 	w.destroyed++
 	return w.destroyErr
 }
 func (w *fakeWorkspace) Restore(ctx context.Context, cfg ports.WorkspaceConfig) (ports.WorkspaceInfo, error) {
-	return w.Create(ctx, cfg)
+	info, err := w.Create(ctx, cfg)
+	if err != nil {
+		return ports.WorkspaceInfo{}, err
+	}
+	info.Created = w.restoreCreated
+	return info, nil
 }
 func (w *fakeWorkspace) ForceDestroy(_ context.Context, info ports.WorkspaceInfo) error {
 	entry := "ForceDestroy:" + string(info.SessionID)
@@ -709,6 +718,38 @@ func TestRestore_TargetPathUsesCorrespondingWorktreeDirectory(t *testing.T) {
 	}
 	if got, want := st.sessions["mer-1"].Metadata.TargetPath, filepath.Join(root, "services", "api"); got != want {
 		t.Fatalf("metadata target path = %q, want %q", got, want)
+	}
+}
+
+func TestRestore_MissingTargetPathDestroysOnlyNewlyCreatedWorkspace(t *testing.T) {
+	m, st, rt, ws := newManager()
+	root := t.TempDir()
+	project := st.projects["mer"]
+	project.Path = root
+	st.projects["mer"] = project
+	ws.path = filepath.Join(t.TempDir(), "mer-1")
+	ws.restoreCreated = true
+	seedTerminal(st, "mer-1", domain.SessionMetadata{
+		WorkspacePath: "/old/worktree", Branch: "b", AgentSessionID: "agent-x", TargetPath: filepath.Join(root, "missing"),
+	})
+
+	if _, err := m.Restore(ctx, "mer-1"); err == nil || !strings.Contains(err.Error(), "projected target path") {
+		t.Fatalf("Restore error = %v, want missing projected target path", err)
+	}
+	if ws.destroyed != 1 {
+		t.Fatalf("destroyed worktrees = %d, want 1", ws.destroyed)
+	}
+	if rt.created != 0 {
+		t.Fatalf("runtime creates = %d, want 0", rt.created)
+	}
+
+	ws.destroyed = 0
+	ws.restoreCreated = false
+	if _, err := m.Restore(ctx, "mer-1"); err == nil {
+		t.Fatal("Restore succeeded with missing projected target path")
+	}
+	if ws.destroyed != 0 {
+		t.Fatalf("destroyed existing worktrees = %d, want 0", ws.destroyed)
 	}
 }
 func TestRestore_AppliesProjectAgentConfig(t *testing.T) {

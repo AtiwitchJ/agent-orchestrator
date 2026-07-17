@@ -603,9 +603,11 @@ func (m *Manager) Restore(ctx context.Context, id domain.SessionID) (domain.Sess
 	}
 	launchPath, err := projectWorktreePath(ws.Path, project.Path, meta.TargetPath)
 	if err != nil {
+		m.destroyNewlyRestoredWorkspace(ctx, ws)
 		return domain.SessionRecord{}, fmt.Errorf("restore %s: target path: %w", id, err)
 	}
 	if err := validateLaunchPath(launchPath, meta.TargetPath); err != nil {
+		m.destroyNewlyRestoredWorkspace(ctx, ws)
 		return domain.SessionRecord{}, fmt.Errorf("restore %s: target path: %w", id, err)
 	}
 	// The system prompt is derived, not persisted: recompute it so a restored
@@ -635,6 +637,12 @@ func (m *Manager) Restore(ctx context.Context, id domain.SessionID) (domain.Sess
 		return domain.SessionRecord{}, fmt.Errorf("restore %s: completed: %w", id, err)
 	}
 	return m.getRecord(ctx, id)
+}
+
+func (m *Manager) destroyNewlyRestoredWorkspace(ctx context.Context, ws ports.WorkspaceInfo) {
+	if ws.Created {
+		_ = m.workspace.Destroy(context.WithoutCancel(ctx), ws)
+	}
 }
 
 func (m *Manager) getRecord(ctx context.Context, id domain.SessionID) (domain.SessionRecord, error) {
