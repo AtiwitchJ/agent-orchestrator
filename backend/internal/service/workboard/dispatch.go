@@ -9,6 +9,7 @@ import (
 
 	"github.com/modernagent/modern-agent/backend/internal/domain"
 	"github.com/modernagent/modern-agent/backend/internal/ports"
+	sessionsvc "github.com/modernagent/modern-agent/backend/internal/service/session"
 )
 
 // DispatchStore is the durable surface required to promote and claim cards.
@@ -25,21 +26,30 @@ type WorkerSpawner interface {
 	Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Session, error)
 }
 
+// SpawnRollbacker compensates a successful spawn when the card cannot durably
+// link to it. Keeping this separate from WorkerSpawner keeps the dispatcher
+// dependent on only the recovery operation it needs.
+type SpawnRollbacker interface {
+	RollbackSpawn(ctx context.Context, id domain.SessionID) (sessionsvc.RollbackOutcome, error)
+}
+
 // DispatchDeps configures a Dispatcher.
 type DispatchDeps struct {
-	Store   DispatchStore
-	Spawner WorkerSpawner
-	Clock   func() time.Time
+	Store      DispatchStore
+	Spawner    WorkerSpawner
+	Rollbacker SpawnRollbacker
+	Clock      func() time.Time
 }
 
 // Dispatcher promotes due cards and claims ready cards under a project's WIP
 // limit. It stores only card facts; session status and runtime liveness remain
 // owned by their existing services.
 type Dispatcher struct {
-	store   DispatchStore
-	spawner WorkerSpawner
-	clock   func() time.Time
-	locks   sync.Map // map[string]*sync.Mutex, one serialized dispatch per project
+	store      DispatchStore
+	spawner    WorkerSpawner
+	rollbacker SpawnRollbacker
+	clock      func() time.Time
+	locks      sync.Map // map[string]*sync.Mutex, one serialized dispatch per project
 }
 
 // NewDispatcher constructs a workboard dispatcher.
@@ -48,7 +58,11 @@ func NewDispatcher(d DispatchDeps) *Dispatcher {
 	if clock == nil {
 		clock = time.Now
 	}
-	return &Dispatcher{store: d.Store, spawner: d.Spawner, clock: clock}
+	rollbacker := d.Rollbacker
+	if rollbacker == nil {
+		rollbacker, _ = d.Spawner.(SpawnRollbacker)
+	}
+	return &Dispatcher{store: d.Store, spawner: d.Spawner, rollbacker: rollbacker, clock: clock}
 }
 
 // DispatchOnce promotes due scheduled cards, then claims ready cards in
@@ -60,6 +74,9 @@ func (d *Dispatcher) DispatchOnce(ctx context.Context, projectID string) ([]stri
 	}
 	if d.store == nil || d.spawner == nil {
 		return nil, nil
+	}
+	if d.rollbacker == nil {
+		return nil, fmt.Errorf("workboard dispatcher requires spawn rollback support")
 	}
 
 	unlock := d.lockProject(projectID)
@@ -123,10 +140,11 @@ func (d *Dispatcher) DispatchOnce(ctx context.Context, projectID string) ([]stri
 			break
 		}
 		session, err := d.spawner.Spawn(ctx, ports.SpawnConfig{
-			ProjectID: domain.ProjectID(projectID),
-			Kind:      domain.KindWorker,
-			Harness:   domain.AgentHarness(card.Agent),
-			Prompt:    card.Title + "\n\n" + card.Notes,
+			ProjectID:  domain.ProjectID(projectID),
+			Kind:       domain.KindWorker,
+			Harness:    domain.AgentHarness(card.Agent),
+			Prompt:     card.Title + "\n\n" + card.Notes,
+			TargetPath: card.TargetPath,
 		})
 		if err != nil {
 			return claimed, fmt.Errorf("spawn worker for card %s: %w", card.ID, err)
@@ -136,6 +154,9 @@ func (d *Dispatcher) DispatchOnce(ctx context.Context, projectID string) ([]stri
 		card.SessionID = string(session.ID)
 		card.UpdatedAt = now
 		if err := d.store.UpdateWorkCard(ctx, card); err != nil {
+			if _, rollbackErr := d.rollbacker.RollbackSpawn(context.WithoutCancel(ctx), session.ID); rollbackErr != nil {
+				return claimed, fmt.Errorf("link worker session for card %s: %w (rollback session %s: %v)", card.ID, err, session.ID, rollbackErr)
+			}
 			return claimed, fmt.Errorf("link worker session for card %s: %w", card.ID, err)
 		}
 		claimed = append(claimed, card.ID)

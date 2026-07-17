@@ -463,6 +463,27 @@ func TestSpawn_AssignsIDAndGoesIdle(t *testing.T) {
 	}
 }
 
+func TestSpawn_TargetPathUsesCorrespondingWorktreeDirectory(t *testing.T) {
+	m, st, rt, ws := newManager()
+	project := st.projects["mer"]
+	project.Path = "/repo"
+	st.projects["mer"] = project
+	ws.path = "/worktrees/mer-1"
+
+	_, err := m.Spawn(ctx, ports.SpawnConfig{
+		ProjectID:  "mer",
+		Kind:       domain.KindWorker,
+		Prompt:     "do it",
+		TargetPath: "/repo/services/api",
+	})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if got, want := rt.lastCfg.WorkspacePath, "/worktrees/mer-1/services/api"; got != want {
+		t.Fatalf("runtime workspace path = %q, want %q", got, want)
+	}
+}
+
 // TestSpawn_StampsUTCTimestamps locks the default clock to UTC so spawn-stamped
 // CreatedAt/UpdatedAt match every other session write (rename, activity), which
 // all use time.Now().UTC(). A local default produced mixed-timezone timestamps

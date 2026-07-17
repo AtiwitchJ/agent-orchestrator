@@ -270,10 +270,16 @@ func (m *Manager) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 		m.rollbackSpawnSeedRow(ctx, id)
 		return domain.SessionRecord{}, fmt.Errorf("spawn %s: %w", id, err)
 	}
+	launchPath, err := projectWorktreePath(ws.Path, project.Path, cfg.TargetPath)
+	if err != nil {
+		_ = m.workspace.Destroy(ctx, ws)
+		m.rollbackSpawnSeedRow(ctx, id)
+		return domain.SessionRecord{}, fmt.Errorf("spawn %s: target path: %w", id, err)
+	}
 	agentConfig := effectiveAgentConfig(cfg.Kind, project.Config)
 	argv, err := agent.GetLaunchCommand(ctx, ports.LaunchConfig{
 		SessionID:     string(id),
-		WorkspacePath: ws.Path,
+		WorkspacePath: launchPath,
 		Prompt:        prompt,
 		SystemPrompt:  systemPrompt,
 		IssueID:       string(cfg.IssueID),
@@ -296,7 +302,7 @@ func (m *Manager) Spawn(ctx context.Context, cfg ports.SpawnConfig) (domain.Sess
 	}
 	handle, err := m.runtime.Create(ctx, ports.RuntimeConfig{
 		SessionID:     id,
-		WorkspacePath: ws.Path,
+		WorkspacePath: launchPath,
 		Argv:          argv,
 		Env:           m.runtimeEnv(id, cfg.ProjectID, cfg.IssueID, project.Config.Env, cfg.Harness, prompt, systemPrompt),
 	})
@@ -1568,4 +1574,24 @@ func workspaceInfo(rec domain.SessionRecord) ports.WorkspaceInfo {
 		SessionID: rec.ID,
 		ProjectID: rec.ProjectID,
 	}
+}
+
+// projectWorktreePath projects an optional absolute source target onto a
+// session worktree. A zero-value target keeps the existing worktree-root
+// behavior for all current SpawnConfig callers.
+func projectWorktreePath(worktreePath, projectPath, targetPath string) (string, error) {
+	if targetPath == "" {
+		return worktreePath, nil
+	}
+	if projectPath == "" {
+		return "", fmt.Errorf("project path is required for target path")
+	}
+	relative, err := filepath.Rel(projectPath, targetPath)
+	if err != nil {
+		return "", err
+	}
+	if relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
+		return "", fmt.Errorf("target path %q is outside project path %q", targetPath, projectPath)
+	}
+	return filepath.Join(worktreePath, relative), nil
 }

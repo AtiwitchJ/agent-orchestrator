@@ -10,6 +10,7 @@ import (
 
 	"github.com/modernagent/modern-agent/backend/internal/domain"
 	"github.com/modernagent/modern-agent/backend/internal/ports"
+	sessionsvc "github.com/modernagent/modern-agent/backend/internal/service/session"
 )
 
 func TestDispatchOnce(t *testing.T) {
@@ -127,7 +128,9 @@ func TestDispatchOnce(t *testing.T) {
 
 func TestDispatchOnceSpawnsWorkerWithCardHarnessAndPrompt(t *testing.T) {
 	now := time.Date(2026, time.July, 17, 9, 0, 0, 0, time.UTC)
-	store := newDispatchStore(1, []domain.WorkCard{readyCard("card", domain.CardPriorityNormal, now)})
+	card := readyCard("card", domain.CardPriorityNormal, now)
+	card.TargetPath = "/repo/services/api"
+	store := newDispatchStore(1, []domain.WorkCard{card})
 	spawner := &dispatchSpawner{}
 	dispatcher := NewDispatcher(DispatchDeps{Store: store, Spawner: spawner, Clock: func() time.Time { return now }})
 
@@ -138,14 +141,39 @@ func TestDispatchOnceSpawnsWorkerWithCardHarnessAndPrompt(t *testing.T) {
 		t.Fatalf("spawn count = %d, want 1", len(spawner.configs))
 	}
 	got := spawner.configs[0]
-	if got.ProjectID != "p1" || got.Kind != domain.KindWorker || got.Harness != domain.HarnessCodex || got.Prompt != "card title\n\ncard notes" {
+	if got.ProjectID != "p1" || got.Kind != domain.KindWorker || got.Harness != domain.HarnessCodex || got.Prompt != "card title\n\ncard notes" || got.TargetPath != "/repo/services/api" {
 		t.Fatalf("spawn config = %#v", got)
 	}
 }
 
+func TestDispatchOnceRollsBackSpawnWhenSessionLinkFails(t *testing.T) {
+	now := time.Date(2026, time.July, 17, 9, 0, 0, 0, time.UTC)
+	linkErr := errors.New("database unavailable")
+	store := newDispatchStore(1, []domain.WorkCard{readyCard("card", domain.CardPriorityNormal, now)})
+	store.failLinkErr = linkErr
+	spawner := &dispatchSpawner{}
+	dispatcher := NewDispatcher(DispatchDeps{Store: store, Spawner: spawner, Clock: func() time.Time { return now }})
+
+	claimed, err := dispatcher.DispatchOnce(context.Background(), "p1")
+	if !errors.Is(err, linkErr) {
+		t.Fatalf("DispatchOnce error = %v, want %v", err, linkErr)
+	}
+	if len(claimed) != 0 {
+		t.Fatalf("claimed = %v, want none", claimed)
+	}
+	if got := spawner.rollbackIDs; !reflect.DeepEqual(got, []domain.SessionID{"session-card title\n\ncard notes"}) {
+		t.Fatalf("rollback sessions = %v", got)
+	}
+	card := store.cards["card"]
+	if card.Status != domain.CardStatusReady || card.SessionID != "" {
+		t.Fatalf("card after failed link = %#v, want ready and unlinked", card)
+	}
+}
+
 type dispatchStore struct {
-	project domain.ProjectRecord
-	cards   map[string]domain.WorkCard
+	project     domain.ProjectRecord
+	cards       map[string]domain.WorkCard
+	failLinkErr error
 }
 
 func newDispatchStore(wipLimit int, cards []domain.WorkCard) *dispatchStore {
@@ -172,13 +200,18 @@ func (s *dispatchStore) ListWorkCards(_ context.Context, projectID, boardID stri
 }
 
 func (s *dispatchStore) UpdateWorkCard(_ context.Context, card domain.WorkCard) error {
+	if card.SessionID != "" && s.failLinkErr != nil {
+		return s.failLinkErr
+	}
 	s.cards[card.ID] = card
 	return nil
 }
 
 type dispatchSpawner struct {
-	err     error
-	configs []ports.SpawnConfig
+	err         error
+	rollbackErr error
+	configs     []ports.SpawnConfig
+	rollbackIDs []domain.SessionID
 }
 
 func (s *dispatchSpawner) Spawn(_ context.Context, cfg ports.SpawnConfig) (domain.Session, error) {
@@ -187,6 +220,11 @@ func (s *dispatchSpawner) Spawn(_ context.Context, cfg ports.SpawnConfig) (domai
 		return domain.Session{}, s.err
 	}
 	return domain.Session{SessionRecord: domain.SessionRecord{ID: domain.SessionID("session-" + cfg.Prompt)}}, nil
+}
+
+func (s *dispatchSpawner) RollbackSpawn(_ context.Context, id domain.SessionID) (sessionsvc.RollbackOutcome, error) {
+	s.rollbackIDs = append(s.rollbackIDs, id)
+	return sessionsvc.RollbackOutcome{Killed: s.rollbackErr == nil}, s.rollbackErr
 }
 
 func (s *dispatchSpawner) cardIDs() []string {

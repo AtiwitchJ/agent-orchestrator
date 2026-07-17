@@ -18,6 +18,10 @@ type SpawnConfig struct {
 	Harness   domain.AgentHarness
 	Branch    string
 	Prompt    string
+	// TargetPath is an optional absolute source path under the project's
+	// registered repository. Session Manager maps it into the new worktree
+	// before launching the agent; empty preserves the worktree-root default.
+	TargetPath string
 	// DisplayName is the user-facing sidebar label. Empty falls back to the
 	// session id in the read model (e.g. orchestrator sessions).
 	DisplayName string
