@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -56,7 +55,12 @@ type Dispatcher struct {
 	// attempt to durably link (or roll back) the worker failed. It prevents a
 	// second local dispatch from spawning a duplicate until reconciliation can
 	// persist the live worker's session ID on the card.
-	quarantined sync.Map // map[string]domain.SessionID, keyed by project/card
+	quarantined sync.Map // map[string]quarantinedSession, keyed by card ID
+}
+
+type quarantinedSession struct {
+	projectID string
+	sessionID domain.SessionID
 }
 
 // NewDispatcher constructs a workboard dispatcher.
@@ -198,7 +202,7 @@ func (d *Dispatcher) lockProject(projectID string) func() {
 }
 
 func (d *Dispatcher) quarantine(projectID, cardID string, sessionID domain.SessionID) {
-	d.quarantined.Store(dispatchCardKey(projectID, cardID), sessionID)
+	d.quarantined.Store(cardID, quarantinedSession{projectID: projectID, sessionID: sessionID})
 }
 
 // reconcileQuarantined retries the durable link before evaluating candidates.
@@ -212,11 +216,12 @@ func (d *Dispatcher) reconcileQuarantined(ctx context.Context, projectID string,
 
 	var reconcileErr error
 	d.quarantined.Range(func(key, value any) bool {
-		keyProjectID, cardID := splitDispatchCardKey(key.(string))
-		if keyProjectID != projectID {
+		cardID := key.(string)
+		claim := value.(quarantinedSession)
+		if claim.projectID != projectID {
 			return true
 		}
-		sessionID := value.(domain.SessionID)
+		sessionID := claim.sessionID
 		index, ok := byID[cardID]
 		if !ok {
 			reconcileErr = errors.Join(reconcileErr, fmt.Errorf("reconcile quarantined live worker session %s: card %s is not on project %s default board", sessionID, cardID, projectID))
@@ -239,13 +244,6 @@ func (d *Dispatcher) reconcileQuarantined(ctx context.Context, projectID string,
 		return true
 	})
 	return reconcileErr
-}
-
-func dispatchCardKey(projectID, cardID string) string { return projectID + "\x00" + cardID }
-
-func splitDispatchCardKey(key string) (projectID, cardID string) {
-	projectID, cardID, _ = strings.Cut(key, "\x00")
-	return projectID, cardID
 }
 
 func cardReadyAt(card domain.WorkCard) time.Time {
