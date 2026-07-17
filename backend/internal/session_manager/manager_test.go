@@ -678,6 +678,8 @@ func TestRestore_ReopensTerminal(t *testing.T) {
 
 func TestRestore_TargetPathUsesCorrespondingWorktreeDirectory(t *testing.T) {
 	m, st, rt, ws := newManager()
+	agent := &recordingAgent{}
+	m.agents = singleAgent{agent: agent}
 	root := t.TempDir()
 	project := st.projects["mer"]
 	project.Path = root
@@ -695,6 +697,9 @@ func TestRestore_TargetPathUsesCorrespondingWorktreeDirectory(t *testing.T) {
 	}
 	if got, want := rt.lastCfg.WorkspacePath, filepath.Join(ws.path, "services", "api"); got != want {
 		t.Fatalf("runtime workspace path = %q, want %q", got, want)
+	}
+	if got, want := agent.lastRestore.Session.WorkspacePath, filepath.Join(ws.path, "services", "api"); got != want {
+		t.Fatalf("restore workspace path = %q, want %q", got, want)
 	}
 	if got, want := st.sessions["mer-1"].Metadata.TargetPath, filepath.Join(root, "services", "api"); got != want {
 		t.Fatalf("metadata target path = %q, want %q", got, want)
